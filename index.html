@@ -291,7 +291,15 @@
         <div class="card">
           <div class="card-title"><span>➕</span> إنشاء فاتورة جديدة</div>
           <div class="grid-2">
-            <div class="form-group"><label class="form-label">العميل *</label><select class="form-select" id="inv-customer"><option value="">-- اختر عميل --</option></select></div>
+            <div class="form-group">
+              <label class="form-label">العميل *</label>
+              <div style="position:relative;">
+                <input class="form-input" id="inv-customer-search" placeholder="ابحث عن عميل..." autocomplete="off" oninput="filterCustomerDropdown()" onfocus="showCustomerDropdown()" onblur="setTimeout(hideCustomerDropdown,200)"/>
+                <input type="hidden" id="inv-customer-id"/>
+                <div id="customer-dropdown" style="display:none; position:absolute; top:100%; right:0; left:0; background:var(--navy2); border:1px solid var(--gold-border); border-radius:8px; max-height:200px; overflow-y:auto; z-index:200; box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+                </div>
+              </div>
+            </div>
             <div class="form-group"><label class="form-label">تاريخ الفاتورة</label><input type="date" class="form-input" id="inv-date"/></div>
           </div>
           <div class="grid-2">
@@ -511,6 +519,14 @@ function renderDashboard() {
   </tbody></table></div>` : '<div class="empty-state"><div class="empty-icon">✅</div><p>المخزون في وضع جيد</p></div>';
 }
 
+async function changeInvoiceStatus(id, status) {
+  try {
+    await db('invoices','PATCH',{status},`?id=eq.${id}`);
+    const inv=invoices.find(i=>i.id==id);
+    if(inv) inv.status=status;
+    toast('✅ تم تغيير الحالة إلى: '+status,'success');
+  } catch(e){toast('خطأ في تغيير الحالة','error');}
+}
 // INVOICES
 function renderInvoices(data) {
   const list=data||invoices;
@@ -524,7 +540,13 @@ function renderInvoices(data) {
       <td>${fmtNum(i.subtotal)} ج.م</td>
       <td>${fmtNum(i.tax_amount)} ج.م</td>
       <td class="font-bold">${fmtNum(i.total)} ج.م</td>
-      <td>${sBadge(i.status)}</td>
+      <td>
+        <select onchange="changeInvoiceStatus('${i.id}',this.value)" style="background:transparent; border:none; color:inherit; font-family:'Tajawal',sans-serif; font-size:12px; cursor:pointer; padding:2px;">
+          <option value="معلقة" ${i.status==='معلقة'?'selected':''} style="background:var(--navy2);">⏳ معلقة</option>
+          <option value="مدفوعة" ${i.status==='مدفوعة'?'selected':''} style="background:var(--navy2);">✅ مدفوعة</option>
+          <option value="ملغاة" ${i.status==='ملغاة'?'selected':''} style="background:var(--navy2);">❌ ملغاة</option>
+        </select>
+      </td>
       <td><div class="flex gap-8">
         <button class="btn btn-secondary btn-sm btn-icon" onclick="viewInvoice('${i.id}')" title="عرض">👁️</button>
         <button class="btn btn-danger btn-sm btn-icon" onclick="deleteInvoice('${i.id}')" title="حذف">🗑️</button>
@@ -540,8 +562,33 @@ function filterInvoices() {
 
 // NEW INVOICE
 function fillInvCustomers() {
-  document.getElementById('inv-customer').innerHTML='<option value="">-- اختر عميل --</option>'+customers.map(c=>`<option value="${c.id}" data-name="${c.name}">${c.name}</option>`).join('');
+  // now uses searchable input, just reset it
+  document.getElementById('inv-customer-search').value='';
+  document.getElementById('inv-customer-id').value='';
 }
+function filterCustomerDropdown() {
+  const q=document.getElementById('inv-customer-search').value.toLowerCase();
+  document.getElementById('inv-customer-id').value=''; // clear selection when typing
+  renderCustomerDropdown(q);
+  showCustomerDropdown();
+}
+function renderCustomerDropdown(q='') {
+  const dd=document.getElementById('customer-dropdown');
+  const filtered=customers.filter(c=>!q||c.name.toLowerCase().includes(q)||c.phone?.includes(q));
+  if(!filtered.length){dd.innerHTML='<div style="padding:12px 16px;color:var(--text-muted);font-size:13px;">لا توجد نتائج</div>';return;}
+  dd.innerHTML=filtered.map(c=>`<div onclick="selectCustomer('${c.id}','${c.name.replace(/'/g,"\\'")}')}" style="padding:10px 16px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border);transition:background 0.15s;" onmouseover="this.style.background='rgba(201,168,76,0.1)'" onmouseout="this.style.background=''">${c.name}${c.phone?`<span style="color:var(--text-muted);font-size:11px;margin-right:8px;">${c.phone}</span>`:''}</div>`).join('');
+}
+function selectCustomer(id,name) {
+  document.getElementById('inv-customer-id').value=id;
+  document.getElementById('inv-customer-search').value=name;
+  hideCustomerDropdown();
+}
+function showCustomerDropdown() {
+  const dd=document.getElementById('customer-dropdown');
+  renderCustomerDropdown(document.getElementById('inv-customer-search').value.toLowerCase());
+  dd.style.display='block';
+}
+function hideCustomerDropdown() { document.getElementById('customer-dropdown').style.display='none'; }
 function addItem() {
   items.push({id:Date.now(),product_id:'',product_name:'',qty:1,price:0,total:0});
   renderItems();
@@ -556,7 +603,7 @@ function renderItems() {
     </select></td>
     <td><input type="number" min="1" value="${item.qty}" oninput="itemQtyChange(${i},this)" style="width:75px;background:rgba(10,22,40,0.6);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Tajawal',sans-serif;font-size:13px;direction:ltr;"/></td>
     <td><input type="number" min="0" step="0.01" value="${item.price}" oninput="itemPriceChange(${i},this)" style="width:95px;background:rgba(10,22,40,0.6);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Tajawal',sans-serif;font-size:13px;direction:ltr;"/></td>
-    <td style="color:var(--gold);font-weight:600;">${fmtNum(item.total)} ج.م</td>
+    <td style="color:var(--gold);font-weight:700;font-size:14px;">${fmtNum(item.total)} ج.م</td>
     <td><button class="btn btn-danger btn-sm btn-icon" onclick="removeItem(${i})">✕</button></td>
   </tr>`).join('');
   recalc();
@@ -567,7 +614,7 @@ function itemProdChange(i,sel) {
   items[i].price=parseFloat(opt.dataset.price||0); items[i].total=items[i].qty*items[i].price;
   renderItems();
 }
-function itemQtyChange(i,inp) { items[i].qty=parseFloat(inp.value)||0; items[i].total=items[i].qty*items[i].price; recalc(); }
+function itemQtyChange(i,inp) { items[i].qty=parseFloat(inp.value)||0; items[i].total=items[i].qty*items[i].price; renderItems(); }
 function itemPriceChange(i,inp) { items[i].price=parseFloat(inp.value)||0; items[i].total=items[i].qty*items[i].price; recalc(); }
 function removeItem(i) { items.splice(i,1); renderItems(); }
 function recalc() {
@@ -579,9 +626,8 @@ function recalc() {
   document.getElementById('inv-total').textContent=fmtNum(sub+tv)+' ج.م';
 }
 async function saveInvoice() {
-  const cSel=document.getElementById('inv-customer');
-  const cId=cSel.value;
-  const cName=cSel.options[cSel.selectedIndex]?.dataset?.name||cSel.options[cSel.selectedIndex]?.text||'';
+  const cId=document.getElementById('inv-customer-id').value;
+  const cName=document.getElementById('inv-customer-search').value;
   if(!cId){toast('يرجى اختيار عميل','error');return;}
   if(!items.length){toast('يرجى إضافة منتج واحد على الأقل','error');return;}
   if(items.some(i=>!i.product_id)){toast('يرجى اختيار المنتج لكل بند','error');return;}
@@ -612,7 +658,8 @@ async function saveInvoice() {
 }
 function resetInvForm() {
   items=[];
-  document.getElementById('inv-customer').value='';
+  document.getElementById('inv-customer-search').value='';
+  document.getElementById('inv-customer-id').value='';
   document.getElementById('inv-status').value='معلقة';
   document.getElementById('inv-notes').value='';
   document.getElementById('inv-tax-pct').value='0';
