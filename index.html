@@ -1063,9 +1063,23 @@ function renderCustomers(data) {
   const list=data||customers;
   const w=document.getElementById('customersTable');
   if(!list.length){w.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><p>لا يوجد عملاء</p></div>';return;}
-  w.innerHTML=`<table><thead><tr><th>الاسم</th><th>الهاتف</th><th>العنوان</th><th>الرقم الضريبي</th><th>ملاحظات</th><th>إجراءات</th></tr></thead><tbody>
-    ${list.map(c=>`<tr><td class="font-bold">${c.name}</td><td class="text-ltr text-dim">${c.phone||'-'}</td><td class="text-dim">${c.address||'-'}</td><td class="text-ltr text-dim">${c.tax_number||'-'}</td><td class="text-dim">${c.notes||'-'}</td>
-    <td><div class="flex gap-8"><button class="btn btn-secondary btn-sm btn-icon" onclick="editCustomer('${c.id}')">✏️</button><button class="btn btn-danger btn-sm btn-icon" onclick="deleteCustomer('${c.id}')">🗑️</button></div></td></tr>`).join('')}
+  w.innerHTML=`<table><thead><tr><th>الاسم</th><th>الهاتف</th><th>العنوان</th><th>الرقم الضريبي</th><th>الرصيد المستحق</th><th>ملاحظات</th><th>إجراءات</th></tr></thead><tbody>
+    ${list.map(c=>{
+      const unpaid = invoices.filter(i=>i.customer_id===c.id && (i.status==='معلقة'||i.status==='مدفوعة جزئياً'));
+      const totalOwed = unpaid.reduce((s,i)=>s+(parseFloat(i.total||0)-parseFloat(i.paid_amount||0)),0);
+      const balanceCell = totalOwed > 0
+        ? `<td><span style="color:var(--danger);font-weight:700;">${fmtNum(totalOwed)} ج.م</span><div style="font-size:11px;color:var(--text-muted);">${unpaid.length} فاتورة</div></td>`
+        : `<td><span style="color:var(--success);font-size:13px;">✓ لا يوجد</span></td>`;
+      return `<tr>
+        <td class="font-bold">${c.name}</td>
+        <td class="text-ltr text-dim">${c.phone||'-'}</td>
+        <td class="text-dim">${c.address||'-'}</td>
+        <td class="text-ltr text-dim">${c.tax_number||'-'}</td>
+        ${balanceCell}
+        <td class="text-dim">${c.notes||'-'}</td>
+        <td><div class="flex gap-8"><button class="btn btn-secondary btn-sm btn-icon" onclick="editCustomer('${c.id}')">✏️</button><button class="btn btn-danger btn-sm btn-icon" onclick="deleteCustomer('${c.id}')">🗑️</button></div></td>
+      </tr>`;
+    }).join('')}
   </tbody></table>`;
 }
 function filterCustomers() {
