@@ -439,6 +439,20 @@
   </div>
 </div>
 
+<!-- PRODUCT PICKER MODAL -->
+<div class="modal-overlay" id="productPickerModal">
+  <div class="modal modal-lg" style="max-width:700px;max-height:85vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
+    <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div class="modal-title">&#x1F50D; اختر منتج</div>
+      <button class="modal-close" onclick="closeModal('productPickerModal')">&#x2715;</button>
+    </div>
+    <div style="padding:16px 24px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <input class="form-input" id="pickerSearch" placeholder="ابحث بالاسم، الكود، او الفئة..." oninput="renderPickerList(this.value.toLowerCase())" style="font-size:15px;"/>
+    </div>
+    <div id="pickerList" style="overflow-y:auto;flex:1;"></div>
+  </div>
+</div>
+
 <!-- PAYMENT MODAL -->
 <div class="modal-overlay" id="paymentModal">
   <div class="modal">
@@ -634,14 +648,9 @@ function renderItems() {
     const selectedName = item.product_id ? (products.find(p=>p.id===item.product_id)||{}).name||'' : '';
     return `<tr>
       <td>
-        <div style="position:relative;">
-          <input type="text" value="${selectedName}" placeholder="ابحث عن منتج..." autocomplete="off"
-            oninput="filterProductDropdown(${i},this)"
-            onfocus="showProductDropdown(${i},this)"
-            onblur="setTimeout(()=>hideProductDropdown(${i}),200)"
-            style="width:100%;background:rgba(10,22,40,0.6);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Tajawal',sans-serif;font-size:13px;direction:rtl;"
-          />
-          <div id="prod-dd-${i}" style="display:none;position:absolute;top:100%;right:0;left:0;min-width:420px;background:var(--navy2);border:1px solid var(--gold-border);border-radius:8px;max-height:280px;overflow-y:auto;z-index:300;box-shadow:0 8px 24px rgba(0,0,0,0.5);"></div>
+        <div onclick="openProductPicker(${i})" style="width:100%;background:rgba(10,22,40,0.6);border:1px solid ${item.product_id?'var(--gold-border)':'var(--border)'};border-radius:6px;padding:8px 12px;color:${item.product_id?'var(--text)':'var(--text-muted)'};font-family:'Tajawal',sans-serif;font-size:13px;direction:rtl;cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:38px;">
+          <span>${selectedName||'اضغط لاختيار منتج...'}</span>
+          <span style="color:var(--gold);font-size:11px;">🔍</span>
         </div>
         ${toggleHTML}
       </td>
@@ -663,39 +672,44 @@ function toggleSellBy(i,mode) {
   items[i].total=items[i].qty*items[i].price;
   renderItems();
 }
-function filterProductDropdown(i, inp) {
-  items[i].product_id=''; items[i].product_name=''; items[i].price=0; items[i].total=0;
-  renderProductDropdown(i, inp.value.toLowerCase());
-  showProductDropdown(i, inp);
+let currentPickerIndex = null;
+function openProductPicker(i) {
+  currentPickerIndex = i;
+  document.getElementById('pickerSearch').value = '';
+  renderPickerList('');
+  openModal('productPickerModal');
+  setTimeout(()=>document.getElementById('pickerSearch').focus(), 100);
 }
-function renderProductDropdown(i, q='') {
-  const dd=document.getElementById('prod-dd-'+i); if(!dd) return;
-  const filtered=products.filter(p=>!q||p.name.toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q));
-  if(!filtered.length){dd.innerHTML='<div style="padding:12px 16px;color:var(--text-muted);font-size:13px;">لا توجد نتائج</div>';return;}
-  dd.innerHTML=filtered.map(p=>`<div onmousedown="selectProductItem(${i},'${p.id}');event.preventDefault();"
-    style="padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.15s;"
-    onmouseover="this.style.background='rgba(201,168,76,0.1)'" onmouseout="this.style.background=''">
-    <div style="font-size:14px;color:var(--text);margin-bottom:3px;">${p.name}</div>
-    <div style="display:flex;gap:12px;font-size:11px;color:var(--text-dim);">
-      <span style="color:var(--gold);">${fmtNum(p.price)} ج.م</span>
-      ${p.sku?'<span>SKU: '+p.sku+'</span>':''}
-      ${p.pieces_per_unit>0?'<span>'+p.pieces_per_unit+' قطعة/وحدة</span>':''}
-      ${p.category?'<span>'+p.category+'</span>':''}
-    </div>
-  </div>`).join('');
+function renderPickerList(q) {
+  const list = document.getElementById('pickerList');
+  const filtered = products.filter(p=>!q||p.name.toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q)||(p.category||'').toLowerCase().includes(q));
+  if(!filtered.length){list.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted);">لا توجد نتائج</div>';return;}
+  list.innerHTML = filtered.map(p=>`
+    <div onclick="selectProductItem('${p.id}')" style="padding:14px 20px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.15s;display:flex;justify-content:space-between;align-items:center;"
+      onmouseover="this.style.background='rgba(201,168,76,0.08)'" onmouseout="this.style.background=''">
+      <div>
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">${p.name}</div>
+        <div style="display:flex;gap:14px;font-size:12px;color:var(--text-dim);">
+          ${p.sku?'<span>'+p.sku+'</span>':''}
+          ${p.category?'<span>'+p.category+'</span>':''}
+          ${p.unit?'<span>'+p.unit+'</span>':''}
+          ${p.pieces_per_unit>0?'<span style="color:var(--gold);">'+p.pieces_per_unit+' قطعة/وحدة</span>':''}
+        </div>
+      </div>
+      <div style="text-align:left;flex-shrink:0;margin-right:16px;">
+        <div style="color:var(--gold);font-weight:700;font-size:15px;">${fmtNum(p.price)} ج.م</div>
+        ${p.pieces_per_unit>0?'<div style="font-size:11px;color:var(--text-dim);">قطعة: '+fmtNum(p.piece_price)+' ج.م</div>':''}
+        <div style="font-size:11px;color:${p.qty<=0?'var(--danger)':p.qty<=p.min_qty?'var(--warning)':'var(--success)'};">مخزون: ${p.qty||0}</div>
+      </div>
+    </div>`).join('');
 }
-function showProductDropdown(i, inp) {
-  renderProductDropdown(i, (inp?inp.value:'').toLowerCase());
-  const dd=document.getElementById('prod-dd-'+i); if(dd) dd.style.display='block';
-}
-function hideProductDropdown(i) {
-  const dd=document.getElementById('prod-dd-'+i); if(dd) dd.style.display='none';
-}
-function selectProductItem(i, productId) {
-  const p=products.find(x=>x.id===productId); if(!p) return;
+function selectProductItem(productId) {
+  const i = currentPickerIndex;
+  const p = products.find(x=>x.id===productId); if(!p) return;
   items[i].product_id=p.id; items[i].product_name=p.name;
   items[i].sell_by='unit'; items[i].pieces_per_unit=p.pieces_per_unit||0;
   items[i].price=parseFloat(p.price||0); items[i].total=items[i].qty*items[i].price;
+  closeModal('productPickerModal');
   renderItems();
 }
 function itemQtyChange(i,inp) { items[i].qty=parseFloat(inp.value)||0; items[i].total=items[i].qty*items[i].price; renderItems(); }
