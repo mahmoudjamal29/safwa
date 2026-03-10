@@ -302,6 +302,7 @@
             </div>
             <div class="form-group"><label class="form-label">تاريخ الفاتورة</label><input type="date" class="form-input" id="inv-date"/></div>
           </div>
+          <div id="customer-balance-alert" style="display:none;margin-top:-8px;margin-bottom:16px;"></div>
           <div class="grid-2">
             <div class="form-group"><label class="form-label">تاريخ الاستحقاق</label><input type="date" class="form-input" id="inv-due"/></div>
             <div class="form-group"><label class="form-label">الحالة</label><select class="form-select" id="inv-status"><option value="معلقة">معلقة</option><option value="مدفوعة">مدفوعة</option></select></div>
@@ -383,7 +384,7 @@
       <div class="form-group"><label class="form-label">كود المنتج (SKU)</label><input class="form-input" id="pm-sku" placeholder="OIL-001" style="direction:ltr"/></div>
     </div>
     <div class="grid-2">
-      <div class="form-group"><label class="form-label">الفئة</label><input class="form-input" id="pm-category" placeholder="زيوت، حبوب، عصائر..."/></div>
+      <div class="form-group"><label class="form-label">الفئة</label><input class="form-input" id="pm-category" placeholder="زيوت، حبوب، عصائر..." oninput="if(!document.getElementById('pm-id').value) document.getElementById('pm-sku').value=generateSKU(this.value)"/></div>
       <div class="form-group"><label class="form-label">وحدة القياس</label><select class="form-select" id="pm-unit"><option>كرتون</option><option>قطعة</option><option>كيلو</option><option>لتر</option><option>جالون</option><option>طن</option><option>حبة</option></select></div>
     </div>
     <div class="grid-2">
@@ -431,12 +432,27 @@
   </div>
 </div>
 
+<!-- PAYMENT MODAL -->
+<div class="modal-overlay" id="paymentModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">💵 تسجيل دفعة</div><button class="modal-close" onclick="closeModal('paymentModal')">✕</button></div>
+    <div id="payment-inv-info" style="background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;"></div>
+    <div class="grid-2">
+      <div class="form-group"><label class="form-label">المبلغ المدفوع *</label><input type="number" class="form-input" id="pay-amount" placeholder="0.00" step="0.01" style="direction:ltr"/></div>
+      <div class="form-group"><label class="form-label">طريقة الدفع</label><select class="form-select" id="pay-method"><option value="كاش">كاش</option><option value="تحويل بنكي">تحويل بنكي</option><option value="شيك">شيك</option></select></div>
+    </div>
+    <div class="form-group"><label class="form-label">ملاحظة</label><input class="form-input" id="pay-note" placeholder="اختياري..."/></div>
+    <div class="flex gap-8 mt-16"><button class="btn btn-primary" onclick="savePayment()">💾 حفظ الدفعة</button><button class="btn btn-secondary" onclick="closeModal('paymentModal')">إلغاء</button></div>
+  </div>
+</div>
+
 <!-- INVOICE VIEW MODAL -->
 <div class="modal-overlay" id="invoiceViewModal">
   <div class="modal modal-lg">
     <div class="modal-header"><div class="modal-title">عرض الفاتورة</div><button class="modal-close" onclick="closeModal('invoiceViewModal')">✕</button></div>
     <div id="invoiceViewContent"></div>
-    <div class="flex gap-8 mt-16"><button class="btn btn-primary" onclick="printInvoice()">🖨️ طباعة</button><button class="btn btn-secondary" onclick="closeModal('invoiceViewModal')">إغلاق</button></div>
+    <div id="invoicePaymentsSection"></div>
+    <div class="flex gap-8 mt-16"><button class="btn btn-success" onclick="openPaymentModal()" id="btnRecordPayment">💵 تسجيل دفعة</button><button class="btn btn-primary" onclick="printInvoice()">🖨️ طباعة</button><button class="btn btn-secondary" onclick="closeModal('invoiceViewModal')">إغلاق</button></div>
   </div>
 </div>
 
@@ -519,6 +535,8 @@ function renderDashboard() {
   </tbody></table></div>` : '<div class="empty-state"><div class="empty-icon">✅</div><p>المخزون في وضع جيد</p></div>';
 }
 
+let currentViewInvoiceId = null;
+
 async function changeInvoiceStatus(id, status) {
   try {
     await db('invoices','PATCH',{status},`?id=eq.${id}`);
@@ -582,6 +600,7 @@ function selectCustomer(id,name) {
   document.getElementById('inv-customer-id').value=id;
   document.getElementById('inv-customer-search').value=name;
   hideCustomerDropdown();
+  checkCustomerBalance(id);
 }
 function showCustomerDropdown() {
   const dd=document.getElementById('customer-dropdown');
@@ -601,7 +620,7 @@ function renderItems() {
       <option value="">-- اختر --</option>
       ${products.map(p=>`<option value="${p.id}" data-price="${p.price}" data-name="${p.name}" ${item.product_id==p.id?'selected':''}>${p.name}</option>`).join('')}
     </select></td>
-    <td><input type="number" min="1" value="${item.qty}" oninput="itemQtyChange(${i},this)" style="width:75px;background:rgba(10,22,40,0.6);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Tajawal',sans-serif;font-size:13px;direction:ltr;"/></td>
+    <td><input type="number" min="0" step="0.001" value="${item.qty}" oninput="itemQtyChange(${i},this)" style="width:75px;background:rgba(10,22,40,0.6);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Tajawal',sans-serif;font-size:13px;direction:ltr;"/></td>
     <td><input type="number" min="0" step="0.01" value="${item.price}" oninput="itemPriceChange(${i},this)" style="width:95px;background:rgba(10,22,40,0.6);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Tajawal',sans-serif;font-size:13px;direction:ltr;"/></td>
     <td style="color:var(--gold);font-weight:700;font-size:14px;">${fmtNum(item.total)} ج.م</td>
     <td><button class="btn btn-danger btn-sm btn-icon" onclick="removeItem(${i})">✕</button></td>
@@ -670,8 +689,11 @@ async function deleteInvoice(id) {
   try { await db('invoices','DELETE',null,`?id=eq.${id}`); toast('تم حذف الفاتورة','info'); await loadAll(); renderInvoices(); } catch(e){toast('خطأ','error');}
 }
 function viewInvoice(id) {
+  currentViewInvoiceId = id;
   const inv=invoices.find(i=>i.id==id); if(!inv) return;
   let its=[]; try{its=JSON.parse(inv.items||'[]');}catch(e){}
+  const paidAmt = parseFloat(inv.paid_amount||0);
+  const remaining = parseFloat(inv.total||0) - paidAmt;
   document.getElementById('invoiceViewContent').innerHTML=`
     <div class="invoice-preview" id="printArea">
       <div class="inv-print-header">
@@ -694,10 +716,86 @@ function viewInvoice(id) {
         <div class="inv-totals-row"><span>المجموع الفرعي</span><span>${fmtNum(inv.subtotal)} ج.م</span></div>
         <div class="inv-totals-row"><span>الضريبة (${inv.tax_percent||0}%)</span><span>${fmtNum(inv.tax_amount)} ج.م</span></div>
         <div class="inv-totals-row grand"><span>الإجمالي</span><span>${fmtNum(inv.total)} ج.م</span></div>
+        ${paidAmt>0?`<div class="inv-totals-row" style="color:green"><span>المدفوع</span><span>${fmtNum(paidAmt)} ج.م</span></div>`:''}
+        ${remaining>0?`<div class="inv-totals-row" style="color:#E74C3C;font-weight:700"><span>المتبقي</span><span>${fmtNum(remaining)} ج.م</span></div>`:''}
       </div>
       <div class="inv-print-footer">شكراً لتعاملكم مع الصفوة لتجارة المنتجات الغذائية</div>
     </div>`;
+  loadPaymentsSection(id, inv);
   openModal('invoiceViewModal');
+}
+
+async function loadPaymentsSection(invId, inv) {
+  const section = document.getElementById('invoicePaymentsSection');
+  try {
+    const payments = await db('payments','GET',null,`?invoice_id=eq.${invId}&order=created_at.desc`);
+    const paidAmt = parseFloat(inv.paid_amount||0);
+    const remaining = parseFloat(inv.total||0) - paidAmt;
+    if(!payments||!payments.length) { section.innerHTML=''; return; }
+    section.innerHTML=`<div style="margin-top:16px; border-top:1px solid var(--border); padding-top:16px;">
+      <div class="card-title" style="margin-bottom:10px;"><span>💵</span> سجل الدفعات</div>
+      <div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>ملاحظة</th></tr></thead><tbody>
+        ${payments.map(p=>`<tr><td class="text-dim">${fmtDate(p.created_at)}</td><td style="color:var(--success);font-weight:700">${fmtNum(p.amount)} ج.م</td><td>${p.method||'-'}</td><td class="text-dim">${p.note||'-'}</td></tr>`).join('')}
+      </tbody></table></div>
+    </div>`;
+  } catch(e){ section.innerHTML=''; }
+}
+
+function openPaymentModal() {
+  const inv = invoices.find(i=>i.id==currentViewInvoiceId); if(!inv) return;
+  const paidAmt = parseFloat(inv.paid_amount||0);
+  const remaining = parseFloat(inv.total||0) - paidAmt;
+  document.getElementById('payment-inv-info').innerHTML=`
+    <div style="display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+      <div><div style="color:var(--text-dim);font-size:11px;margin-bottom:3px;">إجمالي الفاتورة</div><div style="font-weight:700;font-size:16px;">${fmtNum(inv.total)} ج.م</div></div>
+      <div><div style="color:var(--text-dim);font-size:11px;margin-bottom:3px;">المدفوع</div><div style="font-weight:700;font-size:16px;color:var(--success)">${fmtNum(paidAmt)} ج.م</div></div>
+      <div><div style="color:var(--text-dim);font-size:11px;margin-bottom:3px;">المتبقي</div><div style="font-weight:700;font-size:16px;color:var(--danger)">${fmtNum(remaining)} ج.م</div></div>
+    </div>`;
+  document.getElementById('pay-amount').value = remaining > 0 ? remaining.toFixed(2) : '';
+  document.getElementById('pay-note').value = '';
+  openModal('paymentModal');
+}
+
+async function savePayment() {
+  const inv = invoices.find(i=>i.id==currentViewInvoiceId); if(!inv) return;
+  const amount = parseFloat(document.getElementById('pay-amount').value)||0;
+  if(!amount || amount<=0){toast('يرجى إدخال مبلغ صحيح','error');return;}
+  const method = document.getElementById('pay-method').value;
+  const note = document.getElementById('pay-note').value;
+  const newPaid = parseFloat(inv.paid_amount||0) + amount;
+  const remaining = parseFloat(inv.total||0) - newPaid;
+  const newStatus = remaining <= 0 ? 'مدفوعة' : 'مدفوعة جزئياً';
+  try {
+    await db('payments','POST',{invoice_id:inv.id, customer_id:inv.customer_id, customer_name:inv.customer_name, amount, method, note});
+    await db('invoices','PATCH',{paid_amount:newPaid, status:newStatus},`?id=eq.${inv.id}`);
+    inv.paid_amount = newPaid; inv.status = newStatus;
+    toast('✅ تم تسجيل الدفعة','success');
+    closeModal('paymentModal');
+    await loadAll();
+    viewInvoice(currentViewInvoiceId);
+  } catch(e){toast('خطأ: '+e.message,'error');}
+}
+
+async function checkCustomerBalance(customerId) {
+  if(!customerId) { document.getElementById('customer-balance-alert').style.display='none'; return; }
+  try {
+    const unpaid = invoices.filter(i=>i.customer_id===customerId && (i.status==='معلقة'||i.status==='مدفوعة جزئياً'));
+    if(!unpaid.length) { document.getElementById('customer-balance-alert').style.display='none'; return; }
+    const totalOwed = unpaid.reduce((s,i)=>s+(parseFloat(i.total||0)-parseFloat(i.paid_amount||0)),0);
+    const alert = document.getElementById('customer-balance-alert');
+    alert.style.display='block';
+    alert.innerHTML=`<div style="background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--danger);display:flex;justify-content:space-between;align-items:center;">
+      <span>⚠️ لهذا العميل رصيد مستحق: <strong>${fmtNum(totalOwed)} ج.م</strong> من ${unpaid.length} فاتورة/فواتير غير مكتملة</span>
+      <button class="btn btn-danger btn-sm" onclick="addBalanceAsItem(${totalOwed})">إضافة للفاتورة</button>
+    </div>`;
+  } catch(e){}
+}
+
+function addBalanceAsItem(amount) {
+  items.push({id:Date.now(), product_id:'balance', product_name:'رصيد مستحق سابق', qty:1, price:amount, total:amount});
+  renderItems();
+  toast('تم إضافة الرصيد المستحق كبند في الفاتورة','info');
+  document.getElementById('customer-balance-alert').style.display='none';
 }
 function printInvoice() {
   const w=window.open('','_blank');
@@ -723,7 +821,7 @@ function printInvoice() {
       .inv-totals-row.grand{border-top:2px solid #C9A84C;font-size:16px;font-weight:700;color:#0A1628;padding-top:10px;}
       .inv-print-footer{margin-top:30px;padding-top:16px;border-top:1px solid #eee;font-size:11px;color:#888;text-align:center;}
       .badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;}
-      @media print{body{padding:0;}}
+      @media print{body{padding:0;} @page{margin:0; size:A4;} .invoice-preview{padding:20px;}}
     </style></head><body>${document.getElementById('printArea').outerHTML}<script>window.onload=()=>window.print();<\/script></body></html>`);
   w.document.close();
 }
@@ -752,12 +850,20 @@ function filterProducts() {
   const cat=document.getElementById('productCatFilter').value;
   renderProducts(products.filter(p=>(!q||p.name?.toLowerCase().includes(q)||p.sku?.toLowerCase().includes(q))&&(!cat||p.category===cat)));
 }
+function generateSKU(category) {
+  const cat = (category||'PRD').trim();
+  // Take first 3 chars of category, uppercase, remove spaces
+  const prefix = cat.replace(/\s+/g,'').substring(0,3).toUpperCase().replace(/[^A-Z0-9]/g, 'X');
+  const num = String(products.length + 1).padStart(3,'0');
+  return `${prefix}-${num}`;
+}
 function openProductModal() {
   ['pm-id','pm-name','pm-sku','pm-category','pm-price','pm-cost'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('pm-unit').value='كرتون';
   document.getElementById('pm-qty').value='0';
   document.getElementById('pm-minqty').value='10';
   document.getElementById('pm-maxqty').value='1000';
+  document.getElementById('pm-sku').value = generateSKU('');
   document.getElementById('pmTitle').textContent='منتج جديد';
   openModal('productModal');
 }
@@ -885,7 +991,7 @@ function toast(msg,type='info'){
 // UTILS
 function fmtNum(n){return parseFloat(n||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtDate(d){if(!d)return'-';try{return new Date(d).toLocaleDateString('ar-EG',{year:'numeric',month:'short',day:'numeric'});}catch(e){return d;}}
-function sBadge(s){const m={'مدفوعة':'badge-success','معلقة':'badge-warning','ملغاة':'badge-danger'};return `<span class="badge ${m[s]||'badge-info'}">${s||'-'}</span>`;}
+function sBadge(s){const m={'مدفوعة':'badge-success','معلقة':'badge-warning','ملغاة':'badge-danger','مدفوعة جزئياً':'badge-info'};return `<span class="badge ${m[s]||'badge-info'}">${s||'-'}</span>`;}
 function mBadge(t){const m={'وارد':'badge-success','صادر':'badge-warning','تسوية':'badge-info','تالف':'badge-danger'};return `<span class="badge ${m[t]||'badge-gold'}">${t||'-'}</span>`;}
 
 init();
