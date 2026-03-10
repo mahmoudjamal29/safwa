@@ -521,7 +521,20 @@ async function loadAll() {
   }
 }
 
+function hasUnsavedInvoice() {
+  const hasCustomer = document.getElementById('inv-customer-id')?.value;
+  const hasItems = items && items.length > 0;
+  return hasCustomer || hasItems;
+}
+
 function navigate(page) {
+  // Warn if leaving new-invoice page with unsaved data
+  const currentPage = document.querySelector('.page.active')?.id;
+  if(currentPage === 'page-new-invoice' && page !== 'new-invoice' && hasUnsavedInvoice()) {
+    if(!confirm('لديك فاتورة غير محفوظة. هل تريد المغادرة؟ سيتم فقدان جميع البيانات المدخلة.')) return;
+    pendingUnpaidInvoices = [];
+    resetInvForm();
+  }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
@@ -753,11 +766,23 @@ async function saveInvoice() {
       }
     }
     toast('✅ تم حفظ الفاتورة بنجاح','success');
+    // Now settle any pending old invoices that were rolled into this one
+    if(pendingUnpaidInvoices.length) {
+      for(const inv of pendingUnpaidInvoices) {
+        const remaining = parseFloat(inv.total||0) - parseFloat(inv.paid_amount||0);
+        if(remaining <= 0) continue;
+        const newPaid = parseFloat(inv.paid_amount||0) + remaining;
+        await db('invoices','PATCH',{paid_amount:newPaid, status:'مدفوعة'},`?id=eq.${inv.id}`);
+        await db('payments','POST',{invoice_id:inv.id, customer_id:inv.customer_id, customer_name:inv.customer_name, amount:remaining, method:'تسوية', note:'تم التسوية عبر فاتورة رقم '+num});
+      }
+      pendingUnpaidInvoices = [];
+    }
     await loadAll(); resetInvForm(); navigate('invoices');
   } catch(e){toast('خطأ: '+e.message,'error');}
 }
 function resetInvForm() {
   items=[];
+  pendingUnpaidInvoices=[];
   document.getElementById('inv-customer-search').value='';
   document.getElementById('inv-customer-id').value='';
   document.getElementById('inv-status').value='معلقة';
@@ -880,33 +905,12 @@ async function checkCustomerBalance(customerId) {
 }
 
 async function addBalanceAsItem(amount) {
-  // Add as line item in new invoice
+  // Just add as line item — settling happens only AFTER the new invoice is saved
   items.push({id:Date.now(), product_id:'balance', product_name:'رصيد مستحق سابق', qty:1, price:amount, total:amount});
   renderItems();
   document.getElementById('customer-balance-alert').style.display='none';
-
-  // Settle all old unpaid invoices immediately
-  try {
-    for(const inv of pendingUnpaidInvoices) {
-      const remaining = parseFloat(inv.total||0) - parseFloat(inv.paid_amount||0);
-      if(remaining <= 0) continue;
-      const newPaid = parseFloat(inv.paid_amount||0) + remaining;
-      await db('invoices','PATCH',{paid_amount: newPaid, status:'مدفوعة'},`?id=eq.${inv.id}`);
-      await db('payments','POST',{
-        invoice_id: inv.id,
-        customer_id: inv.customer_id,
-        customer_name: inv.customer_name,
-        amount: remaining,
-        method: 'تسوية',
-        note: 'تم التسوية عبر فاتورة جديدة'
-      });
-    }
-    await loadAll();
-    toast('✅ تم إضافة الرصيد وتسوية الفواتير القديمة', 'success');
-  } catch(e) {
-    toast('تم إضافة البند لكن تعذرت تسوية الفواتير القديمة: '+e.message, 'error');
-  }
-  pendingUnpaidInvoices = [];
+  toast('تم إضافة الرصيد — سيتم تسوية الفواتير القديمة عند حفظ الفاتورة الجديدة', 'info');
+  // pendingUnpaidInvoices stays set — will be settled inside saveInvoice
 }
 function printInvoice() {
   const w=window.open('','_blank');
