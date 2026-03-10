@@ -388,8 +388,15 @@
       <div class="form-group"><label class="form-label">وحدة القياس</label><select class="form-select" id="pm-unit"><option>كرتون</option><option>قطعة</option><option>كيلو</option><option>لتر</option><option>جالون</option><option>طن</option><option>حبة</option></select></div>
     </div>
     <div class="grid-2">
-      <div class="form-group"><label class="form-label">سعر البيع *</label><input type="number" class="form-input" id="pm-price" placeholder="0.00" style="direction:ltr"/></div>
+      <div class="form-group"><label class="form-label">سعر الوحدة الكاملة *</label><input type="number" class="form-input" id="pm-price" placeholder="0.00" style="direction:ltr" oninput="autoCalcPiecePrice()"/></div>
       <div class="form-group"><label class="form-label">سعر التكلفة</label><input type="number" class="form-input" id="pm-cost" placeholder="0.00" style="direction:ltr"/></div>
+    </div>
+    <div style="background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:8px;padding:14px;margin-bottom:16px;">
+      <div style="font-size:12px;color:var(--gold);font-weight:600;margin-bottom:10px;">&#x2699;&#xFE0F; اعدادات التقسيم (اختياري - للمنتجات القابلة للتجزئة)</div>
+      <div class="grid-2">
+        <div class="form-group" style="margin-bottom:0"><label class="form-label">عدد القطع في الوحدة</label><input type="number" class="form-input" id="pm-pieces" placeholder="مثال: 20" min="0" style="direction:ltr" oninput="autoCalcPiecePrice()"/></div>
+        <div class="form-group" style="margin-bottom:0"><label class="form-label">سعر القطعة الواحدة</label><input type="number" class="form-input" id="pm-piece-price" placeholder="يحسب تلقائيا" step="0.01" style="direction:ltr"/></div>
+      </div>
     </div>
     <div class="grid-3">
       <div class="form-group"><label class="form-label">الكمية الحالية</label><input type="number" class="form-input" id="pm-qty" placeholder="0" style="direction:ltr"/></div>
@@ -614,22 +621,46 @@ function addItem() {
 }
 function renderItems() {
   const b=document.getElementById('invItemsBody');
-  if(!items.length){b.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">اضغط "إضافة منتج" لإضافة بنود</td></tr>`;recalc();return;}
-  b.innerHTML=items.map((item,i)=>`<tr>
-    <td><select onchange="itemProdChange(${i},this)" style="width:100%;background:rgba(10,22,40,0.6);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Tajawal',sans-serif;font-size:13px;direction:rtl;">
-      <option value="">-- اختر --</option>
-      ${products.map(p=>`<option value="${p.id}" data-price="${p.price}" data-name="${p.name}" ${item.product_id==p.id?'selected':''}>${p.name}</option>`).join('')}
-    </select></td>
-    <td><input type="number" min="0" step="0.001" value="${item.qty}" oninput="itemQtyChange(${i},this)" style="width:75px;background:rgba(10,22,40,0.6);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Tajawal',sans-serif;font-size:13px;direction:ltr;"/></td>
-    <td><input type="number" min="0" step="0.01" value="${item.price}" oninput="itemPriceChange(${i},this)" style="width:95px;background:rgba(10,22,40,0.6);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Tajawal',sans-serif;font-size:13px;direction:ltr;"/></td>
-    <td style="color:var(--gold);font-weight:700;font-size:14px;">${fmtNum(item.total)} ج.م</td>
-    <td><button class="btn btn-danger btn-sm btn-icon" onclick="removeItem(${i})">✕</button></td>
-  </tr>`).join('');
+  if(!items.length){b.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">اضغط "اضافة منتج" لاضافة بنود</td></tr>`;recalc();return;}
+  b.innerHTML=items.map((item,i)=>{
+    const prod=products.find(p=>p.id===item.product_id);
+    const hasPieces=prod&&prod.pieces_per_unit>0;
+    const byPiece=item.sell_by==='piece';
+    const toggleHTML=hasPieces?`<div style="display:flex;gap:4px;margin-top:5px;">
+      <button type="button" onclick="toggleSellBy(${i},'unit')" style="padding:3px 10px;border-radius:4px;border:1px solid var(--border);font-size:11px;font-family:'Tajawal',sans-serif;cursor:pointer;background:${!byPiece?'var(--gold)':'transparent'};color:${!byPiece?'var(--navy)':'var(--text-dim)'};">${(prod.unit)||'وحدة'}</button>
+      <button type="button" onclick="toggleSellBy(${i},'piece')" style="padding:3px 10px;border-radius:4px;border:1px solid var(--border);font-size:11px;font-family:'Tajawal',sans-serif;cursor:pointer;background:${byPiece?'var(--gold)':'transparent'};color:${byPiece?'var(--navy)':'var(--text-dim)'};">قطعة</button>
+    </div>`:'';
+    const qtyHint=hasPieces&&byPiece?`<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">من اصل ${prod.pieces_per_unit} قطعة</div>`:'';
+    return `<tr>
+      <td>
+        <select onchange="itemProdChange(${i},this)" style="width:100%;background:rgba(10,22,40,0.6);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Tajawal',sans-serif;font-size:13px;direction:rtl;">
+          <option value="">-- اختر --</option>
+          ${products.map(p=>`<option value="${p.id}" data-price="${p.price}" data-piece-price="${p.piece_price||0}" data-pieces="${p.pieces_per_unit||0}" data-unit="${p.unit||''}" data-name="${p.name}" ${item.product_id==p.id?'selected':''}>${p.name}</option>`).join('')}
+        </select>
+        ${toggleHTML}
+      </td>
+      <td>
+        <input type="number" min="0" step="1" value="${item.qty}" oninput="itemQtyChange(${i},this)" style="width:75px;background:rgba(10,22,40,0.6);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Tajawal',sans-serif;font-size:13px;direction:ltr;"/>
+        ${qtyHint}
+      </td>
+      <td><input type="number" min="0" step="0.01" value="${item.price}" oninput="itemPriceChange(${i},this)" style="width:95px;background:rgba(10,22,40,0.6);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Tajawal',sans-serif;font-size:13px;direction:ltr;"/></td>
+      <td style="color:var(--gold);font-weight:700;font-size:14px;">${fmtNum(item.total)} ج.م</td>
+      <td><button class="btn btn-danger btn-sm btn-icon" onclick="removeItem(${i})">&#x2715;</button></td>
+    </tr>`;
+  }).join('');
   recalc();
+}
+function toggleSellBy(i,mode) {
+  const prod=products.find(p=>p.id===items[i].product_id); if(!prod) return;
+  items[i].sell_by=mode;
+  items[i].price=mode==='piece'?parseFloat(prod.piece_price||0):parseFloat(prod.price||0);
+  items[i].total=items[i].qty*items[i].price;
+  renderItems();
 }
 function itemProdChange(i,sel) {
   const opt=sel.options[sel.selectedIndex];
   items[i].product_id=sel.value; items[i].product_name=opt.dataset.name||'';
+  items[i].sell_by='unit'; items[i].pieces_per_unit=parseFloat(opt.dataset.pieces||0);
   items[i].price=parseFloat(opt.dataset.price||0); items[i].total=items[i].qty*items[i].price;
   renderItems();
 }
@@ -667,8 +698,10 @@ async function saveInvoice() {
     for(const item of items) {
       const prod=products.find(p=>p.id===item.product_id);
       if(prod) {
-        await db('products','PATCH',{qty:(prod.qty||0)-item.qty},`?id=eq.${prod.id}`);
-        await db('inventory_movements','POST',{product_id:item.product_id,product_name:item.product_name,type:'صادر',qty:item.qty,note:'فاتورة رقم '+num});
+        const deductQtyStock = item.sell_by==='piece' && item.pieces_per_unit>0 ? item.qty/item.pieces_per_unit : item.qty;
+        await db('products','PATCH',{qty:(prod.qty||0)-deductQtyStock},`?id=eq.${prod.id}`);
+        const deductQty = item.sell_by==='piece' && item.pieces_per_unit>0 ? item.qty/item.pieces_per_unit : item.qty;
+        await db('inventory_movements','POST',{product_id:item.product_id,product_name:item.product_name,type:'صادر',qty:deductQty,note:(item.sell_by==='piece'?item.qty+' قطعة - ':'')+'فاتورة رقم '+num});
       }
     }
     toast('✅ تم حفظ الفاتورة بنجاح','success');
@@ -850,6 +883,13 @@ function filterProducts() {
   const cat=document.getElementById('productCatFilter').value;
   renderProducts(products.filter(p=>(!q||p.name?.toLowerCase().includes(q)||p.sku?.toLowerCase().includes(q))&&(!cat||p.category===cat)));
 }
+function autoCalcPiecePrice() {
+  const price = parseFloat(document.getElementById('pm-price').value)||0;
+  const pieces = parseInt(document.getElementById('pm-pieces').value)||0;
+  if(price>0 && pieces>0) {
+    document.getElementById('pm-piece-price').value = (price/pieces).toFixed(2);
+  }
+}
 function generateSKU(category) {
   const cat = (category||'PRD').trim();
   // Take first 3 chars of category, uppercase, remove spaces
@@ -864,6 +904,8 @@ function openProductModal() {
   document.getElementById('pm-minqty').value='10';
   document.getElementById('pm-maxqty').value='1000';
   document.getElementById('pm-sku').value = generateSKU('');
+  document.getElementById('pm-pieces').value='';
+  document.getElementById('pm-piece-price').value='';
   document.getElementById('pmTitle').textContent='منتج جديد';
   openModal('productModal');
 }
@@ -879,6 +921,8 @@ function editProduct(id) {
   document.getElementById('pm-qty').value=p.qty||0;
   document.getElementById('pm-minqty').value=p.min_qty||10;
   document.getElementById('pm-maxqty').value=p.max_qty||1000;
+  document.getElementById('pm-pieces').value=p.pieces_per_unit||'';
+  document.getElementById('pm-piece-price').value=p.piece_price||'';
   document.getElementById('pmTitle').textContent='تعديل المنتج';
   openModal('productModal');
 }
@@ -886,7 +930,7 @@ async function saveProduct() {
   const id=document.getElementById('pm-id').value;
   const name=document.getElementById('pm-name').value.trim();
   if(!name){toast('يرجى إدخال اسم المنتج','error');return;}
-  const data={name, sku:document.getElementById('pm-sku').value.trim(), category:document.getElementById('pm-category').value.trim(), unit:document.getElementById('pm-unit').value, price:parseFloat(document.getElementById('pm-price').value)||0, cost:parseFloat(document.getElementById('pm-cost').value)||0, qty:parseInt(document.getElementById('pm-qty').value)||0, min_qty:parseInt(document.getElementById('pm-minqty').value)||10, max_qty:parseInt(document.getElementById('pm-maxqty').value)||1000};
+  const data={name, sku:document.getElementById('pm-sku').value.trim(), category:document.getElementById('pm-category').value.trim(), unit:document.getElementById('pm-unit').value, price:parseFloat(document.getElementById('pm-price').value)||0, cost:parseFloat(document.getElementById('pm-cost').value)||0, qty:parseInt(document.getElementById('pm-qty').value)||0, min_qty:parseInt(document.getElementById('pm-minqty').value)||10, max_qty:parseInt(document.getElementById('pm-maxqty').value)||1000, pieces_per_unit:parseInt(document.getElementById('pm-pieces').value)||0, piece_price:parseFloat(document.getElementById('pm-piece-price').value)||0};
   try {
     if(id) { await db('products','PATCH',data,`?id=eq.${id}`); toast('✅ تم تحديث المنتج','success'); }
     else { await db('products','POST',data); toast('✅ تم إضافة المنتج','success'); }
