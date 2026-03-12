@@ -517,9 +517,8 @@ async function init() {
 
 function setDates() {
   const t = new Date().toISOString().split('T')[0];
-  const d = new Date(Date.now()+30*864e5).toISOString().split('T')[0];
-  document.getElementById('inv-date').value=t;
-  document.getElementById('inv-due').value=d;
+  const dateEl = document.getElementById('inv-date');
+  if(dateEl) dateEl.value=t;
 }
 
 async function loadAll() {
