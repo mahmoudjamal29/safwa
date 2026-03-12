@@ -536,7 +536,7 @@ async function loadAll() {
 }
 
 function hasUnsavedInvoice() {
-  const hasCustomer = document.getElementById('inv-customer-id')?.value;
+  const hasCustomer = document.getElementById('inv-customer-search')?.value?.trim();
   const hasItems = items && items.length > 0;
   return hasCustomer || hasItems;
 }
@@ -826,9 +826,9 @@ function recalc() {
   document.getElementById('inv-total').textContent=fmtNum(sub+tv)+' ج.م';
 }
 async function saveInvoice() {
-  const cId=document.getElementById('inv-customer-id').value;
-  const cName=document.getElementById('inv-customer-search').value;
-  if(!cId){toast('يرجى اختيار عميل','error');return;}
+  const cId=document.getElementById('inv-customer-id').value||null;
+  const cName=document.getElementById('inv-customer-search').value.trim();
+  if(!cName){toast('يرجى إدخال اسم العميل','error');return;}
   if(!items.length){toast('يرجى إضافة منتج واحد على الأقل','error');return;}
   if(items.some(i=>!i.product_id)){toast('يرجى اختيار المنتج لكل بند','error');return;}
   const sub=items.reduce((s,i)=>s+i.total,0);
@@ -977,7 +977,7 @@ async function savePayment() {
 let pendingUnpaidInvoices = [];
 
 async function checkCustomerBalance(customerId) {
-  if(!customerId) { document.getElementById('customer-balance-alert').style.display='none'; pendingUnpaidInvoices=[]; return; }
+  if(!customerId || customerId === 'null') { document.getElementById('customer-balance-alert').style.display='none'; pendingUnpaidInvoices=[]; return; }
   try {
     const unpaid = invoices.filter(i=>i.customer_id===customerId && (i.status==='معلقة'||i.status==='مدفوعة جزئياً'));
     pendingUnpaidInvoices = unpaid;
