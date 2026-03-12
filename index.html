@@ -257,15 +257,29 @@
 
       <!-- DASHBOARD -->
       <div class="page active" id="page-dashboard">
-        <div class="stats-grid">
-          <div class="stat-card gold"><div class="stat-icon">💰</div><div class="stat-value" id="stat-revenue">0</div><div class="stat-label">إجمالي المبيعات (ج.م)</div></div>
-          <div class="stat-card green"><div class="stat-icon">🧾</div><div class="stat-value" id="stat-invoices">0</div><div class="stat-label">إجمالي الفواتير</div></div>
-          <div class="stat-card blue"><div class="stat-icon">📦</div><div class="stat-value" id="stat-products">0</div><div class="stat-label">المنتجات</div></div>
-          <div class="stat-card red"><div class="stat-icon">⚠️</div><div class="stat-value" id="stat-lowstock">0</div><div class="stat-label">منتجات تحتاج تموين</div></div>
+        <!-- Sales Stats -->
+        <div class="card" style="margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div class="card-title" style="margin-bottom:0;"><span>💰</span> المبيعات والفواتير</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <button onclick="setSalesPeriod('day')" id="btn-day" class="btn btn-secondary btn-sm" style="font-size:12px;">اليوم</button>
+              <button onclick="setSalesPeriod('month')" id="btn-month" class="btn btn-secondary btn-sm" style="font-size:12px;">هذا الشهر</button>
+              <button onclick="setSalesPeriod('all')" id="btn-all" class="btn btn-primary btn-sm" style="font-size:12px;">الكل</button>
+              <span style="color:var(--text-muted);font-size:12px;">أو اختر:</span>
+              <input type="date" id="filter-from" onchange="setSalesPeriod('custom')" style="background:rgba(10,22,40,0.6);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-family:'Tajawal',sans-serif;font-size:12px;" title="من تاريخ"/>
+              <input type="date" id="filter-to" onchange="setSalesPeriod('custom')" style="background:rgba(10,22,40,0.6);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-family:'Tajawal',sans-serif;font-size:12px;" title="إلى تاريخ"/>
+            </div>
+          </div>
+          <div class="stats-grid" style="margin-bottom:0;">
+            <div class="stat-card gold"><div class="stat-icon">💰</div><div class="stat-value" id="stat-revenue">0</div><div class="stat-label" id="stat-revenue-label">إجمالي المبيعات (ج.م)</div></div>
+            <div class="stat-card green"><div class="stat-icon">🧾</div><div class="stat-value" id="stat-invoices">0</div><div class="stat-label" id="stat-invoices-label">إجمالي الفواتير</div></div>
+            <div class="stat-card blue"><div class="stat-icon">📦</div><div class="stat-value" id="stat-products">0</div><div class="stat-label">المنتجات</div></div>
+            <div class="stat-card red" style="cursor:pointer;" onclick="showAllLowStock()"><div class="stat-icon">⚠️</div><div class="stat-value" id="stat-lowstock">0</div><div class="stat-label">منتجات تحتاج تموين (اضغط للعرض)</div></div>
+          </div>
         </div>
         <div class="grid-2">
           <div class="card"><div class="card-title"><span>🧾</span> آخر الفواتير</div><div id="dash-invoices"><div class="loading"><div class="spinner"></div> جاري التحميل...</div></div></div>
-          <div class="card"><div class="card-title"><span>⚠️</span> مخزون منخفض</div><div id="dash-lowstock"><div class="loading"><div class="spinner"></div> جاري التحميل...</div></div></div>
+          <div class="card" id="dash-lowstock-card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center;"><span><span>⚠️</span> مخزون منخفض</span><button class="btn btn-secondary btn-sm" onclick="showAllLowStock()" style="font-size:11px;">عرض الكل</button></div><div id="dash-lowstock"><div class="loading"><div class="spinner"></div> جاري التحميل...</div></div></div>
         </div>
       </div>
 
@@ -304,8 +318,8 @@
           </div>
           <div id="customer-balance-alert" style="display:none;margin-top:-8px;margin-bottom:16px;"></div>
           <div class="grid-2">
-            <div class="form-group"><label class="form-label">تاريخ الاستحقاق</label><input type="date" class="form-input" id="inv-due"/></div>
             <div class="form-group"><label class="form-label">الحالة</label><select class="form-select" id="inv-status"><option value="معلقة">معلقة</option><option value="مدفوعة">مدفوعة</option></select></div>
+            <div></div>
           </div>
           <hr class="divider"/>
           <div class="card-title"><span>📦</span> بنود الفاتورة</div>
@@ -446,8 +460,9 @@
       <div class="modal-title">&#x1F50D; اختر منتج</div>
       <button class="modal-close" onclick="closeModal('productPickerModal')">&#x2715;</button>
     </div>
-    <div style="padding:16px 24px;border-bottom:1px solid var(--border);flex-shrink:0;">
-      <input class="form-input" id="pickerSearch" placeholder="ابحث بالاسم، الكود، او الفئة..." oninput="renderPickerList(this.value.toLowerCase())" style="font-size:15px;"/>
+    <div style="padding:12px 24px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <input class="form-input" id="pickerSearch" placeholder="ابحث بالاسم او الكود..." oninput="renderPickerList()" style="font-size:15px;margin-bottom:10px;"/>
+      <div id="pickerCatTabs" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
     </div>
     <div id="pickerList" style="overflow-y:auto;flex:1;"></div>
   </div>
@@ -549,13 +564,40 @@ function navigate(page) {
 }
 
 // DASHBOARD
+let salesPeriod = 'all';
+function setSalesPeriod(period) {
+  salesPeriod = period;
+  ['day','month','all'].forEach(p=>{
+    const btn=document.getElementById('btn-'+p);
+    if(btn) { btn.className = p===period ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'; btn.style.fontSize='12px'; }
+  });
+  renderDashboard();
+}
+function getFilteredInvoices() {
+  const now = new Date();
+  const today = now.toISOString().slice(0,10);
+  const monthStart = today.slice(0,7)+'-01';
+  if(salesPeriod==='day') return invoices.filter(i=>i.invoice_date===today);
+  if(salesPeriod==='month') return invoices.filter(i=>i.invoice_date>=monthStart);
+  if(salesPeriod==='custom') {
+    const from=document.getElementById('filter-from')?.value;
+    const to=document.getElementById('filter-to')?.value;
+    return invoices.filter(i=>(!from||i.invoice_date>=from)&&(!to||i.invoice_date<=to));
+  }
+  return invoices;
+}
 function renderDashboard() {
-  const rev = invoices.reduce((s,i)=>s+parseFloat(i.total||0),0);
+  const filtered = getFilteredInvoices();
+  const rev = filtered.reduce((s,i)=>s+parseFloat(i.total||0),0);
   const low = products.filter(p=>p.qty<=p.min_qty);
   document.getElementById('stat-revenue').textContent=fmtNum(rev);
-  document.getElementById('stat-invoices').textContent=invoices.length;
+  document.getElementById('stat-invoices').textContent=filtered.length;
   document.getElementById('stat-products').textContent=products.length;
   document.getElementById('stat-lowstock').textContent=low.length;
+  const labels = {day:'مبيعات اليوم (ج.م)', month:'مبيعات الشهر (ج.م)', all:'إجمالي المبيعات (ج.م)', custom:'مبيعات الفترة المختارة (ج.م)'};
+  const invLabels = {day:'فواتير اليوم', month:'فواتير الشهر', all:'إجمالي الفواتير', custom:'فواتير الفترة المختارة'};
+  document.getElementById('stat-revenue-label').textContent=labels[salesPeriod]||labels.all;
+  document.getElementById('stat-invoices-label').textContent=invLabels[salesPeriod]||invLabels.all;
 
   const di=document.getElementById('dash-invoices');
   const recent=invoices.slice(0,6);
@@ -563,11 +605,17 @@ function renderDashboard() {
     ${recent.map(i=>`<tr style="cursor:pointer" onclick="viewInvoice('${i.id}')"><td class="text-gold">#${i.invoice_number}</td><td>${i.customer_name||'-'}</td><td>${fmtNum(i.total)} ج.م</td><td>${sBadge(i.status)}</td></tr>`).join('')}
   </tbody></table></div>` : '<div class="empty-state"><div class="empty-icon">🧾</div><p>لا توجد فواتير بعد</p></div>';
 
-  const dl=document.getElementById('dash-lowstock');
-  dl.innerHTML=low.length?`<div class="table-wrap"><table><thead><tr><th>المنتج</th><th>الكمية</th><th>الحد الأدنى</th></tr></thead><tbody>
-    ${low.slice(0,8).map(p=>`<tr><td>${p.name}</td><td style="color:${p.qty<=0?'var(--danger)':'var(--warning)'}">${p.qty}</td><td class="text-dim">${p.min_qty}</td></tr>`).join('')}
-  </tbody></table></div>` : '<div class="empty-state"><div class="empty-icon">✅</div><p>المخزون في وضع جيد</p></div>';
+  renderLowStockPanel(false);
 }
+function renderLowStockPanel(showAll) {
+  const low = products.filter(p=>p.qty<=p.min_qty);
+  const dl=document.getElementById('dash-lowstock');
+  const list = showAll ? low : low.slice(0,8);
+  dl.innerHTML=low.length?`<div class="table-wrap"><table><thead><tr><th>المنتج</th><th>الكمية</th><th>الحد الأدنى</th></tr></thead><tbody>
+    ${list.map(p=>`<tr><td>${p.name}</td><td style="color:${p.qty<=0?'var(--danger)':'var(--warning)'};font-weight:700;">${p.qty}</td><td class="text-dim">${p.min_qty}</td></tr>`).join('')}
+  </tbody></table></div>${!showAll&&low.length>8?`<div style="text-align:center;padding:10px;"><button class="btn btn-secondary btn-sm" onclick="renderLowStockPanel(true)">عرض الكل (${low.length})</button></div>`:''}` : '<div class="empty-state"><div class="empty-icon">&#x2705;</div><p>المخزون في وضع جيد</p></div>';
+}
+function showAllLowStock() { navigate('products'); }
 
 let currentViewInvoiceId = null;
 
@@ -584,7 +632,7 @@ function renderInvoices(data) {
   const list=data||invoices;
   const w=document.getElementById('invoicesTable');
   if(!list.length){w.innerHTML='<div class="empty-state"><div class="empty-icon">🧾</div><p>لا توجد فواتير</p></div>';return;}
-  w.innerHTML=`<table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>المجموع</th><th>الضريبة</th><th>الإجمالي</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody>
+  w.innerHTML=`<table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>المجموع</th><th>الضريبة</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody>
     ${list.map(i=>`<tr>
       <td class="text-gold font-bold">#${i.invoice_number}</td>
       <td class="text-dim">${fmtDate(i.invoice_date)}</td>
@@ -592,6 +640,8 @@ function renderInvoices(data) {
       <td>${fmtNum(i.subtotal)} ج.م</td>
       <td>${fmtNum(i.tax_amount)} ج.م</td>
       <td class="font-bold">${fmtNum(i.total)} ج.م</td>
+      <td style="color:var(--success)">${fmtNum(i.paid_amount||0)} ج.م</td>
+      <td style="color:${(parseFloat(i.total||0)-parseFloat(i.paid_amount||0))>0?'var(--danger)':'var(--success)'};font-weight:600;">${fmtNum(Math.max(0,parseFloat(i.total||0)-parseFloat(i.paid_amount||0)))} ج.م</td>
       <td>
         <select onchange="changeInvoiceStatus('${i.id}',this.value)" style="background:transparent; border:none; color:inherit; font-family:'Tajawal',sans-serif; font-size:12px; cursor:pointer; padding:2px;">
           <option value="معلقة" ${i.status==='معلقة'?'selected':''} style="background:var(--navy2);">⏳ معلقة</option>
@@ -686,16 +736,35 @@ function toggleSellBy(i,mode) {
   renderItems();
 }
 let currentPickerIndex = null;
+let pickerCategory = '';
 function openProductPicker(i) {
   currentPickerIndex = i;
+  pickerCategory = '';
   document.getElementById('pickerSearch').value = '';
-  renderPickerList('');
+  renderPickerCats();
+  renderPickerList();
   openModal('productPickerModal');
   setTimeout(()=>document.getElementById('pickerSearch').focus(), 100);
 }
-function renderPickerList(q) {
+function renderPickerCats() {
+  const cats = ['الكل', ...new Set(products.map(p=>p.category).filter(Boolean))];
+  const tabs = document.getElementById('pickerCatTabs');
+  tabs.innerHTML = cats.map(c=>`<button onclick="setPickerCat('${c}')" id="picker-cat-${c.replace(/\s/g,'_')}"
+    style="padding:5px 14px;border-radius:20px;border:1px solid var(--border);font-size:12px;font-family:'Tajawal',sans-serif;cursor:pointer;transition:all 0.15s;background:${(c==='الكل'&&!pickerCategory)||(c===pickerCategory)?'var(--gold)':'transparent'};color:${(c==='الكل'&&!pickerCategory)||(c===pickerCategory)?'var(--navy)':'var(--text-dim)'};">${c}</button>`).join('');
+}
+function setPickerCat(cat) {
+  pickerCategory = cat==='الكل' ? '' : cat;
+  renderPickerCats();
+  renderPickerList();
+}
+function renderPickerList() {
+  const q = (document.getElementById('pickerSearch')?.value||'').toLowerCase();
   const list = document.getElementById('pickerList');
-  const filtered = products.filter(p=>!q||p.name.toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q)||(p.category||'').toLowerCase().includes(q));
+  const filtered = products.filter(p=>{
+    const matchQ = !q||p.name.toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q);
+    const matchCat = !pickerCategory || p.category===pickerCategory;
+    return matchQ && matchCat;
+  });
   if(!filtered.length){list.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted);">لا توجد نتائج</div>';return;}
   list.innerHTML = filtered.map(p=>`
     <div onclick="selectProductItem('${p.id}')" style="padding:14px 20px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.15s;display:flex;justify-content:space-between;align-items:center;"
@@ -704,9 +773,9 @@ function renderPickerList(q) {
         <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">${p.name}</div>
         <div style="display:flex;gap:14px;font-size:12px;color:var(--text-dim);">
           ${p.sku?'<span>'+p.sku+'</span>':''}
-          ${p.category?'<span>'+p.category+'</span>':''}
+          ${p.category?'<span style="background:rgba(201,168,76,0.1);padding:1px 7px;border-radius:10px;color:var(--gold);">'+p.category+'</span>':''}
           ${p.unit?'<span>'+p.unit+'</span>':''}
-          ${p.pieces_per_unit>0?'<span style="color:var(--gold);">'+p.pieces_per_unit+' قطعة/وحدة</span>':''}
+          ${p.pieces_per_unit>0?'<span>'+p.pieces_per_unit+' قطعة/وحدة</span>':''}
         </div>
       </div>
       <div style="text-align:left;flex-shrink:0;margin-right:16px;">
@@ -727,6 +796,7 @@ function selectProductItem(productId) {
 }
 function itemQtyChange(i,inp) { items[i].qty=parseFloat(inp.value)||0; items[i].total=items[i].qty*items[i].price; renderItems(); }
 function itemPriceChange(i,inp) { items[i].price=parseFloat(inp.value)||0; items[i].total=items[i].qty*items[i].price; recalc(); }
+// price is already editable via the input in renderItems
 function removeItem(i) { items.splice(i,1); renderItems(); }
 function recalc() {
   const sub=items.reduce((s,i)=>s+i.total,0);
@@ -750,7 +820,6 @@ async function saveInvoice() {
     await db('invoices','POST',{
       invoice_number:num, customer_id:cId, customer_name:cName,
       invoice_date:document.getElementById('inv-date').value,
-      due_date:document.getElementById('inv-due').value,
       status:document.getElementById('inv-status').value,
       subtotal:sub, tax_percent:tp, tax_amount:tv, total:sub+tv,
       notes:document.getElementById('inv-notes').value,
@@ -788,7 +857,7 @@ function resetInvForm() {
   document.getElementById('inv-status').value='معلقة';
   document.getElementById('inv-notes').value='';
   document.getElementById('inv-tax-pct').value='0';
-  setDates(); renderItems();
+  renderItems();
 }
 async function deleteInvoice(id) {
   if(!confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) return;
@@ -803,11 +872,15 @@ function viewInvoice(id) {
   document.getElementById('invoiceViewContent').innerHTML=`
     <div class="invoice-preview" id="printArea">
       <div class="inv-print-header">
-        <div><div class="inv-print-logo">الصفوة</div><div class="inv-print-logo-sub">لتجارة المنتجات الغذائية</div></div>
+        <div>
+          <div class="inv-print-logo">الصفوة</div>
+          <div class="inv-print-logo-sub">لتجارة المنتجات الغذائية</div>
+          <div class="inv-print-logo-sub" style="margin-top:4px;">📍 ابو دنقاش - ابشواي - الفيوم</div>
+          <div class="inv-print-logo-sub">📞 01005828684 | 01097280644</div>
+        </div>
         <div class="inv-print-meta">
           <div><strong>فاتورة رقم:</strong> #${inv.invoice_number}</div>
-          <div><strong>التاريخ:</strong> ${fmtDate(inv.invoice_date)}</div>
-          <div><strong>الاستحقاق:</strong> ${fmtDate(inv.due_date)}</div>
+          <div><strong>تاريخ الإنشاء:</strong> ${fmtDate(inv.invoice_date)} ${inv.created_at ? new Date(inv.created_at).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}) : ''}</div>
           <div style="margin-top:6px">${sBadge(inv.status)}</div>
         </div>
       </div>
@@ -921,8 +994,8 @@ function printInvoice() {
       .invoice-preview{max-width:800px;margin:auto;}
       .inv-print-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:30px;border-bottom:2px solid #C9A84C;padding-bottom:20px;}
       .inv-print-logo{font-size:22px;font-weight:700;color:#0A1628;}
-      .inv-print-logo-sub{font-size:11px;color:#666;}
-      .inv-print-meta{text-align:right;font-size:12px;color:#444;line-height:1.8;}
+      .inv-print-logo-sub{font-size:11px;color:#666;margin-top:3px;}
+      .inv-print-meta{text-align:left;font-size:12px;color:#444;line-height:1.8;}
       .inv-print-meta strong{color:#0A1628;}
       .inv-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;}
       .inv-info-box{background:#f8f8f8;padding:14px;border-radius:6px;}
