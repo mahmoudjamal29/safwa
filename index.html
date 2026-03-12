@@ -793,7 +793,17 @@ function selectProductItem(productId) {
   closeModal('productPickerModal');
   renderItems();
 }
-function itemQtyChange(i,inp) { items[i].qty=parseFloat(inp.value)||0; items[i].total=items[i].qty*items[i].price; renderItems(); }
+function itemQtyChange(i,inp) {
+  items[i].qty=parseFloat(inp.value)||0;
+  items[i].total=items[i].qty*items[i].price;
+  // Update total input directly without re-rendering
+  const rows=document.getElementById('invItemsBody').querySelectorAll('tr');
+  if(rows[i]) {
+    const totalInp=rows[i].querySelectorAll('input[type="number"]')[2];
+    if(totalInp) totalInp.value=items[i].total.toFixed(2);
+  }
+  recalc();
+}
 function itemPriceChange(i,inp) {
   items[i].price=parseFloat(inp.value)||0;
   items[i].total=items[i].qty*items[i].price;
