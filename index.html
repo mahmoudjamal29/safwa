@@ -830,21 +830,26 @@ async function saveInvoice() {
   const cName=document.getElementById('inv-customer-search').value.trim();
   if(!cName){toast('يرجى إدخال اسم العميل','error');return;}
   if(!items.length){toast('يرجى إضافة منتج واحد على الأقل','error');return;}
-  if(items.some(i=>!i.product_id)){toast('يرجى اختيار المنتج لكل بند','error');return;}
+  // filter out balance items from product validation
+  if(items.some(i=>!i.product_id && i.product_id!=='balance')){toast('يرجى اختيار المنتج لكل بند','error');return;}
   const sub=items.reduce((s,i)=>s+i.total,0);
   const tp=parseFloat(document.getElementById('inv-tax-pct').value)||0;
   const tv=sub*tp/100;
   const num=Date.now().toString().slice(-6);
+  // build invoice payload - only include customer_id if it's a valid value
+  const invPayload = {
+    invoice_number:num, customer_name:cName,
+    invoice_date:document.getElementById('inv-date').value,
+    status:document.getElementById('inv-status').value,
+    subtotal:sub, tax_percent:tp, tax_amount:tv, total:sub+tv,
+    notes:document.getElementById('inv-notes').value,
+    items:JSON.stringify(items),
+  };
+  if(cId) invPayload.customer_id = cId;
   try {
-    await db('invoices','POST',{
-      invoice_number:num, customer_id:cId, customer_name:cName,
-      invoice_date:document.getElementById('inv-date').value,
-      status:document.getElementById('inv-status').value,
-      subtotal:sub, tax_percent:tp, tax_amount:tv, total:sub+tv,
-      notes:document.getElementById('inv-notes').value,
-      items:JSON.stringify(items),
-    });
+    await db('invoices','POST', invPayload);
     for(const item of items) {
+      if(item.product_id==='balance') continue; // skip balance items
       const prod=products.find(p=>p.id===item.product_id);
       if(prod) {
         const deductQtyStock = item.sell_by==='piece' && item.pieces_per_unit>0 ? item.qty/item.pieces_per_unit : item.qty;
@@ -853,18 +858,18 @@ async function saveInvoice() {
         await db('inventory_movements','POST',{product_id:item.product_id,product_name:item.product_name,type:'صادر',qty:deductQty,note:(item.sell_by==='piece'?item.qty+' قطعة - ':'')+'فاتورة رقم '+num});
       }
     }
-    toast('✅ تم حفظ الفاتورة بنجاح','success');
-    // Now settle any pending old invoices that were rolled into this one
+    // Settle any pending old invoices that were rolled into this one
     if(pendingUnpaidInvoices.length) {
       for(const inv of pendingUnpaidInvoices) {
         const remaining = parseFloat(inv.total||0) - parseFloat(inv.paid_amount||0);
         if(remaining <= 0) continue;
         const newPaid = parseFloat(inv.paid_amount||0) + remaining;
         await db('invoices','PATCH',{paid_amount:newPaid, status:'مدفوعة'},`?id=eq.${inv.id}`);
-        await db('payments','POST',{invoice_id:inv.id, customer_id:inv.customer_id, customer_name:inv.customer_name, amount:remaining, method:'تسوية', note:'تم التسوية عبر فاتورة رقم '+num});
+        await db('payments','POST',{invoice_id:inv.id, customer_id:inv.customer_id||null, customer_name:inv.customer_name, amount:remaining, method:'تسوية', note:'تم التسوية عبر فاتورة رقم '+num});
       }
       pendingUnpaidInvoices = [];
     }
+    toast('✅ تم حفظ الفاتورة بنجاح','success');
     await loadAll(); resetInvForm(); navigate('invoices');
   } catch(e){toast('خطأ: '+e.message,'error');}
 }
