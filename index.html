@@ -721,7 +721,7 @@ function renderItems() {
         ${qtyHint}
       </td>
       <td><input type="number" min="0" step="0.01" value="${item.price}" oninput="itemPriceChange(${i},this)" style="width:95px;background:rgba(10,22,40,0.6);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Tajawal',sans-serif;font-size:13px;direction:ltr;"/></td>
-      <td style="color:var(--gold);font-weight:700;font-size:14px;">${fmtNum(item.total)} ج.م</td>
+      <td><input type="number" min="0" step="0.01" value="${item.total}" oninput="itemTotalChange(${i},this)" style="width:100px;background:rgba(10,22,40,0.6);border:1px solid var(--gold-border);border-radius:6px;padding:6px 10px;color:var(--gold);font-family:'Tajawal',sans-serif;font-size:13px;font-weight:700;direction:ltr;"/></td>
       <td><button class="btn btn-danger btn-sm btn-icon" onclick="removeItem(${i})">&#x2715;</button></td>
     </tr>`;
   }).join('');
@@ -794,8 +794,8 @@ function selectProductItem(productId) {
   renderItems();
 }
 function itemQtyChange(i,inp) { items[i].qty=parseFloat(inp.value)||0; items[i].total=items[i].qty*items[i].price; renderItems(); }
-function itemPriceChange(i,inp) { items[i].price=parseFloat(inp.value)||0; items[i].total=items[i].qty*items[i].price; recalc(); }
-// price is already editable via the input in renderItems
+function itemPriceChange(i,inp) { items[i].price=parseFloat(inp.value)||0; items[i].total=items[i].qty*items[i].price; renderItems(); }
+function itemTotalChange(i,inp) { items[i].total=parseFloat(inp.value)||0; if(items[i].qty>0) items[i].price=items[i].total/items[i].qty; recalc(); }
 function removeItem(i) { items.splice(i,1); renderItems(); }
 function recalc() {
   const sub=items.reduce((s,i)=>s+i.total,0);
