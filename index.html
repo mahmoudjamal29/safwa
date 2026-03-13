@@ -347,7 +347,10 @@
         <div class="card">
           <div class="flex-between mb-16">
             <div class="card-title" style="margin-bottom:0"><span>📦</span> المنتجات</div>
-            <button class="btn btn-primary btn-sm" onclick="openProductModal()">➕ منتج جديد</button>
+            <div class="flex gap-8">
+              <button class="btn btn-secondary btn-sm" onclick="openCategoriesModal()">🗂️ إدارة الفئات</button>
+              <button class="btn btn-primary btn-sm" onclick="openProductModal()">➕ منتج جديد</button>
+            </div>
           </div>
           <div class="search-bar">
             <div class="search-wrap"><span class="search-icon">🔍</span><input class="form-input" placeholder="بحث في المنتجات..." id="productSearch" oninput="filterProducts()"/></div>
@@ -450,6 +453,21 @@
     </div>
     <div class="form-group"><label class="form-label">ملاحظة</label><input class="form-input" id="mv-note" placeholder="مرجع أو سبب الحركة..."/></div>
     <div class="flex gap-8 mt-16"><button class="btn btn-primary" onclick="saveMovement()">💾 حفظ</button><button class="btn btn-secondary" onclick="closeModal('movementModal')">إلغاء</button></div>
+  </div>
+</div>
+
+<!-- CATEGORIES MODAL -->
+<div class="modal-overlay" id="categoriesModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">🗂️ إدارة الفئات</div><button class="modal-close" onclick="closeModal('categoriesModal')">✕</button></div>
+    <div id="categoriesList" style="margin-bottom:16px;"></div>
+    <div style="border-top:1px solid var(--border);padding-top:16px;">
+      <div class="form-label" style="margin-bottom:8px;">إضافة فئة جديدة</div>
+      <div class="flex gap-8">
+        <input class="form-input" id="new-category-input" placeholder="اسم الفئة الجديدة..." style="flex:1;"/>
+        <button class="btn btn-primary" onclick="addCategory()">إضافة</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1076,6 +1094,68 @@ function generateSKU(category) {
   const num = String(products.length + 1).padStart(3,'0');
   return `${prefix}-${num}`;
 }
+function openCategoriesModal() {
+  renderCategoriesList();
+  openModal('categoriesModal');
+}
+function renderCategoriesList() {
+  const cats = [...new Set(products.map(p=>p.category).filter(Boolean))].sort();
+  const el = document.getElementById('categoriesList');
+  if(!cats.length){el.innerHTML='<div style="color:var(--text-muted);font-size:13px;padding:8px 0;">لا توجد فئات بعد</div>';return;}
+  el.innerHTML = cats.map(cat=>{
+    const count = products.filter(p=>p.category===cat).length;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div>
+        <span style="font-size:14px;font-weight:600;">${cat}</span>
+        <span style="font-size:12px;color:var(--text-muted);margin-right:8px;">(${count} منتج)</span>
+      </div>
+      <div class="flex gap-8">
+        <button class="btn btn-secondary btn-sm" onclick="renameCategory('${cat.replace(/'/g,"\\'")}')">✏️ تعديل</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCategory('${cat.replace(/'/g,"\\'")}')">🗑️ حذف</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function deleteCategory(cat) {
+  const count = products.filter(p=>p.category===cat).length;
+  if(!confirm(`حذف فئة "${cat}"؟\nسيتم إزالة الفئة من ${count} منتج وتركهم بدون فئة.`)) return;
+  try {
+    // Set category to empty string for all products in this category
+    const prods = products.filter(p=>p.category===cat);
+    for(const p of prods) {
+      await db('products','PATCH',{category:''},`?id=eq.${p.id}`);
+    }
+    toast('✅ تم حذف الفئة','success');
+    await loadAll();
+    renderCategoriesList();
+    renderProducts();
+  } catch(e){toast('خطأ: '+e.message,'error');}
+}
+async function renameCategory(cat) {
+  const newName = prompt(`تغيير اسم الفئة "${cat}" إلى:`, cat);
+  if(!newName || newName.trim()===cat) return;
+  try {
+    const prods = products.filter(p=>p.category===cat);
+    for(const p of prods) {
+      await db('products','PATCH',{category:newName.trim()},`?id=eq.${p.id}`);
+    }
+    toast('✅ تم تعديل اسم الفئة','success');
+    await loadAll();
+    renderCategoriesList();
+    renderProducts();
+  } catch(e){toast('خطأ: '+e.message,'error');}
+}
+async function addCategory() {
+  const name = document.getElementById('new-category-input').value.trim();
+  if(!name){toast('يرجى إدخال اسم الفئة','error');return;}
+  const exists = products.some(p=>p.category===name);
+  if(exists){toast('هذه الفئة موجودة بالفعل','error');return;}
+  // Category is just a label — it gets created when a product uses it
+  // So we just close and let the user assign it to a product
+  toast(`تم إنشاء الفئة "${name}" — قم بتعيينها لمنتج لحفظها`, 'info');
+  document.getElementById('new-category-input').value='';
+}
+
 function openProductModal() {
   ['pm-id','pm-name','pm-sku','pm-category','pm-price','pm-cost'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('pm-unit').value='كرتون';
