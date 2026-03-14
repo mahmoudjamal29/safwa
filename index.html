@@ -593,14 +593,9 @@ function hasUnsavedInvoice() {
 
 function openSidebar() {
   document.getElementById('sidebar').classList.add('open');
-  setTimeout(()=>{ document.addEventListener('touchstart', _closeSidebarTouch, {passive:true}); document.addEventListener('click', _closeSidebarClick); }, 50);
 }
-function _closeSidebarTouch(e){ if(!document.getElementById('sidebar').contains(e.target)) closeSidebar(); }
-function _closeSidebarClick(e){ if(!document.getElementById('sidebar').contains(e.target)) closeSidebar(); }
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
-  document.removeEventListener('touchstart', _closeSidebarTouch);
-  document.removeEventListener('click', _closeSidebarClick);
 }
 
 function navigate(page) {
