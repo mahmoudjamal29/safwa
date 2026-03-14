@@ -843,6 +843,21 @@ function renderItems() {
   const b=document.getElementById('invItemsBody');
   if(!items.length){b.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">اضغط "اضافة منتج" لاضافة بنود</td></tr>`;recalc();return;}
   b.innerHTML=items.map((item,i)=>{
+    // LOCKED balance item — cannot be edited or deleted
+    if(item.product_id==='balance') {
+      return `<tr style="background:rgba(231,76,60,0.06);">
+        <td>
+          <div style="padding:8px 12px;font-size:13px;font-weight:600;color:var(--danger);display:flex;align-items:center;gap:8px;">
+            <span>🔒</span><span>${item.product_name}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);padding:0 12px;">لا يمكن تعديل هذا البند</div>
+        </td>
+        <td style="color:var(--text-dim);font-size:13px;">1</td>
+        <td style="color:var(--text-dim);font-size:13px;">${fmtNum(item.price)} ج.م</td>
+        <td style="color:var(--danger);font-weight:700;font-size:14px;">${fmtNum(item.total)} ج.م</td>
+        <td></td>
+      </tr>`;
+    }
     const prod=products.find(p=>p.id===item.product_id);
     const hasPieces=prod&&prod.pieces_per_unit>0;
     const byPiece=item.sell_by==='piece';
@@ -851,7 +866,7 @@ function renderItems() {
       <button type="button" onclick="toggleSellBy(${i},'piece')" style="padding:3px 10px;border-radius:4px;border:1px solid var(--border);font-size:11px;font-family:'Tajawal',sans-serif;cursor:pointer;background:${byPiece?'var(--gold)':'transparent'};color:${byPiece?'var(--navy)':'var(--text-dim)'};">قطعة</button>
     </div>`:'';
     const qtyHint=hasPieces&&byPiece?`<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">من اصل ${prod.pieces_per_unit} قطعة</div>`:'';
-    const selectedName = item.product_id==='balance' ? item.product_name : (item.product_id ? (products.find(p=>p.id===item.product_id)||{}).name||'' : '');
+    const selectedName = item.product_id ? (products.find(p=>p.id===item.product_id)||{}).name||'' : '';
     return `<tr>
       <td>
         <div onclick="openProductPicker(${i})" style="width:100%;background:rgba(10,22,40,0.6);border:1px solid ${item.product_id?'var(--gold-border)':'var(--border)'};border-radius:6px;padding:8px 12px;color:${item.product_id?'var(--text)':'var(--text-muted)'};font-family:'Tajawal',sans-serif;font-size:13px;direction:rtl;cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:38px;">
@@ -960,7 +975,10 @@ function itemPriceChange(i,inp) {
   recalc();
 }
 function itemTotalChange(i,inp) { items[i].total=parseFloat(inp.value)||0; if(items[i].qty>0) items[i].price=items[i].total/items[i].qty; recalc(); }
-function removeItem(i) { items.splice(i,1); renderItems(); }
+function removeItem(i) {
+  if(items[i]&&items[i].product_id==='balance'){toast('لا يمكن حذف بند الرصيد المستحق','error');return;}
+  items.splice(i,1); renderItems();
+}
 function recalc() {
   const sub=items.reduce((s,i)=>s+i.total,0);
   const tp=parseFloat(document.getElementById('inv-tax-pct').value)||0;
