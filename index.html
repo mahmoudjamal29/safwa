@@ -264,15 +264,15 @@
     </div>
     <nav>
       <div class="nav-section">الرئيسية</div>
-      <div class="nav-item active" onclick="navigate('dashboard')"><span class="nav-icon">📊</span> لوحة التحكم</div>
+      <div class="nav-item active" onclick="closeSidebar();navigate('dashboard')"><span class="nav-icon">📊</span> لوحة التحكم</div>
       <div class="nav-section">المبيعات</div>
-      <div class="nav-item" onclick="navigate('invoices')"><span class="nav-icon">🧾</span> الفواتير</div>
-      <div class="nav-item" onclick="navigate('new-invoice')"><span class="nav-icon">➕</span> فاتورة جديدة</div>
+      <div class="nav-item" onclick="closeSidebar();navigate('invoices')"><span class="nav-icon">🧾</span> الفواتير</div>
+      <div class="nav-item" onclick="closeSidebar();navigate('new-invoice')"><span class="nav-icon">➕</span> فاتورة جديدة</div>
       <div class="nav-section">المخزون</div>
-      <div class="nav-item" onclick="navigate('products')"><span class="nav-icon">📦</span> المنتجات</div>
-      <div class="nav-item" onclick="navigate('inventory')"><span class="nav-icon">🏭</span> حركة المخزون</div>
+      <div class="nav-item" onclick="closeSidebar();navigate('products')"><span class="nav-icon">📦</span> المنتجات</div>
+      <div class="nav-item" onclick="closeSidebar();navigate('inventory')"><span class="nav-icon">🏭</span> حركة المخزون</div>
       <div class="nav-section">العملاء</div>
-      <div class="nav-item" onclick="navigate('customers')"><span class="nav-icon">👥</span> العملاء</div>
+      <div class="nav-item" onclick="closeSidebar();navigate('customers')"><span class="nav-icon">👥</span> العملاء</div>
     </nav>
     <div class="sidebar-footer">الصفوة لتجارة المنتجات الغذائية</div>
   </aside>
@@ -611,7 +611,6 @@ function navigate(page) {
     pendingUnpaidInvoices = [];
     resetInvForm();
   }
-  closeSidebar();
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
