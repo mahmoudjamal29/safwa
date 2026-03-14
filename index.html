@@ -199,11 +199,9 @@
 
     /* MOBILE */
     #menu-btn { display:none; background:transparent; border:1px solid var(--border); color:var(--text); border-radius:8px; padding:6px 10px; cursor:pointer; font-size:20px; line-height:1; flex-shrink:0; }
-    #mob-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:99; }
     @media (max-width: 768px) {
       #sidebar { transform:translateX(110%); transition:transform 0.28s ease; z-index:200; box-shadow:-4px 0 24px rgba(0,0,0,0.5); }
       #sidebar.open { transform:translateX(0); }
-      #mob-overlay.open { display:block; }
       #main { margin-right:0 !important; }
       #menu-btn { display:flex; align-items:center; justify-content:center; }
       .page-content { padding:14px; }
@@ -218,15 +216,12 @@
       .table-wrap { font-size:12px; }
       th { padding:8px 8px; font-size:11px; }
       td { padding:8px 8px; font-size:12px; }
-      .modal-overlay { align-items:flex-end; padding:0; }
-      .modal { margin:0; border-radius:16px 16px 0 0; max-height:90vh; overflow-y:auto; width:100%; }
-      .modal-lg { max-width:100% !important; margin:0 !important; border-radius:16px 16px 0 0 !important; max-height:90vh !important; }
-      #productPickerModal .modal { height:85vh; border-radius:16px 16px 0 0; }
-      .inv-items-table th:nth-child(2), .inv-items-table td:nth-child(2) { min-width:60px; }
+      .modal { margin:16px; max-height:88vh; overflow-y:auto; }
+      .modal-lg { max-width:100% !important; margin:16px !important; max-height:88vh !important; }
+      #productPickerModal .modal { height:85vh; }
       .flex-between { flex-wrap:wrap; gap:8px; }
     }
     @media (max-width: 480px) {
-      .stats-grid { grid-template-columns:1fr 1fr; }
       .btn { font-size:13px; padding:8px 12px; }
       .btn-sm { padding:5px 10px; font-size:11px; }
     }
@@ -250,7 +245,6 @@
   </style>
 </head>
 <body>
-<div id="mob-overlay" onclick="closeSidebar()"></div>
 <div id="app">
   <aside id="sidebar">
     <div class="sidebar-logo">
@@ -599,11 +593,14 @@ function hasUnsavedInvoice() {
 
 function openSidebar() {
   document.getElementById('sidebar').classList.add('open');
-  document.getElementById('mob-overlay').classList.add('open');
+  setTimeout(()=>{ document.addEventListener('touchstart', _closeSidebarTouch, {passive:true}); document.addEventListener('click', _closeSidebarClick); }, 50);
 }
+function _closeSidebarTouch(e){ if(!document.getElementById('sidebar').contains(e.target)) closeSidebar(); }
+function _closeSidebarClick(e){ if(!document.getElementById('sidebar').contains(e.target)) closeSidebar(); }
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('mob-overlay').classList.remove('open');
+  document.removeEventListener('touchstart', _closeSidebarTouch);
+  document.removeEventListener('click', _closeSidebarClick);
 }
 
 function navigate(page) {
