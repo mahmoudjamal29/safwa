@@ -1,0 +1,26 @@
+{
+  "name": "الصفوة - نظام الإدارة",
+  "short_name": "الصفوة",
+  "description": "نظام إدارة الأعمال لشركة الصفوة للمنتجات الغذائية",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A1628",
+  "theme_color": "#0A1628",
+  "orientation": "portrait",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%230A1628'/%3E%3Cline x1='96' y1='18' x2='96' y2='174' stroke='%23C9A84C' stroke-width='9' stroke-linecap='round'/%3E%3Cline x1='96' y1='60' x2='48' y2='24' stroke='%23C9A84C' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='96' y1='90' x2='48' y2='54' stroke='%23C9A84C' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='96' y1='120' x2='48' y2='84' stroke='%23C9A84C' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='96' y1='60' x2='144' y2='24' stroke='%23C9A84C' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='96' y1='90' x2='144' y2='54' stroke='%23C9A84C' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='96' y1='120' x2='144' y2='84' stroke='%23C9A84C' stroke-width='7' stroke-linecap='round'/%3E%3Ccircle cx='96' cy='15' r='12' fill='%23C9A84C'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230A1628'/%3E%3Cline x1='256' y1='48' x2='256' y2='464' stroke='%23C9A84C' stroke-width='24' stroke-linecap='round'/%3E%3Cline x1='256' y1='160' x2='128' y2='64' stroke='%23C9A84C' stroke-width='18' stroke-linecap='round'/%3E%3Cline x1='256' y1='240' x2='128' y2='144' stroke='%23C9A84C' stroke-width='18' stroke-linecap='round'/%3E%3Cline x1='256' y1='320' x2='128' y2='224' stroke='%23C9A84C' stroke-width='18' stroke-linecap='round'/%3E%3Cline x1='256' y1='160' x2='384' y2='64' stroke='%23C9A84C' stroke-width='18' stroke-linecap='round'/%3E%3Cline x1='256' y1='240' x2='384' y2='144' stroke='%23C9A84C' stroke-width='18' stroke-linecap='round'/%3E%3Cline x1='256' y1='320' x2='384' y2='224' stroke='%23C9A84C' stroke-width='18' stroke-linecap='round'/%3E%3Ccircle cx='256' cy='40' r='32' fill='%23C9A84C'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
