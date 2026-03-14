@@ -2,7 +2,13 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="الصفوة"/>
+  <meta name="theme-color" content="#0A1628"/>
+  <link rel="manifest" href="manifest.json"/>
   <title>الصفوة - نظام الإدارة</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A1628'/%3E%3Cline x1='32' y1='6' x2='32' y2='58' stroke='%23C9A84C' stroke-width='3' stroke-linecap='round'/%3E%3Cline x1='32' y1='20' x2='16' y2='8' stroke='%23C9A84C' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='32' y1='30' x2='16' y2='18' stroke='%23C9A84C' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='32' y1='40' x2='16' y2='28' stroke='%23C9A84C' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='32' y1='20' x2='48' y2='8' stroke='%23C9A84C' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='32' y1='30' x2='48' y2='18' stroke='%23C9A84C' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='32' y1='40' x2='48' y2='28' stroke='%23C9A84C' stroke-width='2.5' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='5' r='4' fill='%23C9A84C'/%3E%3C/svg%3E"/>
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A1628'/%3E%3Cline x1='32' y1='6' x2='32' y2='58' stroke='%23C9A84C' stroke-width='3' stroke-linecap='round'/%3E%3Cline x1='32' y1='20' x2='16' y2='8' stroke='%23C9A84C' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='32' y1='30' x2='16' y2='18' stroke='%23C9A84C' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='32' y1='40' x2='16' y2='28' stroke='%23C9A84C' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='32' y1='20' x2='48' y2='8' stroke='%23C9A84C' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='32' y1='30' x2='48' y2='18' stroke='%23C9A84C' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='32' y1='40' x2='48' y2='28' stroke='%23C9A84C' stroke-width='2.5' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='5' r='4' fill='%23C9A84C'/%3E%3C/svg%3E"/>
@@ -198,32 +204,107 @@
     @keyframes fadeOut { to { opacity:0; transform:translateX(-20px); } }
 
     /* MOBILE */
-    #menu-btn { display:none; background:transparent; border:1px solid var(--border); color:var(--text); border-radius:8px; padding:6px 10px; cursor:pointer; font-size:20px; line-height:1; flex-shrink:0; }
+    #menu-btn { display:none; }
+    #bottom-nav { display:none; }
+
     @media (max-width: 768px) {
-      #sidebar { transform:translateX(110%); transition:transform 0.28s ease; z-index:200; box-shadow:-4px 0 24px rgba(0,0,0,0.5); }
-      #sidebar.open { transform:translateX(0); }
+      /* Hide desktop sidebar completely */
+      #sidebar { display:none !important; }
       #main { margin-right:0 !important; }
-      #menu-btn { display:flex; align-items:center; justify-content:center; }
-      .page-content { padding:14px; }
+
+      /* Bottom navigation bar */
+      #bottom-nav {
+        display:flex;
+        position:fixed;
+        bottom:0; left:0; right:0;
+        background:var(--navy2);
+        border-top:1px solid var(--gold-border);
+        z-index:500;
+        height:62px;
+        padding-bottom:env(safe-area-inset-bottom);
+      }
+      .bn-item {
+        flex:1;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:3px;
+        cursor:pointer;
+        color:var(--text-muted);
+        font-size:10px;
+        padding:6px 2px;
+        transition:color 0.2s;
+        -webkit-tap-highlight-color:transparent;
+        border:none;
+        background:transparent;
+        font-family:'Tajawal',sans-serif;
+      }
+      .bn-item.active { color:var(--gold); }
+      .bn-item .bn-icon { font-size:20px; line-height:1; }
+      .bn-item .bn-label { font-size:10px; white-space:nowrap; }
+
+      /* Topbar on mobile */
+      .topbar { padding:0 14px; height:52px; }
+      .page-title { font-size:16px; }
+      .date-badge { font-size:11px; padding:3px 8px; }
+
+      /* Content padding - add bottom padding for nav bar */
+      .page-content { padding:12px 12px 80px 12px; }
+
+      /* Cards and grids */
+      .card { padding:14px; border-radius:10px; }
       .stats-grid { grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
       .grid-2 { grid-template-columns:1fr; gap:12px; }
       .grid-3 { grid-template-columns:1fr; gap:12px; }
       .stat-card { padding:14px; }
-      .stat-value { font-size:17px; }
+      .stat-value { font-size:18px; }
       .stat-icon { font-size:22px; margin-bottom:6px; }
-      .topbar { padding:0 14px; height:54px; }
-      .card { padding:14px; }
-      .table-wrap { font-size:12px; }
+
+      /* Tables */
+      .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
       th { padding:8px 8px; font-size:11px; }
-      td { padding:8px 8px; font-size:12px; }
-      .modal { margin:16px; max-height:88vh; overflow-y:auto; }
-      .modal-lg { max-width:100% !important; margin:16px !important; max-height:88vh !important; }
-      #productPickerModal .modal { height:85vh; }
+      td { padding:10px 8px; font-size:12px; }
+
+      /* Forms - bigger touch targets */
+      .form-input, .form-select, .form-textarea { padding:12px 14px; font-size:15px; }
+      .form-label { font-size:13px; margin-bottom:5px; }
+      .form-group { margin-bottom:14px; }
+
+      /* Buttons - bigger touch targets */
+      .btn { padding:12px 18px; font-size:14px; min-height:44px; }
+      .btn-sm { padding:8px 12px; font-size:12px; min-height:36px; }
+      .btn-icon { min-height:36px; min-width:36px; padding:8px; }
+
+      /* Modals - slide up from bottom */
+      .modal-overlay { align-items:flex-end !important; padding:0 !important; }
+      .modal {
+        margin:0 !important;
+        border-radius:20px 20px 0 0 !important;
+        max-height:90vh !important;
+        overflow-y:auto;
+        width:100%;
+        padding-bottom:env(safe-area-inset-bottom);
+      }
+      .modal-lg {
+        max-width:100% !important;
+        margin:0 !important;
+        border-radius:20px 20px 0 0 !important;
+        max-height:90vh !important;
+        width:100% !important;
+      }
+      #productPickerModal .modal { height:88vh; max-height:88vh !important; }
+
+      /* Invoice items table - more compact */
+      .inv-items-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+      .inv-items-table { min-width:480px; }
+
+      /* Search bars */
+      .search-bar { flex-direction:column; gap:10px; }
+      .search-wrap { width:100%; }
+
+      /* Flex wrapping */
       .flex-between { flex-wrap:wrap; gap:8px; }
-    }
-    @media (max-width: 480px) {
-      .btn { font-size:13px; padding:8px 12px; }
-      .btn-sm { padding:5px 10px; font-size:11px; }
     }
     .invoice-preview { background:white; color:#1a1a2e; padding:40px; border-radius:8px; font-family:'Noto Naskh Arabic',serif; direction:rtl; }
     .inv-print-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:30px; border-bottom:2px solid #C9A84C; padding-bottom:20px; }
@@ -264,15 +345,15 @@
     </div>
     <nav>
       <div class="nav-section">الرئيسية</div>
-      <div class="nav-item active" onclick="closeSidebar();navigate('dashboard')"><span class="nav-icon">📊</span> لوحة التحكم</div>
+      <div class="nav-item active" onclick="navigate('dashboard')"><span class="nav-icon">📊</span> لوحة التحكم</div>
       <div class="nav-section">المبيعات</div>
-      <div class="nav-item" onclick="closeSidebar();navigate('invoices')"><span class="nav-icon">🧾</span> الفواتير</div>
-      <div class="nav-item" onclick="closeSidebar();navigate('new-invoice')"><span class="nav-icon">➕</span> فاتورة جديدة</div>
+      <div class="nav-item" onclick="navigate('invoices')"><span class="nav-icon">🧾</span> الفواتير</div>
+      <div class="nav-item" onclick="navigate('new-invoice')"><span class="nav-icon">➕</span> فاتورة جديدة</div>
       <div class="nav-section">المخزون</div>
-      <div class="nav-item" onclick="closeSidebar();navigate('products')"><span class="nav-icon">📦</span> المنتجات</div>
-      <div class="nav-item" onclick="closeSidebar();navigate('inventory')"><span class="nav-icon">🏭</span> حركة المخزون</div>
+      <div class="nav-item" onclick="navigate('products')"><span class="nav-icon">📦</span> المنتجات</div>
+      <div class="nav-item" onclick="navigate('inventory')"><span class="nav-icon">🏭</span> حركة المخزون</div>
       <div class="nav-section">العملاء</div>
-      <div class="nav-item" onclick="closeSidebar();navigate('customers')"><span class="nav-icon">👥</span> العملاء</div>
+      <div class="nav-item" onclick="navigate('customers')"><span class="nav-icon">👥</span> العملاء</div>
     </nav>
     <div class="sidebar-footer">الصفوة لتجارة المنتجات الغذائية</div>
   </aside>
@@ -420,6 +501,15 @@
     </div>
   </main>
 </div>
+
+<!-- BOTTOM NAV (mobile only) -->
+<nav id="bottom-nav">
+  <button class="bn-item active" id="bn-dashboard" onclick="navigate('dashboard')"><span class="bn-icon">📊</span><span class="bn-label">الرئيسية</span></button>
+  <button class="bn-item" id="bn-invoices" onclick="navigate('invoices')"><span class="bn-icon">🧾</span><span class="bn-label">الفواتير</span></button>
+  <button class="bn-item" id="bn-new-invoice" onclick="navigate('new-invoice')"><span class="bn-icon">➕</span><span class="bn-label">فاتورة</span></button>
+  <button class="bn-item" id="bn-products" onclick="navigate('products')"><span class="bn-icon">📦</span><span class="bn-label">المنتجات</span></button>
+  <button class="bn-item" id="bn-customers" onclick="navigate('customers')"><span class="bn-icon">👥</span><span class="bn-label">العملاء</span></button>
+</nav>
 
 <div id="toast"></div>
 
@@ -591,13 +681,6 @@ function hasUnsavedInvoice() {
   return hasCustomer || hasItems;
 }
 
-function openSidebar() {
-  document.getElementById('sidebar').classList.add('open');
-}
-function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
-}
-
 function navigate(page) {
   // Warn if leaving new-invoice page with unsaved data
   const currentPage = document.querySelector('.page.active')?.id;
@@ -611,6 +694,10 @@ function navigate(page) {
   document.getElementById('page-'+page).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>{ if(n.getAttribute('onclick')?.includes("'"+page+"'")) n.classList.add('active'); });
   document.getElementById('pageTitle').textContent = pageTitles[page]||'';
+  // Update bottom nav active state
+  document.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
+  const bn = document.getElementById('bn-'+page);
+  if(bn) bn.classList.add('active');
   if(page==='dashboard') renderDashboard();
   if(page==='invoices') renderInvoices();
   if(page==='new-invoice'){ resetInvForm(); fillInvCustomers(); }
@@ -1330,7 +1417,7 @@ async function deleteCustomer(id) {
 }
 
 // MODALS
-function openModal(id){ closeSidebar(); document.getElementById(id).classList.add('open'); }
+function openModal(id){ document.getElementById(id).classList.add('open'); }
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
 
