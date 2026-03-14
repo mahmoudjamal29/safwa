@@ -851,7 +851,7 @@ function renderItems() {
       <button type="button" onclick="toggleSellBy(${i},'piece')" style="padding:3px 10px;border-radius:4px;border:1px solid var(--border);font-size:11px;font-family:'Tajawal',sans-serif;cursor:pointer;background:${byPiece?'var(--gold)':'transparent'};color:${byPiece?'var(--navy)':'var(--text-dim)'};">قطعة</button>
     </div>`:'';
     const qtyHint=hasPieces&&byPiece?`<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">من اصل ${prod.pieces_per_unit} قطعة</div>`:'';
-    const selectedName = item.product_id ? (products.find(p=>p.id===item.product_id)||{}).name||'' : '';
+    const selectedName = item.product_id==='balance' ? item.product_name : (item.product_id ? (products.find(p=>p.id===item.product_id)||{}).name||'' : '');
     return `<tr>
       <td>
         <div onclick="openProductPicker(${i})" style="width:100%;background:rgba(10,22,40,0.6);border:1px solid ${item.product_id?'var(--gold-border)':'var(--border)'};border-radius:6px;padding:8px 12px;color:${item.product_id?'var(--text)':'var(--text-muted)'};font-family:'Tajawal',sans-serif;font-size:13px;direction:rtl;cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:38px;">
@@ -981,11 +981,15 @@ async function saveInvoice() {
   const tv=sub*tp/100;
   const num=Date.now().toString().slice(-6);
   // build invoice payload - only include customer_id if it's a valid value
+  const invStatus = document.getElementById('inv-status').value;
+  const invTotal = sub+tv;
+  const invPaidAmount = invStatus==='مدفوعة' ? invTotal : 0;
   const invPayload = {
     invoice_number:num, customer_name:cName,
     invoice_date:document.getElementById('inv-date').value,
-    status:document.getElementById('inv-status').value,
-    subtotal:sub, tax_percent:tp, tax_amount:tv, total:sub+tv,
+    status:invStatus,
+    subtotal:sub, tax_percent:tp, tax_amount:tv, total:invTotal,
+    paid_amount:invPaidAmount,
     notes:document.getElementById('inv-notes').value,
     items:JSON.stringify(items),
   };
@@ -1131,7 +1135,7 @@ async function checkCustomerBalance(customerId) {
     const unpaid = invoices.filter(i=>i.customer_id===customerId && (i.status==='معلقة'||i.status==='مدفوعة جزئياً'));
     pendingUnpaidInvoices = unpaid;
     if(!unpaid.length) { document.getElementById('customer-balance-alert').style.display='none'; return; }
-    const totalOwed = unpaid.reduce((s,i)=>s+(parseFloat(i.total||0)-parseFloat(i.paid_amount||0)),0);
+    const totalOwed = unpaid.reduce((s,i)=>s+Math.max(0,parseFloat(i.total||0)-parseFloat(i.paid_amount||0)),0);
     const invList = unpaid.map(i=>`#${i.invoice_number} (${fmtNum(parseFloat(i.total||0)-parseFloat(i.paid_amount||0))} ج.م)`).join('، ');
     const alert = document.getElementById('customer-balance-alert');
     alert.style.display='block';
@@ -1369,7 +1373,10 @@ function renderCustomers(data) {
   w.innerHTML=`<table><thead><tr><th>الاسم</th><th>الهاتف</th><th>العنوان</th><th>الرقم الضريبي</th><th>الرصيد المستحق</th><th>ملاحظات</th><th>إجراءات</th></tr></thead><tbody>
     ${list.map(c=>{
       const unpaid = invoices.filter(i=>i.customer_id===c.id && (i.status==='معلقة'||i.status==='مدفوعة جزئياً'));
-      const totalOwed = unpaid.reduce((s,i)=>s+(parseFloat(i.total||0)-parseFloat(i.paid_amount||0)),0);
+      const totalOwed = unpaid.reduce((s,i)=>{
+        const remaining = parseFloat(i.total||0)-parseFloat(i.paid_amount||0);
+        return s + Math.max(0, remaining);
+      },0);
       const balanceCell = totalOwed > 0
         ? `<td><span style="color:var(--danger);font-weight:700;">${fmtNum(totalOwed)} ج.م</span><div style="font-size:11px;color:var(--text-muted);">${unpaid.length} فاتورة</div></td>`
         : `<td><span style="color:var(--success);font-size:13px;">✓ لا يوجد</span></td>`;
