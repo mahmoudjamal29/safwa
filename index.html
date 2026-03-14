@@ -198,27 +198,37 @@
     @keyframes fadeOut { to { opacity:0; transform:translateX(-20px); } }
 
     /* MOBILE */
-    #menu-btn { display:none; background:transparent; border:1px solid var(--border); color:var(--text); border-radius:8px; padding:6px 10px; cursor:pointer; font-size:18px; line-height:1; }
+    #menu-btn { display:none; background:transparent; border:1px solid var(--border); color:var(--text); border-radius:8px; padding:6px 10px; cursor:pointer; font-size:20px; line-height:1; flex-shrink:0; }
+    #mob-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:99; }
     @media (max-width: 768px) {
-      #sidebar { transform:translateX(100%); transition:transform 0.3s ease; z-index:100; }
+      #sidebar { transform:translateX(110%); transition:transform 0.28s ease; z-index:200; box-shadow:-4px 0 24px rgba(0,0,0,0.5); }
       #sidebar.open { transform:translateX(0); }
-      #main { margin-right:0; }
-      #menu-btn { display:block; }
-      .page-content { padding:16px; }
-      .stats-grid { grid-template-columns:1fr 1fr; gap:12px; }
+      #mob-overlay.open { display:block; }
+      #main { margin-right:0 !important; }
+      #menu-btn { display:flex; align-items:center; justify-content:center; }
+      .page-content { padding:14px; }
+      .stats-grid { grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
       .grid-2 { grid-template-columns:1fr; gap:12px; }
       .grid-3 { grid-template-columns:1fr; gap:12px; }
-      .stat-value { font-size:18px; }
-      .topbar { padding:0 16px; }
-      .card { padding:16px; }
+      .stat-card { padding:14px; }
+      .stat-value { font-size:17px; }
+      .stat-icon { font-size:22px; margin-bottom:6px; }
+      .topbar { padding:0 14px; height:54px; }
+      .card { padding:14px; }
       .table-wrap { font-size:12px; }
-      th, td { padding:8px 10px; }
-      .modal { margin:16px; max-height:90vh; overflow-y:auto; }
-      .modal-lg { max-width:100% !important; margin:16px !important; }
+      th { padding:8px 8px; font-size:11px; }
+      td { padding:8px 8px; font-size:12px; }
+      .modal-overlay { align-items:flex-end; padding:0; }
+      .modal { margin:0; border-radius:16px 16px 0 0; max-height:90vh; overflow-y:auto; width:100%; }
+      .modal-lg { max-width:100% !important; margin:0 !important; border-radius:16px 16px 0 0 !important; max-height:90vh !important; }
+      #productPickerModal .modal { height:85vh; border-radius:16px 16px 0 0; }
+      .inv-items-table th:nth-child(2), .inv-items-table td:nth-child(2) { min-width:60px; }
+      .flex-between { flex-wrap:wrap; gap:8px; }
     }
     @media (max-width: 480px) {
-      .stats-grid { grid-template-columns:1fr; }
-      .btn { font-size:13px; padding:8px 14px; }
+      .stats-grid { grid-template-columns:1fr 1fr; }
+      .btn { font-size:13px; padding:8px 12px; }
+      .btn-sm { padding:5px 10px; font-size:11px; }
     }
     .invoice-preview { background:white; color:#1a1a2e; padding:40px; border-radius:8px; font-family:'Noto Naskh Arabic',serif; direction:rtl; }
     .inv-print-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:30px; border-bottom:2px solid #C9A84C; padding-bottom:20px; }
@@ -240,6 +250,7 @@
   </style>
 </head>
 <body>
+<div id="mob-overlay" onclick="closeSidebar()"></div>
 <div id="app">
   <aside id="sidebar">
     <div class="sidebar-logo">
@@ -500,7 +511,7 @@
 
 <!-- PRODUCT PICKER MODAL -->
 <div class="modal-overlay" id="productPickerModal">
-  <div class="modal modal-lg" style="max-width:700px;max-height:85vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
+  <div class="modal modal-lg" style="max-width:700px;max-height:85vh;height:85vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
       <div class="modal-title">&#x1F50D; اختر منتج</div>
       <button class="modal-close" onclick="closeModal('productPickerModal')">&#x2715;</button>
@@ -588,20 +599,11 @@ function hasUnsavedInvoice() {
 
 function openSidebar() {
   document.getElementById('sidebar').classList.add('open');
-  // Add a one-time tap outside listener to close
-  setTimeout(()=>{
-    document.addEventListener('click', closeSidebarOutside);
-  }, 100);
-}
-function closeSidebarOutside(e) {
-  const sidebar = document.getElementById('sidebar');
-  if(!sidebar.contains(e.target)) {
-    closeSidebar();
-  }
+  document.getElementById('mob-overlay').classList.add('open');
 }
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
-  document.removeEventListener('click', closeSidebarOutside);
+  document.getElementById('mob-overlay').classList.remove('open');
 }
 
 function navigate(page) {
@@ -1337,7 +1339,7 @@ async function deleteCustomer(id) {
 }
 
 // MODALS
-function openModal(id){document.getElementById(id).classList.add('open');}
+function openModal(id){ closeSidebar(); document.getElementById(id).classList.add('open'); }
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
 
