@@ -199,11 +199,9 @@
 
     /* MOBILE */
     #menu-btn { display:none; background:transparent; border:1px solid var(--border); color:var(--text); border-radius:8px; padding:6px 10px; cursor:pointer; font-size:18px; line-height:1; }
-    #sidebar-overlay { visibility:hidden; opacity:0; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:98; transition:opacity 0.3s; pointer-events:none; }
     @media (max-width: 768px) {
       #sidebar { transform:translateX(100%); transition:transform 0.3s ease; z-index:100; }
       #sidebar.open { transform:translateX(0); }
-      #sidebar-overlay.open { visibility:visible; opacity:1; pointer-events:all; }
       #main { margin-right:0; }
       #menu-btn { display:block; }
       .page-content { padding:16px; }
@@ -242,7 +240,6 @@
   </style>
 </head>
 <body>
-<div id="sidebar-overlay" onclick="closeSidebar()"></div>
 <div id="app">
   <aside id="sidebar">
     <div class="sidebar-logo">
@@ -591,11 +588,20 @@ function hasUnsavedInvoice() {
 
 function openSidebar() {
   document.getElementById('sidebar').classList.add('open');
-  document.getElementById('sidebar-overlay').classList.add('open');
+  // Add a one-time tap outside listener to close
+  setTimeout(()=>{
+    document.addEventListener('click', closeSidebarOutside);
+  }, 100);
+}
+function closeSidebarOutside(e) {
+  const sidebar = document.getElementById('sidebar');
+  if(!sidebar.contains(e.target)) {
+    closeSidebar();
+  }
 }
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebar-overlay').classList.remove('open');
+  document.removeEventListener('click', closeSidebarOutside);
 }
 
 function navigate(page) {
