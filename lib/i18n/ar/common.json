@@ -1,0 +1,35 @@
+{
+  "actions": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "add": "إضافة",
+    "search": "بحث",
+    "filter": "تصفية",
+    "reset": "تفريغ",
+    "close": "إغلاق",
+    "confirm": "تأكيد",
+    "print": "طباعة",
+    "view": "عرض"
+  },
+  "status": {
+    "paid": "مدفوعة",
+    "partiallyPaid": "مدفوعة جزئياً",
+    "pending": "معلقة",
+    "cancelled": "ملغاة",
+    "incoming": "وارد",
+    "outgoing": "صادر",
+    "adjustment": "تسوية",
+    "damaged": "تالف"
+  },
+  "table": {
+    "noData": "لا توجد بيانات",
+    "loading": "جاري التحميل...",
+    "rowsPerPage": "صفوف في الصفحة",
+    "total": "الإجمالي"
+  },
+  "currency": "ج.م",
+  "confirmDelete": "هل أنت متأكد من الحذف؟",
+  "deleteWarning": "هذا الإجراء لا يمكن التراجع عنه."
+}

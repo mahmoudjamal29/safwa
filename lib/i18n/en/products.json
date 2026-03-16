@@ -1,0 +1,34 @@
+{
+  "title": "Products",
+  "newProduct": "New Product",
+  "name": "Product Name",
+  "sku": "Product Code",
+  "category": "Category",
+  "unit": "Unit of Measure",
+  "price": "Unit Price",
+  "cost": "Cost Price",
+  "qty": "Quantity",
+  "minQty": "Minimum Quantity",
+  "maxQty": "Maximum Quantity",
+  "piecesPerUnit": "Pieces per Unit",
+  "piecePrice": "Piece Price",
+  "searchPlaceholder": "Search products...",
+  "allCategories": "All Categories",
+  "manageCategories": "Manage Categories",
+  "units": {
+    "carton": "Carton",
+    "piece": "Piece",
+    "kg": "Kg",
+    "liter": "Liter",
+    "gallon": "Gallon",
+    "ton": "Ton",
+    "item": "Item"
+  },
+  "splitSettings": "Split Settings (for divisible products)",
+  "piecesHelp": "Auto calculated",
+  "stockLevel": {
+    "low": "Low Stock",
+    "out": "Out of Stock"
+  },
+  "deleteConfirm": "Are you sure you want to delete this product?"
+}

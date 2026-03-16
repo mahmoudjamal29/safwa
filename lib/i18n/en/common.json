@@ -1,0 +1,35 @@
+{
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "filter": "Filter",
+    "reset": "Reset",
+    "close": "Close",
+    "confirm": "Confirm",
+    "print": "Print",
+    "view": "View"
+  },
+  "status": {
+    "paid": "Paid",
+    "partiallyPaid": "Partially Paid",
+    "pending": "Pending",
+    "cancelled": "Cancelled",
+    "incoming": "Incoming",
+    "outgoing": "Outgoing",
+    "adjustment": "Adjustment",
+    "damaged": "Damaged"
+  },
+  "table": {
+    "noData": "No data",
+    "loading": "Loading...",
+    "rowsPerPage": "Rows per page",
+    "total": "Total"
+  },
+  "currency": "EGP",
+  "confirmDelete": "Are you sure you want to delete?",
+  "deleteWarning": "This action cannot be undone."
+}
