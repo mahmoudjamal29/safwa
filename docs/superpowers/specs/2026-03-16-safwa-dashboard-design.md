@@ -53,8 +53,9 @@ Email + password form. Gold/navy theme matching original HTML branding. Error di
 
 ### `/(dashboard)/invoices` — Invoices List
 - Data table with search (customer/invoice number), status filter
-- Actions: View (dialog with payments), Record Payment (dialog), Print, Edit, Delete
-- Status badges: مدفوعة / معلقة / ملغاة
+- Actions: View (dialog with payments), Record Payment (dialog), Print, Delete
+- Status badges: مدفوعة / مدفوعة جزئياً / معلقة / ملغاة
+- Note: Edit invoice is **not** in the original HTML — out of scope for this migration
 
 ### `/(dashboard)/invoices/new` — New Invoice
 - Customer search/select (combobox from customers list)
@@ -87,12 +88,13 @@ Email + password form. Gold/navy theme matching original HTML branding. Error di
 
 | Table | Key Columns |
 |---|---|
-| `products` | id, name, sku, category, unit, price, cost, pieces_count, piece_price, qty, min_qty, max_qty |
+| `products` | id, name, sku, category, unit, price, cost, pieces_per_unit, piece_price, qty, min_qty, max_qty |
 | `customers` | id, name, phone, address, tax_number, notes |
-| `invoices` | id, invoice_number, customer_id, customer_name, invoice_date, status, subtotal, tax_pct, tax_val, total, notes |
-| `invoice_items` | id, invoice_id, product_id, product_name, qty, unit_price, total |
+| `invoices` | id, invoice_number, customer_id, customer_name, invoice_date, status, subtotal, tax_percent, tax_amount, total, paid_amount, notes, items (jsonb — array of line items, no separate table) |
 | `inventory_movements` | id, product_id, product_name, type, qty, note, created_at |
-| `payments` | id, invoice_id, amount, method, note, created_at |
+| `payments` | id, invoice_id, customer_id, customer_name, amount, method, note, created_at |
+
+**Note on `items` column:** Line items are stored as a JSONB column on `invoices.items`, not a separate relational table. Each element: `{ product_id, product_name, qty, price, total, sell_by, pieces_per_unit }`. No `invoice_items` table exists.
 
 ### Query Organization
 
@@ -101,10 +103,39 @@ query/
   invoices/
     invoices-types.ts
     invoices-query.ts      # queryOptions wrappers around supabase client calls
-    invoices-mutations.ts  # useMutation helpers
+    invoices-mutations.ts  # useMutation helpers (insert/update/delete + invalidate)
     index.ts
   products/   customers/   inventory/   payments/
     (same structure)
+```
+
+`invoices-types.ts` must include:
+```ts
+interface InvoiceLineItem {
+  product_id: string | 'balance'
+  product_name: string
+  qty: number
+  price: number
+  total: number
+  sell_by: 'unit' | 'piece'
+  pieces_per_unit: number
+}
+interface Invoice {
+  id: string
+  invoice_number: string
+  customer_id: string | null
+  customer_name: string
+  invoice_date: string
+  status: 'مدفوعة' | 'مدفوعة جزئياً' | 'معلقة' | 'ملغاة'
+  subtotal: number
+  tax_percent: number
+  tax_amount: number
+  total: number
+  paid_amount: number
+  notes: string
+  items: InvoiceLineItem[]  // parsed from JSONB
+  created_at: string
+}
 ```
 
 All queries use `queryOptions()` from TanStack Query. Mutations call `supabase.from(table).insert/update/delete` and invalidate relevant query keys on success.
@@ -121,6 +152,15 @@ lib/supabase/
 
 Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
+`lib/env.ts` schema (using `@t3-oss/env-nextjs`):
+```ts
+client: {
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+}
+// No server-side secrets needed — Supabase anon key is public by design
+```
+
 ---
 
 ## i18n
@@ -129,7 +169,7 @@ Cookie-based locale detection, identical to edge-admin-dashboard pattern.
 
 ```
 lib/i18n/
-  i18n-config.ts     # locales = ['ar', 'en'], defaultLocale = 'ar'
+  i18n-config.ts     # locales = ['ar', 'en'], defaultLocale = 'ar', localePrefix: 'never'
   request.ts         # getRequestConfig, getLocale(), getTimeZone()
   messages.ts        # aggregates all JSON per locale
   ar/
@@ -140,6 +180,10 @@ lib/i18n/
 ```
 
 RTL/LTR: `ar` → `dir="rtl"`, `en` → `dir="ltr"`. Applied on `<html>` in root layout via locale from `getLocale()`.
+
+**Locale strategy:** Cookie-only (`NEXT_LOCALE` cookie), flat URL paths (no `/ar/` prefix). `localePrefix: 'never'` in `i18n-config.ts`. next-intl's `createMiddleware` is **not** used — locale detection happens purely in `request.ts` by reading the cookie. Routes are `/login`, `/invoices`, etc. (not `/ar/invoices`).
+
+**Middleware:** Single `middleware.ts` using `@supabase/ssr` `createServerClient` — refreshes session cookies on every request and protects `/(dashboard)` routes. No next-intl middleware composition needed. Matcher: `['/((?!_next/static|_next/image|favicon.ico).*)']`.
 
 ---
 
@@ -186,10 +230,13 @@ safwa/
 │   ├── globals.css
 │   ├── layout.tsx                    # Root: html dir/lang, providers
 │   ├── page.tsx                      # redirect → /
+│   ├── not-found.tsx
+│   ├── global-error.tsx
 │   ├── (auth)/
 │   │   └── login/page.tsx
 │   └── (dashboard)/
 │       ├── layout.tsx
+│       ├── error.tsx
 │       ├── _layout/
 │       │   ├── sidebar-config.ts
 │       │   └── components/
