@@ -1,29 +1,13 @@
 'use client'
 
-import * as React from 'react'
-import { createClient } from '@/lib/supabase/client'
-import type { Product } from '@/query/products'
+import { useQuery } from '@tanstack/react-query'
+import { getAllProductsSimpleQuery } from '@/query/products'
 
 export function LowStockList() {
-  const [products, setProducts] = React.useState<Product[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const { data: allProducts = [], isLoading } = useQuery(getAllProductsSimpleQuery())
+  const products = allProducts.filter(p => p.min_qty !== null && p.qty <= (p.min_qty ?? 0))
 
-  React.useEffect(() => {
-    async function fetch() {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('products')
-        .select('id, name, qty, min_qty, unit')
-        .order('name')
-        .limit(50)
-      const low = (data as Product[])?.filter(p => p.min_qty !== null && p.qty <= (p.min_qty ?? 0)) ?? []
-      setProducts(low)
-      setLoading(false)
-    }
-    fetch()
-  }, [])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="rounded-xl border bg-card p-4">
         <h2 className="mb-3 text-base font-semibold">مخزون منخفض</h2>

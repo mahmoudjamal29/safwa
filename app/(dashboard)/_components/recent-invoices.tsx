@@ -1,6 +1,6 @@
 'use client'
 
-import * as React from 'react'
+import { useQuery, queryOptions } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { fmtCurrency, fmtDate } from '@/utils/formatters'
 import {
@@ -31,23 +31,21 @@ interface RecentInvoice {
   total: number
 }
 
-export function RecentInvoices() {
-  const [invoices, setInvoices] = React.useState<RecentInvoice[]>([])
-  const [loading, setLoading] = React.useState(true)
+const recentInvoicesOptions = queryOptions<RecentInvoice[]>({
+  queryKey: ['invoices', 'recent'],
+  queryFn: async () => {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('invoices')
+      .select('id, invoice_number, customer_name, invoice_date, status, total')
+      .order('created_at', { ascending: false })
+      .limit(5)
+    return (data as RecentInvoice[]) ?? []
+  },
+})
 
-  React.useEffect(() => {
-    async function fetch() {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('invoices')
-        .select('id, invoice_number, customer_name, invoice_date, status, total')
-        .order('created_at', { ascending: false })
-        .limit(5)
-      setInvoices((data as RecentInvoice[]) ?? [])
-      setLoading(false)
-    }
-    fetch()
-  }, [])
+export function RecentInvoices() {
+  const { data: invoices = [], isLoading } = useQuery(recentInvoicesOptions)
 
   return (
     <div className="rounded-xl border bg-card p-4">
@@ -63,7 +61,7 @@ export function RecentInvoices() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {loading ? (
+          {isLoading ? (
             <TableRow>
               <TableCell colSpan={5} className="text-center text-muted-foreground">جاري التحميل...</TableCell>
             </TableRow>

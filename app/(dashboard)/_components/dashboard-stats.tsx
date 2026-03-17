@@ -1,12 +1,13 @@
 'use client'
 
 import * as React from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { queryOptions } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { fmtCurrency } from '@/utils/formatters'
 import { StatCard } from './stat-card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { cn } from '@/utils/cn'
 
 type Period = 'today' | 'month' | 'all' | 'custom'
 
@@ -17,67 +18,75 @@ interface Stats {
   lowStockCount: number
 }
 
-export function DashboardStats() {
-  const [period, setPeriod] = React.useState<Period>('month')
-  const [fromDate, setFromDate] = React.useState('')
-  const [toDate, setToDate] = React.useState('')
-  const [stats, setStats] = React.useState<Stats>({ revenue: 0, invoiceCount: 0, productCount: 0, lowStockCount: 0 })
-  const [loading, setLoading] = React.useState(true)
+interface DateRange {
+  from: string | null
+  to: string | null
+}
 
-  React.useEffect(() => {
-    async function fetchStats() {
-      setLoading(true)
+function buildDateRange(period: Period, fromDate: string, toDate: string): DateRange {
+  const now = new Date()
+  if (period === 'today') {
+    return {
+      from: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString(),
+      to: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString(),
+    }
+  }
+  if (period === 'month') {
+    return {
+      from: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(),
+      to: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString(),
+    }
+  }
+  if (period === 'custom' && fromDate && toDate) {
+    return {
+      from: new Date(fromDate).toISOString(),
+      to: new Date(toDate + 'T23:59:59').toISOString(),
+    }
+  }
+  return { from: null, to: null }
+}
+
+function dashboardStatsOptions(period: Period, fromDate: string, toDate: string) {
+  const range = buildDateRange(period, fromDate, toDate)
+  return queryOptions<Stats>({
+    queryKey: ['dashboard-stats', period, fromDate, toDate],
+    queryFn: async () => {
       const supabase = createClient()
-
-      // Build date filter
-      let from: string | null = null
-      let to: string | null = null
-      const now = new Date()
-
-      if (period === 'today') {
-        from = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
-        to = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString()
-      } else if (period === 'month') {
-        from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-        to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString()
-      } else if (period === 'custom' && fromDate && toDate) {
-        from = new Date(fromDate).toISOString()
-        to = new Date(toDate + 'T23:59:59').toISOString()
-      }
 
       // Invoice stats
       let invoiceQuery = supabase.from('invoices').select('total', { count: 'exact' })
-      if (from) invoiceQuery = invoiceQuery.gte('invoice_date', from)
-      if (to) invoiceQuery = invoiceQuery.lte('invoice_date', to)
+      if (range.from) invoiceQuery = invoiceQuery.gte('invoice_date', range.from)
+      if (range.to) invoiceQuery = invoiceQuery.lte('invoice_date', range.to)
       const { data: invoices, count: invoiceCount } = await invoiceQuery
       const revenue = (invoices ?? []).reduce((sum, inv) => sum + (inv.total ?? 0), 0)
 
-      // Product stats
+      // Product count
       const { count: productCount } = await supabase
         .from('products')
         .select('*', { count: 'exact', head: true })
 
-      const { count: lowStockCount } = await supabase
-        .from('products')
-        .select('*', { count: 'exact', head: true })
-        .lte('qty', supabase.rpc as unknown as never)
-
-      // Re-fetch low stock with filter
+      // Low stock count — fetch all products and filter client-side (no column-to-column compare in Supabase)
       const { data: productsLow } = await supabase
         .from('products')
         .select('id, qty, min_qty')
       const lowCount = (productsLow ?? []).filter(p => p.min_qty !== null && p.qty <= p.min_qty).length
 
-      setStats({
+      return {
         revenue,
         invoiceCount: invoiceCount ?? 0,
         productCount: productCount ?? 0,
         lowStockCount: lowCount,
-      })
-      setLoading(false)
-    }
-    fetchStats()
-  }, [period, fromDate, toDate])
+      }
+    },
+  })
+}
+
+export function DashboardStats() {
+  const [period, setPeriod] = React.useState<Period>('month')
+  const [fromDate, setFromDate] = React.useState('')
+  const [toDate, setToDate] = React.useState('')
+
+  const { data: stats, isLoading } = useQuery(dashboardStatsOptions(period, fromDate, toDate))
 
   const periods: { key: Period; label: string }[] = [
     { key: 'today', label: 'اليوم' },
@@ -123,25 +132,25 @@ export function DashboardStats() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="إجمالي المبيعات"
-          value={loading ? '...' : fmtCurrency(stats.revenue)}
+          value={isLoading ? '...' : fmtCurrency(stats?.revenue ?? 0)}
           icon="💰"
           variant="gold"
         />
         <StatCard
           label="إجمالي الفواتير"
-          value={loading ? '...' : stats.invoiceCount}
+          value={isLoading ? '...' : (stats?.invoiceCount ?? 0)}
           icon="🧾"
           variant="blue"
         />
         <StatCard
           label="المنتجات"
-          value={loading ? '...' : stats.productCount}
+          value={isLoading ? '...' : (stats?.productCount ?? 0)}
           icon="📦"
           variant="green"
         />
         <StatCard
           label="مخزون منخفض"
-          value={loading ? '...' : stats.lowStockCount}
+          value={isLoading ? '...' : (stats?.lowStockCount ?? 0)}
           icon="⚠️"
           variant="red"
         />

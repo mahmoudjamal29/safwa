@@ -37,7 +37,7 @@ export function useDeleteInvoice() {
     },
     meta: {
       successMessage: 'تم حذف الفاتورة',
-      invalidatesQuery: [['invoices']]
+      invalidatesQuery: [['invoices'], ['payments']]
     }
   })
 }
