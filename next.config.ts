@@ -3,6 +3,10 @@ import type { NextConfig } from 'next'
 
 const withNextIntl = createNextIntlPlugin('./lib/i18n/request.ts')
 
-const nextConfig: NextConfig = {}
+const nextConfig: NextConfig = {
+  turbopack: {
+    root: __dirname
+  }
+}
 
 export default withNextIntl(nextConfig)
