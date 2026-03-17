@@ -2,7 +2,6 @@
 
 import { useCallback } from 'react'
 
-import { AxiosError } from 'axios'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
@@ -92,12 +91,14 @@ export function DataTableError({
 function resolveErrorMessage(error?: unknown): string | undefined {
   if (!error) return undefined
 
-  if (error instanceof AxiosError) {
-    const data = error.response?.data as undefined | { message?: string }
-    return data?.message ?? error.message
-  }
-
   if (error instanceof Error) {
+    // Handle Axios-like errors with response.data.message
+    const axiosLike = error as Error & {
+      response?: { data?: { message?: string } }
+    }
+    if (axiosLike.response?.data?.message) {
+      return axiosLike.response.data.message
+    }
     return error.message
   }
 

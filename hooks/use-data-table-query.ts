@@ -3,7 +3,6 @@
 import * as React from 'react'
 
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
-import { AxiosError } from 'axios'
 
 import { paginationFallback } from '@/lib'
 
@@ -16,7 +15,7 @@ import { extractPagination, extractQueryItems } from '@/utils/query'
 export type DataTableQueryOptions<TData> = (params: Record<string, unknown>) =>
   | (Omit<
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      UseQueryOptions<any, AxiosError<API>, PaginatedResponse<TData[]>, any>,
+      UseQueryOptions<any, Error, PaginatedResponse<TData[]>, any>,
       'queryFn'
     > & {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,7 +25,7 @@ export type DataTableQueryOptions<TData> = (params: Record<string, unknown>) =>
     })
   | (Omit<
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      UseQueryOptions<any, AxiosError<API>, TData[], any>,
+      UseQueryOptions<any, Error, TData[], any>,
       'queryFn'
     > & {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,10 +35,10 @@ export type DataTableQueryOptions<TData> = (params: Record<string, unknown>) =>
     })
   | UseQueryOptions<
       API<PaginatedResponse<TData[]>>,
-      AxiosError<API>,
+      Error,
       PaginatedResponse<TData[]>
     >
-  | UseQueryOptions<API<TData[]>, AxiosError<API>, TData[]>
+  | UseQueryOptions<API<TData[]>, Error, TData[]>
 
 export type UseDataTableQueryParams<TData> = {
   /**
@@ -81,7 +80,7 @@ export type UseDataTableQueryResult<TData> = {
   /**
    * Query error if any
    */
-  error: AxiosError<API> | null
+  error: Error | null
   /**
    * Whether query encountered an error
    */

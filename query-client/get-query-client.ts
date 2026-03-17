@@ -4,10 +4,22 @@ import {
   defaultShouldDehydrateQuery,
   isServer,
   MutationCache,
+  type QueryKey,
   Query,
   QueryClient
 } from '@tanstack/react-query'
 import { toast } from 'sonner'
+
+type CustomMutationMeta = {
+  errorMessage?: string
+  invalidatesQuery?: QueryKey[]
+  successMessage?: string
+  toastOnError?: boolean
+  toastOnSuccess?: boolean
+}
+
+const getMeta = (meta: unknown): CustomMutationMeta =>
+  (meta ?? {}) as CustomMutationMeta
 
 const makeQueryClient = () => {
   const queryClient = new QueryClient({
@@ -24,7 +36,7 @@ const makeQueryClient = () => {
         meta: {
           toastOnError: true,
           toastOnSuccess: true
-        }
+        } as CustomMutationMeta
       },
       queries: {
         gcTime: 5 * 60 * 1000, // 5 minutes - unused data stays in cache for 5 minutes
@@ -37,22 +49,24 @@ const makeQueryClient = () => {
     mutationCache: new MutationCache({
       onError: (error, _variables, _context, mutation) => {
         if (isServer) return console.warn('Error in mutation', error)
-        if (mutation.meta?.toastOnError === false) return
+        const meta = getMeta(mutation.meta)
+        if (meta.toastOnError === false) return
 
-        if (mutation.meta?.errorMessage) {
-          toast.error(mutation.meta?.errorMessage)
+        if (meta.errorMessage) {
+          toast.error(meta.errorMessage)
         } else {
           toast.error(error.message || 'حدث خطأ')
         }
       },
 
       onSettled: async (_data, _error, _variables, _context, mutation) => {
-        if (!mutation.meta?.invalidatesQuery) return
+        const meta = getMeta(mutation.meta)
+        if (!meta.invalidatesQuery) return
 
         // Check for special 'all' key to invalidate everything
         if (
-          mutation.meta.invalidatesQuery.some(
-            (queryKey) => queryKey[0] === 'all'
+          meta.invalidatesQuery.some(
+            (queryKey) => Array.isArray(queryKey) && queryKey[0] === 'all'
           )
         ) {
           await queryClient.invalidateQueries()
@@ -61,7 +75,7 @@ const makeQueryClient = () => {
 
         // Invalidate each query key separately
         await Promise.all(
-          mutation.meta.invalidatesQuery.map((queryKey) =>
+          meta.invalidatesQuery.map((queryKey) =>
             queryClient.invalidateQueries({
               exact: false,
               queryKey
@@ -71,17 +85,18 @@ const makeQueryClient = () => {
       },
       onSuccess: (data, _variables, _context, mutation) => {
         if (isServer) return
-        if (mutation.meta?.toastOnSuccess === false) return
+        const meta = getMeta(mutation.meta)
+        if (meta.toastOnSuccess === false) return
 
-        if (mutation.meta?.successMessage) {
-          toast.success(mutation.meta?.successMessage)
+        if (meta.successMessage) {
+          toast.success(meta.successMessage)
         } else if (
           data &&
           typeof data === 'object' &&
           'message' in data &&
-          typeof data.message === 'string'
+          typeof (data as Record<string, unknown>).message === 'string'
         ) {
-          toast.success(data.message)
+          toast.success((data as Record<string, string>).message)
         }
       }
     })

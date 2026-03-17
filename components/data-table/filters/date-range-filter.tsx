@@ -2,9 +2,14 @@
 
 import * as React from 'react'
 
-import { format } from 'date-fns'
-
 import { DateRangePicker } from '@/components/ui/date-range-picker'
+
+const format = (date: Date, fmt: string): string => {
+  if (fmt === 'yyyy-MM-dd') {
+    return date.toISOString().slice(0, 10)
+  }
+  return date.toISOString()
+}
 
 import { DateRangeFilterProps } from './types'
 import {
