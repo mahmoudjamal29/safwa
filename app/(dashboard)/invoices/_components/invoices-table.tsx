@@ -3,7 +3,8 @@
 import * as React from 'react'
 
 import { useQuery } from '@tanstack/react-query'
-import { Eye, Trash2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { EyeIcon, Trash2Icon } from '@/lib/icons'
 
 import { getAllInvoicesQuery, useDeleteInvoice, type Invoice, type InvoiceStatus } from '@/query/invoices'
 
@@ -45,6 +46,7 @@ import { InvoiceViewDialog } from './invoice-view-dialog'
 const STATUSES: InvoiceStatus[] = ['مدفوعة', 'مدفوعة جزئياً', 'معلقة', 'ملغاة']
 
 export function InvoicesTable() {
+  const t = useTranslations('invoices')
   const [search, setSearch] = React.useState('')
   const [status, setStatus] = React.useState<string>('')
   const [page, setPage] = React.useState(1)
@@ -76,17 +78,17 @@ export function InvoicesTable() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
         <Input
-          placeholder="بحث بالعميل أو رقم الفاتورة..."
+          placeholder={t('searchPlaceholder')}
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1) }}
           className="max-w-xs"
         />
         <Select value={status} onValueChange={v => { setStatus(v === 'all' ? '' : v); setPage(1) }}>
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="كل الحالات" />
+            <SelectValue placeholder={t('allStatuses')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">كل الحالات</SelectItem>
+            <SelectItem value="all">{t('allStatuses')}</SelectItem>
             {STATUSES.map(s => (
               <SelectItem key={s} value={s}>{s}</SelectItem>
             ))}
@@ -98,24 +100,24 @@ export function InvoicesTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>رقم الفاتورة</TableHead>
-              <TableHead>العميل</TableHead>
-              <TableHead>التاريخ</TableHead>
-              <TableHead>الحالة</TableHead>
-              <TableHead>الإجمالي</TableHead>
-              <TableHead>المدفوع</TableHead>
-              <TableHead>المتبقي</TableHead>
-              <TableHead>إجراءات</TableHead>
+              <TableHead>{t('columns.number')}</TableHead>
+              <TableHead>{t('columns.customer')}</TableHead>
+              <TableHead>{t('columns.date')}</TableHead>
+              <TableHead>{t('columns.status')}</TableHead>
+              <TableHead>{t('columns.total')}</TableHead>
+              <TableHead>{t('columns.paid')}</TableHead>
+              <TableHead>{t('columns.remaining')}</TableHead>
+              <TableHead>{t('columns.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground">جاري التحميل...</TableCell>
+                <TableCell colSpan={8} className="text-center text-muted-foreground">{t('loading')}</TableCell>
               </TableRow>
             ) : invoices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground">لا توجد فواتير</TableCell>
+                <TableCell colSpan={8} className="text-center text-muted-foreground">{t('noInvoices')}</TableCell>
               </TableRow>
             ) : (
               invoices.map(inv => (
@@ -130,10 +132,10 @@ export function InvoicesTable() {
                   <TableCell>
                     <div className="flex gap-1">
                       <Button size="icon" variant="ghost" onClick={() => openView(inv)}>
-                        <Eye className="h-4 w-4" />
+                        <EyeIcon className="h-4 w-4" />
                       </Button>
                       <Button size="icon" variant="ghost" className="text-destructive" onClick={() => setDeleteId(inv.id)}>
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2Icon className="h-4 w-4" />
                       </Button>
                     </div>
                   </TableCell>
@@ -146,9 +148,9 @@ export function InvoicesTable() {
 
       {pagination && pagination.last_page > 1 && (
         <div className="flex justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>السابق</Button>
-          <span className="text-sm text-muted-foreground flex items-center">صفحة {page} من {pagination.last_page}</span>
-          <Button variant="outline" size="sm" disabled={page >= pagination.last_page} onClick={() => setPage(p => p + 1)}>التالي</Button>
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('prev')}</Button>
+          <span className="text-sm text-muted-foreground flex items-center">{t('pageOf', { current: page, total: pagination.last_page })}</span>
+          <Button variant="outline" size="sm" disabled={page >= pagination.last_page} onClick={() => setPage(p => p + 1)}>{t('next')}</Button>
         </div>
       )}
 
@@ -157,11 +159,11 @@ export function InvoicesTable() {
       <AlertDialog open={!!deleteId} onOpenChange={open => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>حذف الفاتورة</AlertDialogTitle>
-            <AlertDialogDescription>هل تريد حذف هذه الفاتورة؟ لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
+            <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('deleteDescription')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={async () => {
@@ -171,7 +173,7 @@ export function InvoicesTable() {
                 }
               }}
             >
-              حذف
+              {t('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

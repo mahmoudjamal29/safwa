@@ -1,15 +1,51 @@
 {
   "title": "حركة المخزون",
   "newMovement": "حركة جديدة",
+  "addMovement": "إضافة حركة",
   "product": "المنتج",
   "type": "نوع الحركة",
   "qty": "الكمية",
   "note": "ملاحظة",
   "date": "التاريخ",
+  "searchPlaceholder": "بحث...",
+  "allTypes": "كل الأنواع",
+  "loading": "جاري التحميل...",
+  "noMovements": "لا توجد حركات مخزون",
+  "prev": "السابق",
+  "next": "التالي",
+  "pageOf": "صفحة {current} من {total}",
+  "deleteTitle": "حذف الحركة",
+  "deleteDescription": "هل تريد حذف هذه الحركة؟",
+  "cancel": "إلغاء",
+  "delete": "حذف",
+  "columns": {
+    "product": "المنتج",
+    "type": "النوع",
+    "qty": "الكمية",
+    "date": "التاريخ",
+    "notes": "ملاحظات",
+    "actions": "إجراءات"
+  },
   "types": {
-    "incoming": "وارد (استلام)",
-    "outgoing": "صادر (شحن)",
-    "adjustment": "تسوية مخزون",
-    "damaged": "تالف / مرتجع"
+    "incoming": "وارد",
+    "outgoing": "صادر",
+    "adjustment": "تسوية",
+    "damaged": "تالف",
+    "incomingFull": "وارد (استلام)",
+    "outgoingFull": "صادر (شحن)",
+    "adjustmentFull": "تسوية مخزون",
+    "damagedFull": "تالف / مرتجع"
+  },
+  "form": {
+    "title": "حركة جديدة",
+    "product": "المنتج *",
+    "productSearch": "ابحث عن منتج...",
+    "movementType": "نوع الحركة *",
+    "qty": "الكمية *",
+    "note": "ملاحظة",
+    "optional": "اختياري",
+    "save": "حفظ",
+    "saving": "جاري الحفظ...",
+    "cancel": "إلغاء"
   }
 }

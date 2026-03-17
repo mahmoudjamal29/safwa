@@ -3,7 +3,8 @@
 import * as React from 'react'
 
 import { useQuery, queryOptions } from '@tanstack/react-query'
-import { Pencil, Trash2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { PencilIcon, Trash2Icon } from '@/lib/icons'
 
 import { createClient } from '@/lib/supabase/client'
 
@@ -39,6 +40,7 @@ import { ProductFormDialog } from './product-form-dialog'
 const CATEGORIES_QUERY_KEY = ['product-categories']
 
 export function ProductsTable() {
+  const t = useTranslations('products')
   const [search, setSearch] = React.useState('')
   const [category, setCategory] = React.useState('')
   const [page, setPage] = React.useState(1)
@@ -87,7 +89,7 @@ export function ProductsTable() {
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
         <Input
-          placeholder="بحث في المنتجات..."
+          placeholder={t('searchPlaceholder')}
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1) }}
           className="max-w-xs"
@@ -97,7 +99,7 @@ export function ProductsTable() {
           onChange={e => { setCategory(e.target.value); setPage(1) }}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm"
         >
-          <option value="">كل الفئات</option>
+          <option value="">{t('allCategories')}</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
@@ -107,26 +109,26 @@ export function ProductsTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>اسم المنتج</TableHead>
-              <TableHead>الكود</TableHead>
-              <TableHead>الفئة</TableHead>
-              <TableHead>الوحدة</TableHead>
-              <TableHead>سعر الوحدة</TableHead>
-              <TableHead>التكلفة</TableHead>
-              <TableHead>الكمية</TableHead>
-              <TableHead>الحد الأدنى</TableHead>
-              <TableHead>قطع/وحدة</TableHead>
-              <TableHead>إجراءات</TableHead>
+              <TableHead>{t('columns.name')}</TableHead>
+              <TableHead>{t('columns.sku')}</TableHead>
+              <TableHead>{t('columns.category')}</TableHead>
+              <TableHead>{t('columns.unit')}</TableHead>
+              <TableHead>{t('columns.price')}</TableHead>
+              <TableHead>{t('columns.cost')}</TableHead>
+              <TableHead>{t('columns.qty')}</TableHead>
+              <TableHead>{t('columns.minQty')}</TableHead>
+              <TableHead>{t('columns.piecesPerUnit')}</TableHead>
+              <TableHead>{t('columns.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground">جاري التحميل...</TableCell>
+                <TableCell colSpan={10} className="text-center text-muted-foreground">{t('loading')}</TableCell>
               </TableRow>
             ) : products.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground">لا توجد منتجات</TableCell>
+                <TableCell colSpan={10} className="text-center text-muted-foreground">{t('noProducts')}</TableCell>
               </TableRow>
             ) : (
               products.map(p => (
@@ -145,10 +147,10 @@ export function ProductsTable() {
                   <TableCell>
                     <div className="flex gap-1">
                       <Button size="icon" variant="ghost" onClick={() => openEdit(p)}>
-                        <Pencil className="h-4 w-4" />
+                        <PencilIcon className="h-4 w-4" />
                       </Button>
                       <Button size="icon" variant="ghost" className="text-destructive" onClick={() => setDeleteId(p.id)}>
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2Icon className="h-4 w-4" />
                       </Button>
                     </div>
                   </TableCell>
@@ -162,9 +164,9 @@ export function ProductsTable() {
       {/* Pagination */}
       {pagination && pagination.last_page > 1 && (
         <div className="flex justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>السابق</Button>
-          <span className="text-sm text-muted-foreground flex items-center">صفحة {page} من {pagination.last_page}</span>
-          <Button variant="outline" size="sm" disabled={page >= pagination.last_page} onClick={() => setPage(p => p + 1)}>التالي</Button>
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('prev')}</Button>
+          <span className="text-sm text-muted-foreground flex items-center">{t('pageOf', { current: page, total: pagination.last_page })}</span>
+          <Button variant="outline" size="sm" disabled={page >= pagination.last_page} onClick={() => setPage(p => p + 1)}>{t('next')}</Button>
         </div>
       )}
 
@@ -175,11 +177,11 @@ export function ProductsTable() {
       <AlertDialog open={!!deleteId} onOpenChange={open => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>حذف المنتج</AlertDialogTitle>
-            <AlertDialogDescription>هل تريد حذف هذا المنتج؟ لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
+            <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('deleteDescription')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={async () => {
@@ -189,7 +191,7 @@ export function ProductsTable() {
                 }
               }}
             >
-              حذف
+              {t('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

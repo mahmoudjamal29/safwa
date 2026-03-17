@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 
-import { Plus, Settings2Icon } from 'lucide-react'
+import { PlusIcon, SettingsIcon } from '@/lib/icons'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/utils/utils'
@@ -42,7 +42,7 @@ export function CountedViewOptions<TData>({
   className,
   table
 }: DataTableColumnVisibilityProps<TData>) {
-  const t = useTranslations('components.dataTable.viewOptions')
+  const t = useTranslations('common')
   const allHideableColumns = table
     .getAllColumns()
     .filter((column) => column.getCanHide())
@@ -61,14 +61,14 @@ export function CountedViewOptions<TData>({
           size="sm"
           variant="outline"
         >
-          <Settings2Icon className="size-3.5" />
-          {t('view')} ({visibleColumns}/{totalColumns})
+          <SettingsIcon className="size-3.5" />
+          {t('components.dataTable.viewOptions.view')} ({visibleColumns}/{totalColumns})
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[200px]">
         <DropdownMenuLabel>
-          {t('showing')} {visibleColumns} {t('of')} {totalColumns}{' '}
-          {t('columnsLabel')}
+          {t('components.dataTable.viewOptions.showing')} {visibleColumns} {t('components.dataTable.viewOptions.of')} {totalColumns}{' '}
+          {t('components.dataTable.viewOptions.columnsLabel')}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {allHideableColumns.map((column) => {
@@ -92,7 +92,7 @@ export function DataTableViewOptions<TData>({
   className,
   table
 }: DataTableColumnVisibilityProps<TData>) {
-  const t = useTranslations('components.dataTable.viewOptions')
+  const t = useTranslations('common')
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -102,14 +102,14 @@ export function DataTableViewOptions<TData>({
             className,
             'text-muted-foreground flex-1 gap-2 lg:max-w-fit lg:flex-initial'
           )}
-          startIcon={<Settings2Icon className="size-3.5" />}
           variant="outline"
         >
-          {t('viewOptions')}
+          <SettingsIcon className="size-3.5" />
+          {t('components.dataTable.viewOptions.viewOptions')}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[200px]" side="bottom">
-        <DropdownMenuLabel>{t('toggleColumns')}</DropdownMenuLabel>
+        <DropdownMenuLabel>{t('components.dataTable.viewOptions.toggleColumns')}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {table
           .getAllColumns()
@@ -142,7 +142,7 @@ export function GroupedViewOptions<TData>({
   }>
 }) {
   const [open, setOpen] = React.useState(false)
-  const t = useTranslations('components.dataTable.viewOptions')
+  const t = useTranslations('common')
 
   if (!groups) {
     return <SimpleViewOptions className={className} table={table} />
@@ -156,12 +156,12 @@ export function GroupedViewOptions<TData>({
           size="sm"
           variant="outline"
         >
-          <Plus className="me-2 h-4 w-4" />
-          {t('view')}
+          <PlusIcon className="me-2 h-4 w-4" />
+          {t('components.dataTable.viewOptions.view')}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[200px]">
-        <DropdownMenuLabel>{t('columnVisibility')}</DropdownMenuLabel>
+        <DropdownMenuLabel>{t('components.dataTable.viewOptions.columnVisibility')}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {groups.map((group, index) => (
           <React.Fragment key={group.label}>
@@ -197,7 +197,7 @@ export function ResettableViewOptions<TData>({
   table
 }: DataTableColumnVisibilityProps<TData>) {
   const [open, setOpen] = React.useState(false)
-  const t = useTranslations('components.dataTable.viewOptions')
+  const t = useTranslations('common')
 
   const resetColumns = () => {
     table.resetColumnVisibility()
@@ -227,22 +227,22 @@ export function ResettableViewOptions<TData>({
           size="sm"
           variant="outline"
         >
-          <Plus className="me-2 h-4 w-4" />
-          {t('view')}
+          <PlusIcon className="me-2 h-4 w-4" />
+          {t('components.dataTable.viewOptions.view')}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[200px]">
-        <DropdownMenuLabel>{t('columnVisibility')}</DropdownMenuLabel>
+        <DropdownMenuLabel>{t('components.dataTable.viewOptions.columnVisibility')}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="capitalize" onClick={showAllColumns}>
-          {t('showAll')}
+          {t('components.dataTable.viewOptions.showAll')}
         </DropdownMenuItem>
         <DropdownMenuItem className="capitalize" onClick={hideAllColumns}>
-          {t('hideAll')}
+          {t('components.dataTable.viewOptions.hideAll')}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="capitalize" onClick={resetColumns}>
-          {t('reset')}
+          {t('components.dataTable.viewOptions.reset')}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {table
@@ -272,7 +272,7 @@ export function SearchableViewOptions<TData>({
 }: DataTableColumnVisibilityProps<TData>) {
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState('')
-  const t = useTranslations('components.dataTable.viewOptions')
+  const t = useTranslations('common')
 
   const columns = table
     .getAllColumns()
@@ -289,18 +289,18 @@ export function SearchableViewOptions<TData>({
           size="sm"
           variant="outline"
         >
-          <Plus className="me-2 h-4 w-4" />
-          {t('view')}
+          <PlusIcon className="me-2 h-4 w-4" />
+          {t('components.dataTable.viewOptions.view')}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[200px]">
-        <DropdownMenuLabel>{t('columnVisibility')}</DropdownMenuLabel>
+        <DropdownMenuLabel>{t('components.dataTable.viewOptions.columnVisibility')}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <div className="p-2">
           <input
             className="border-input bg-background w-full rounded border px-2 py-1 text-sm"
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('searchPlaceholder')}
+            placeholder={t('components.dataTable.viewOptions.searchPlaceholder')}
             type="text"
             value={search}
           />
@@ -308,7 +308,7 @@ export function SearchableViewOptions<TData>({
         <DropdownMenuSeparator />
         {columns.length === 0 ? (
           <div className="text-muted-foreground p-2 text-sm">
-            {t('noColumnsFound')}
+            {t('components.dataTable.viewOptions.noColumnsFound')}
           </div>
         ) : (
           columns.map((column) => {
@@ -335,7 +335,7 @@ export function SimpleViewOptions<TData>({
   table
 }: DataTableColumnVisibilityProps<TData>) {
   const [open, setOpen] = React.useState(false)
-  const t = useTranslations('components.dataTable.viewOptions')
+  const t = useTranslations('common')
 
   return (
     <DropdownMenu onOpenChange={setOpen} open={open}>
@@ -345,12 +345,12 @@ export function SimpleViewOptions<TData>({
           size="sm"
           variant="outline"
         >
-          <Plus className="me-2 h-4 w-4" />
-          {t('columns')}
+          <PlusIcon className="me-2 h-4 w-4" />
+          {t('components.dataTable.viewOptions.columns')}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[200px]">
-        <DropdownMenuLabel>{t('showColumns')}</DropdownMenuLabel>
+        <DropdownMenuLabel>{t('components.dataTable.viewOptions.showColumns')}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {table
           .getAllColumns()

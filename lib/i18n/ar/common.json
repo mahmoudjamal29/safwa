@@ -31,5 +31,47 @@
   },
   "currency": "ج.م",
   "confirmDelete": "هل أنت متأكد من الحذف؟",
-  "deleteWarning": "هذا الإجراء لا يمكن التراجع عنه."
+  "deleteWarning": "هذا الإجراء لا يمكن التراجع عنه.",
+  "components": {
+    "dataTable": {
+      "empty": {
+        "noData": "لا توجد بيانات"
+      },
+      "dataGridTable": {
+        "selectAll": "تحديد الكل",
+        "selectRow": "تحديد الصف"
+      },
+      "pagination": {
+        "rowsSelected": "صف محدد من {total}",
+        "rowsPerPage": "صفوف في الصفحة",
+        "pageOf": "صفحة {current} من {total}",
+        "firstPage": "الصفحة الأولى",
+        "previousPage": "الصفحة السابقة",
+        "nextPage": "الصفحة التالية",
+        "lastPage": "الصفحة الأخيرة"
+      },
+      "viewOptions": {
+        "view": "عرض",
+        "viewOptions": "خيارات العرض",
+        "toggleColumns": "تبديل الأعمدة",
+        "columnVisibility": "إظهار الأعمدة",
+        "showing": "يعرض",
+        "of": "من",
+        "columnsLabel": "عمود",
+        "columns": "الأعمدة",
+        "showColumns": "إظهار الأعمدة",
+        "showAll": "إظهار الكل",
+        "hideAll": "إخفاء الكل",
+        "reset": "إعادة الضبط",
+        "searchPlaceholder": "بحث...",
+        "noColumnsFound": "لا توجد أعمدة"
+      },
+      "error": {
+        "title": "حدث خطأ",
+        "description": "تعذر تحميل البيانات",
+        "retry": "إعادة المحاولة",
+        "reload": "إعادة التحميل"
+      }
+    }
+  }
 }

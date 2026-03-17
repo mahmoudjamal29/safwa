@@ -1,6 +1,8 @@
 {
   "title": "العملاء",
+  "addCustomer": "إضافة عميل",
   "newCustomer": "عميل جديد",
+  "editCustomer": "تعديل العميل",
   "name": "اسم العميل",
   "phone": "رقم الهاتف",
   "address": "العنوان",
@@ -11,5 +13,33 @@
   "phonePlaceholder": "01xxxxxxxxx",
   "addressPlaceholder": "المحافظة، المنطقة",
   "taxPlaceholder": "اختياري",
-  "deleteConfirm": "هل تريد حذف هذا العميل؟"
+  "loading": "جاري التحميل...",
+  "noCustomers": "لا يوجد عملاء",
+  "columns": {
+    "name": "اسم العميل",
+    "phone": "الهاتف",
+    "address": "العنوان",
+    "taxNumber": "الرقم الضريبي",
+    "notes": "ملاحظات",
+    "actions": "إجراءات"
+  },
+  "prev": "السابق",
+  "next": "التالي",
+  "pageOf": "صفحة {current} من {total}",
+  "deleteTitle": "حذف العميل",
+  "deleteDescription": "هل تريد حذف هذا العميل؟ لا يمكن التراجع عن هذا الإجراء.",
+  "cancel": "إلغاء",
+  "delete": "حذف",
+  "deleteConfirm": "هل تريد حذف هذا العميل؟",
+  "form": {
+    "name": "اسم العميل",
+    "namePlaceholder": "اسم العميل",
+    "phone": "رقم الهاتف",
+    "address": "العنوان",
+    "taxNumber": "الرقم الضريبي",
+    "notes": "ملاحظات",
+    "save": "حفظ",
+    "saving": "جاري الحفظ...",
+    "cancel": "إلغاء"
+  }
 }

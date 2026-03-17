@@ -31,12 +31,12 @@ export function DataTableError({
   showRetry = true,
   title
 }: DataTableErrorProps) {
-  const t = useTranslations('components.dataTable.error')
-  const defaultTitle = title ?? t('title')
+  const t = useTranslations('common')
+  const defaultTitle = title ?? t('components.dataTable.error.title')
   const defaultDescription =
-    description ?? resolveErrorMessage(error) ?? t('description')
-  const defaultRetryLabel = retryLabel ?? t('retry')
-  const defaultReloadLabel = reloadLabel ?? t('reload')
+    description ?? resolveErrorMessage(error) ?? t('components.dataTable.error.description')
+  const defaultRetryLabel = retryLabel ?? t('components.dataTable.error.retry')
+  const defaultReloadLabel = reloadLabel ?? t('components.dataTable.error.reload')
 
   const handleReload = useCallback(() => {
     if (onReload) {

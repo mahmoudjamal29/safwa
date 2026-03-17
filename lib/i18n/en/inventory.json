@@ -1,15 +1,51 @@
 {
   "title": "Inventory Movements",
   "newMovement": "New Movement",
+  "addMovement": "Add Movement",
   "product": "Product",
   "type": "Movement Type",
   "qty": "Quantity",
   "note": "Note",
   "date": "Date",
+  "searchPlaceholder": "Search...",
+  "allTypes": "All Types",
+  "loading": "Loading...",
+  "noMovements": "No inventory movements found",
+  "prev": "Previous",
+  "next": "Next",
+  "pageOf": "Page {current} of {total}",
+  "deleteTitle": "Delete Movement",
+  "deleteDescription": "Are you sure you want to delete this movement?",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "columns": {
+    "product": "Product",
+    "type": "Type",
+    "qty": "Quantity",
+    "date": "Date",
+    "notes": "Notes",
+    "actions": "Actions"
+  },
   "types": {
-    "incoming": "Incoming (Receive)",
-    "outgoing": "Outgoing (Ship)",
-    "adjustment": "Stock Adjustment",
-    "damaged": "Damaged / Return"
+    "incoming": "Incoming",
+    "outgoing": "Outgoing",
+    "adjustment": "Adjustment",
+    "damaged": "Damaged",
+    "incomingFull": "Incoming (Receive)",
+    "outgoingFull": "Outgoing (Ship)",
+    "adjustmentFull": "Stock Adjustment",
+    "damagedFull": "Damaged / Return"
+  },
+  "form": {
+    "title": "New Movement",
+    "product": "Product *",
+    "productSearch": "Search for a product...",
+    "movementType": "Movement Type *",
+    "qty": "Quantity *",
+    "note": "Note",
+    "optional": "Optional",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel"
   }
 }

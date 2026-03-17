@@ -1,9 +1,27 @@
+import { MenuIcon } from '@/lib/icons'
+
+import { Button } from '@/components/ui/button'
+
 import { HeaderToolbar } from './header-toolbar'
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick?: () => void
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   return (
-    <header className="fixed inset-x-0 top-0 z-50 flex h-[var(--header-height)] items-center justify-between border-b border-border bg-card px-6 pe-[calc(var(--sidebar-width)+1.5rem)]">
-      <div className="flex items-center gap-3">
+    <header className="fixed inset-x-0 top-0 z-50 flex h-[var(--header-height)] items-center justify-between border-b border-border bg-card px-4 md:px-6 md:pe-[calc(var(--sidebar-width)+1.5rem)]">
+      <div className="flex items-center gap-2 md:gap-3">
+        {/* Mobile hamburger — hidden on desktop */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 md:hidden"
+          onClick={onMenuClick}
+        >
+          <MenuIcon className="size-5" />
+        </Button>
+
         {/* Safwa Logo */}
         <svg width="28" height="28" viewBox="0 0 38 38" fill="none">
           <defs>

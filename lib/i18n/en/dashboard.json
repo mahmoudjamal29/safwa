@@ -16,5 +16,10 @@
   "recentInvoices": "Recent Invoices",
   "lowStockAlert": "Low Stock Alert",
   "viewAll": "View All",
-  "clickToView": "Click to view"
+  "clickToView": "Click to view",
+  "noLowStock": "No low stock products",
+  "loading": "Loading...",
+  "customPeriod": "Custom",
+  "to": "To",
+  "limit": "Min"
 }

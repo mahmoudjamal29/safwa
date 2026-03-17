@@ -1,6 +1,8 @@
 {
   "title": "المنتجات",
+  "addProduct": "إضافة منتج",
   "newProduct": "منتج جديد",
+  "editProduct": "تعديل المنتج",
   "name": "اسم المنتج",
   "sku": "كود المنتج",
   "category": "الفئة",
@@ -15,6 +17,27 @@
   "searchPlaceholder": "بحث في المنتجات...",
   "allCategories": "كل الفئات",
   "manageCategories": "إدارة الفئات",
+  "loading": "جاري التحميل...",
+  "noProducts": "لا توجد منتجات",
+  "columns": {
+    "name": "اسم المنتج",
+    "sku": "الكود",
+    "category": "الفئة",
+    "unit": "الوحدة",
+    "price": "سعر الوحدة",
+    "cost": "التكلفة",
+    "qty": "الكمية",
+    "minQty": "الحد الأدنى",
+    "piecesPerUnit": "قطع/وحدة",
+    "actions": "إجراءات"
+  },
+  "prev": "السابق",
+  "next": "التالي",
+  "pageOf": "صفحة {current} من {total}",
+  "deleteTitle": "حذف المنتج",
+  "deleteDescription": "هل تريد حذف هذا المنتج؟ لا يمكن التراجع عن هذا الإجراء.",
+  "cancel": "إلغاء",
+  "delete": "حذف",
   "units": {
     "carton": "كرتون",
     "piece": "قطعة",
@@ -24,11 +47,30 @@
     "ton": "طن",
     "item": "حبة"
   },
-  "splitSettings": "اعدادات التقسيم (للمنتجات القابلة للتجزئة)",
+  "splitSettings": "إعدادات التقسيم (للمنتجات القابلة للتجزئة)",
   "piecesHelp": "يحسب تلقائيا",
   "stockLevel": {
     "low": "مخزون منخفض",
     "out": "نفذ المخزون"
   },
-  "deleteConfirm": "هل تريد حذف هذا المنتج؟"
+  "deleteConfirm": "هل تريد حذف هذا المنتج؟",
+  "form": {
+    "name": "اسم المنتج",
+    "namePlaceholder": "اسم المنتج",
+    "sku": "كود المنتج",
+    "category": "الفئة",
+    "unit": "وحدة القياس",
+    "price": "سعر الوحدة",
+    "cost": "سعر التكلفة",
+    "qty": "الكمية",
+    "minQty": "الحد الأدنى",
+    "maxQty": "الحد الأقصى",
+    "piecesPerUnit": "عدد القطع في الوحدة",
+    "piecesPlaceholder": "اتركه فارغاً إذا لم ينطبق",
+    "piecePrice": "سعر القطعة",
+    "splitSettings": "إعدادات التقسيم (للمنتجات القابلة للتجزئة)",
+    "save": "حفظ",
+    "saving": "جاري الحفظ...",
+    "cancel": "إلغاء"
+  }
 }

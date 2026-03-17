@@ -16,5 +16,10 @@
   "recentInvoices": "آخر الفواتير",
   "lowStockAlert": "مخزون منخفض",
   "viewAll": "عرض الكل",
-  "clickToView": "اضغط للعرض"
+  "clickToView": "اضغط للعرض",
+  "noLowStock": "لا توجد منتجات بمخزون منخفض",
+  "loading": "جاري التحميل...",
+  "customPeriod": "تخصيص",
+  "to": "إلى",
+  "limit": "الحد"
 }

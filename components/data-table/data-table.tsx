@@ -78,8 +78,7 @@ export function DataTable<TData>({
   wrapperClassName,
   ...props
 }: DataTableProps<TData>) {
-  const tEmpty = useTranslations('components.dataTable.empty')
-  const tSelection = useTranslations('components.dataTable.dataGridTable')
+  const t = useTranslations('common')
   const hasActionBar = Boolean(actionBar)
   const headerGroups = table.getHeaderGroups()
   const headerGroupCount = Math.max(1, headerGroups.length)
@@ -165,7 +164,7 @@ export function DataTable<TData>({
               wrapperClassName
             )}
           >
-            <Table className="w-full" wrapperClassName="overflow-visible">
+            <Table className="w-full overflow-visible">
               <TableHeader>
                 {headerGroups.map((headerGroup, index) => (
                   <TableRow
@@ -179,7 +178,7 @@ export function DataTable<TData>({
                         style={{ width: 56 }}
                       >
                         <Checkbox
-                          aria-label={tSelection('selectAll')}
+                          aria-label={t('components.dataTable.dataGridTable.selectAll')}
                           checked={
                             table.getIsAllPageRowsSelected()
                               ? true
@@ -258,7 +257,7 @@ export function DataTable<TData>({
                             style={{ width: 56 }}
                           >
                             <Checkbox
-                              aria-label={`${tSelection('selectRow')} ${row.index + 1}`}
+                              aria-label={`${t('components.dataTable.dataGridTable.selectRow')} ${row.index + 1}`}
                               checked={row.getIsSelected() || false}
                               className="-ms-2"
                               onCheckedChange={(value) =>
@@ -317,7 +316,7 @@ export function DataTable<TData>({
                       ) : emptyState ? (
                         emptyState
                       ) : (
-                        tEmpty('noData')
+                        t('components.dataTable.empty.noData')
                       )}
                     </TableCell>
                   </TableRow>

@@ -3,6 +3,7 @@
 import * as React from 'react'
 
 import { useQuery } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 
 import { getAllInventoryQuery, type MovementType } from '@/query/inventory'
 
@@ -40,6 +41,7 @@ const typeColors: Record<MovementType, string> = {
 const MOVEMENT_TYPES: MovementType[] = ['وارد', 'صادر', 'تسوية', 'تالف']
 
 export function InventoryTable() {
+  const t = useTranslations('inventory')
   const [search, setSearch] = React.useState('')
   const [type, setType] = React.useState<string>('')
   const [page, setPage] = React.useState(1)
@@ -60,19 +62,19 @@ export function InventoryTable() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
         <Input
-          placeholder="بحث بالمنتج..."
+          placeholder={t('searchPlaceholder')}
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1) }}
           className="max-w-xs"
         />
         <Select value={type} onValueChange={v => { setType(v === 'all' ? '' : v); setPage(1) }}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="كل الأنواع" />
+            <SelectValue placeholder={t('allTypes')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">كل الأنواع</SelectItem>
-            {MOVEMENT_TYPES.map(t => (
-              <SelectItem key={t} value={t}>{t}</SelectItem>
+            <SelectItem value="all">{t('allTypes')}</SelectItem>
+            {MOVEMENT_TYPES.map(mt => (
+              <SelectItem key={mt} value={mt}>{mt}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -82,21 +84,21 @@ export function InventoryTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>المنتج</TableHead>
-              <TableHead>النوع</TableHead>
-              <TableHead>الكمية</TableHead>
-              <TableHead>ملاحظة</TableHead>
-              <TableHead>التاريخ</TableHead>
+              <TableHead>{t('columns.product')}</TableHead>
+              <TableHead>{t('columns.type')}</TableHead>
+              <TableHead>{t('columns.qty')}</TableHead>
+              <TableHead>{t('columns.notes')}</TableHead>
+              <TableHead>{t('columns.date')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">جاري التحميل...</TableCell>
+                <TableCell colSpan={5} className="text-center text-muted-foreground">{t('loading')}</TableCell>
               </TableRow>
             ) : movements.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">لا توجد حركات</TableCell>
+                <TableCell colSpan={5} className="text-center text-muted-foreground">{t('noMovements')}</TableCell>
               </TableRow>
             ) : (
               movements.map(m => (
@@ -117,9 +119,9 @@ export function InventoryTable() {
 
       {pagination && pagination.last_page > 1 && (
         <div className="flex justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>السابق</Button>
-          <span className="text-sm text-muted-foreground flex items-center">صفحة {page} من {pagination.last_page}</span>
-          <Button variant="outline" size="sm" disabled={page >= pagination.last_page} onClick={() => setPage(p => p + 1)}>التالي</Button>
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('prev')}</Button>
+          <span className="text-sm text-muted-foreground flex items-center">{t('pageOf', { current: page, total: pagination.last_page })}</span>
+          <Button variant="outline" size="sm" disabled={page >= pagination.last_page} onClick={() => setPage(p => p + 1)}>{t('next')}</Button>
         </div>
       )}
     </div>

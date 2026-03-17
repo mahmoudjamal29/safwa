@@ -1,9 +1,7 @@
-import type { LucideIcon } from 'lucide-react'
-
 export interface MenuItem {
   title: string
   path?: string
-  icon?: LucideIcon | React.ComponentType<{ className?: string }>
+  icon?: React.ComponentType<{ className?: string; size?: number }>
   children?: Omit<MenuItem, 'icon' | 'children'>[]
   separator?: boolean
 }

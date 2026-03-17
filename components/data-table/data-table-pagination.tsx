@@ -5,7 +5,7 @@ import {
   ChevronRightIcon,
   ChevronsLeftIcon,
   ChevronsRightIcon
-} from 'lucide-react'
+} from '@/lib/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
@@ -42,7 +42,7 @@ export function DataTablePagination<TData>({
   pageSizeOptions = DEFAULT_PAGE_SIZES,
   table
 }: DataTablePaginationProps<TData>) {
-  const t = useTranslations('components.dataTable.pagination')
+  const t = useTranslations('common')
 
   return (
     <div className="flex items-center justify-between gap-4 px-2">
@@ -50,7 +50,7 @@ export function DataTablePagination<TData>({
         {table.getFilteredSelectedRowModel().rows.length > 0 && (
           <span>
             {table.getFilteredSelectedRowModel().rows.length}{' '}
-            {t('rowsSelected', {
+            {t('components.dataTable.pagination.rowsSelected', {
               total: table.getFilteredRowModel().rows.length
             })}
           </span>
@@ -59,7 +59,7 @@ export function DataTablePagination<TData>({
       <div className="flex items-center gap-4">
         {enableRowsPerPage && (
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium">{t('rowsPerPage')}</p>
+            <p className="text-sm font-medium">{t('components.dataTable.pagination.rowsPerPage')}</p>
             <Select
               onValueChange={(value) => {
                 table.setPageSize(Number(value))
@@ -82,7 +82,7 @@ export function DataTablePagination<TData>({
           </div>
         )}
         <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-          {t('pageOf', {
+          {t('components.dataTable.pagination.pageOf', {
             current: table.getState().pagination.pageIndex + 1,
             total: table.getPageCount()
           })}
@@ -94,7 +94,7 @@ export function DataTablePagination<TData>({
             onClick={() => table.setPageIndex(0)}
             variant="outline"
           >
-            <span className="sr-only">{t('firstPage')}</span>
+            <span className="sr-only">{t('components.dataTable.pagination.firstPage')}</span>
             <ChevronsLeftIcon className="h-4 w-4" />
           </Button>
           <Button
@@ -103,7 +103,7 @@ export function DataTablePagination<TData>({
             onClick={() => table.previousPage()}
             variant="outline"
           >
-            <span className="sr-only">{t('previousPage')}</span>
+            <span className="sr-only">{t('components.dataTable.pagination.previousPage')}</span>
             <ChevronLeftIcon className="h-4 w-4" />
           </Button>
           <Button
@@ -112,7 +112,7 @@ export function DataTablePagination<TData>({
             onClick={() => table.nextPage()}
             variant="outline"
           >
-            <span className="sr-only">{t('nextPage')}</span>
+            <span className="sr-only">{t('components.dataTable.pagination.nextPage')}</span>
             <ChevronRightIcon className="h-4 w-4" />
           </Button>
           <Button
@@ -121,7 +121,7 @@ export function DataTablePagination<TData>({
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             variant="outline"
           >
-            <span className="sr-only">{t('lastPage')}</span>
+            <span className="sr-only">{t('components.dataTable.pagination.lastPage')}</span>
             <ChevronsRightIcon className="h-4 w-4" />
           </Button>
         </div>

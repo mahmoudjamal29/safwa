@@ -2,6 +2,8 @@
 
 import * as React from 'react'
 
+import { useTranslations } from 'next-intl'
+
 import { useCreateProduct, useUpdateProduct, type Product } from '@/query/products'
 
 import { Button } from '@/components/ui/button'
@@ -53,6 +55,7 @@ const defaultForm: FormState = {
 }
 
 export function ProductFormDialog({ onOpenChange, open, product }: ProductFormDialogProps) {
+  const t = useTranslations('products')
   const createMutation = useCreateProduct()
   const updateMutation = useUpdateProduct()
 
@@ -113,24 +116,24 @@ export function ProductFormDialog({ onOpenChange, open, product }: ProductFormDi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{product ? 'تعديل المنتج' : 'منتج جديد'}</DialogTitle>
+          <DialogTitle>{product ? t('editProduct') : t('newProduct')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label>اسم المنتج *</Label>
+              <Label>{t('form.name')} *</Label>
               <Input value={form.name} onChange={e => set('name', e.target.value)} required />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>كود المنتج</Label>
+              <Label>{t('form.sku')}</Label>
               <Input value={form.sku} onChange={e => set('sku', e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>الفئة</Label>
+              <Label>{t('form.category')}</Label>
               <Input value={form.category} onChange={e => set('category', e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>وحدة القياس</Label>
+              <Label>{t('form.unit')}</Label>
               <Select value={form.unit} onValueChange={v => set('unit', v)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -143,46 +146,46 @@ export function ProductFormDialog({ onOpenChange, open, product }: ProductFormDi
               </Select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>سعر الوحدة *</Label>
+              <Label>{t('form.price')} *</Label>
               <Input type="number" step="0.01" value={form.price} onChange={e => set('price', e.target.value)} required />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>سعر التكلفة</Label>
+              <Label>{t('form.cost')}</Label>
               <Input type="number" step="0.01" value={form.cost} onChange={e => set('cost', e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>الكمية</Label>
+              <Label>{t('form.qty')}</Label>
               <Input type="number" step="0.01" value={form.qty} onChange={e => set('qty', e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>الحد الأدنى</Label>
+              <Label>{t('form.minQty')}</Label>
               <Input type="number" step="0.01" value={form.min_qty} onChange={e => set('min_qty', e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>الحد الأقصى</Label>
+              <Label>{t('form.maxQty')}</Label>
               <Input type="number" step="0.01" value={form.max_qty} onChange={e => set('max_qty', e.target.value)} />
             </div>
           </div>
 
           {/* Split settings */}
           <div className="border rounded-lg p-4 flex flex-col gap-3">
-            <p className="text-sm font-medium text-muted-foreground">إعدادات التقسيم (للمنتجات القابلة للتجزئة)</p>
+            <p className="text-sm font-medium text-muted-foreground">{t('form.splitSettings')}</p>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <Label>عدد القطع في الوحدة</Label>
-                <Input type="number" value={form.pieces_per_unit} onChange={e => set('pieces_per_unit', e.target.value)} placeholder="اتركه فارغاً إذا لم ينطبق" />
+                <Label>{t('form.piecesPerUnit')}</Label>
+                <Input type="number" value={form.pieces_per_unit} onChange={e => set('pieces_per_unit', e.target.value)} placeholder={t('form.piecesPlaceholder')} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label>سعر القطعة</Label>
+                <Label>{t('form.piecePrice')}</Label>
                 <Input type="number" step="0.01" value={form.piece_price} onChange={e => set('piece_price', e.target.value)} />
               </div>
             </div>
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t('form.cancel')}</Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? 'جاري الحفظ...' : 'حفظ'}
+              {isPending ? t('form.saving') : t('form.save')}
             </Button>
           </div>
         </form>

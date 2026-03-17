@@ -3,7 +3,8 @@
 import * as React from 'react'
 
 import { useQuery } from '@tanstack/react-query'
-import { Pencil, Trash2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { PencilIcon, Trash2Icon } from '@/lib/icons'
 
 import { getAllCustomersQuery, useDeleteCustomer, type Customer } from '@/query/customers'
 
@@ -33,6 +34,7 @@ import {
 import { CustomerFormDialog } from './customer-form-dialog'
 
 export function CustomersTable() {
+  const t = useTranslations('customers')
   const [search, setSearch] = React.useState('')
   const [page, setPage] = React.useState(1)
   const debouncedSearch = useDebounce(search, 300)
@@ -62,7 +64,7 @@ export function CustomersTable() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
         <Input
-          placeholder="بحث في العملاء..."
+          placeholder={t('searchPlaceholder')}
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1) }}
           className="max-w-xs"
@@ -73,22 +75,22 @@ export function CustomersTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>اسم العميل</TableHead>
-              <TableHead>الهاتف</TableHead>
-              <TableHead>العنوان</TableHead>
-              <TableHead>الرقم الضريبي</TableHead>
-              <TableHead>ملاحظات</TableHead>
-              <TableHead>إجراءات</TableHead>
+              <TableHead>{t('columns.name')}</TableHead>
+              <TableHead>{t('columns.phone')}</TableHead>
+              <TableHead>{t('columns.address')}</TableHead>
+              <TableHead>{t('columns.taxNumber')}</TableHead>
+              <TableHead>{t('columns.notes')}</TableHead>
+              <TableHead>{t('columns.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">جاري التحميل...</TableCell>
+                <TableCell colSpan={6} className="text-center text-muted-foreground">{t('loading')}</TableCell>
               </TableRow>
             ) : customers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">لا يوجد عملاء</TableCell>
+                <TableCell colSpan={6} className="text-center text-muted-foreground">{t('noCustomers')}</TableCell>
               </TableRow>
             ) : (
               customers.map(c => (
@@ -101,10 +103,10 @@ export function CustomersTable() {
                   <TableCell>
                     <div className="flex gap-1">
                       <Button size="icon" variant="ghost" onClick={() => openEdit(c)}>
-                        <Pencil className="h-4 w-4" />
+                        <PencilIcon className="h-4 w-4" />
                       </Button>
                       <Button size="icon" variant="ghost" className="text-destructive" onClick={() => setDeleteId(c.id)}>
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2Icon className="h-4 w-4" />
                       </Button>
                     </div>
                   </TableCell>
@@ -117,9 +119,9 @@ export function CustomersTable() {
 
       {pagination && pagination.last_page > 1 && (
         <div className="flex justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>السابق</Button>
-          <span className="text-sm text-muted-foreground flex items-center">صفحة {page} من {pagination.last_page}</span>
-          <Button variant="outline" size="sm" disabled={page >= pagination.last_page} onClick={() => setPage(p => p + 1)}>التالي</Button>
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('prev')}</Button>
+          <span className="text-sm text-muted-foreground flex items-center">{t('pageOf', { current: page, total: pagination.last_page })}</span>
+          <Button variant="outline" size="sm" disabled={page >= pagination.last_page} onClick={() => setPage(p => p + 1)}>{t('next')}</Button>
         </div>
       )}
 
@@ -128,11 +130,11 @@ export function CustomersTable() {
       <AlertDialog open={!!deleteId} onOpenChange={open => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>حذف العميل</AlertDialogTitle>
-            <AlertDialogDescription>هل تريد حذف هذا العميل؟ لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
+            <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('deleteDescription')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={async () => {
@@ -142,7 +144,7 @@ export function CustomersTable() {
                 }
               }}
             >
-              حذف
+              {t('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

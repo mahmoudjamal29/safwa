@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 
-import { Calendar as CalendarIcon } from 'lucide-react'
+import { CalendarIcon } from '@/lib/icons'
 
 import { cn } from '@/utils'
 

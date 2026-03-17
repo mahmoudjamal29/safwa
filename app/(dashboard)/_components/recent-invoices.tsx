@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery, queryOptions } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 
 import { createClient } from '@/lib/supabase/client'
 
@@ -49,11 +50,12 @@ const recentInvoicesOptions = queryOptions<RecentInvoice[]>({
 })
 
 export function RecentInvoices() {
+  const t = useTranslations('dashboard')
   const { data: invoices = [], isLoading } = useQuery(recentInvoicesOptions)
 
   return (
     <div className="rounded-xl border bg-card p-4">
-      <h2 className="mb-3 text-base font-semibold">آخر الفواتير</h2>
+      <h2 className="mb-3 text-base font-semibold">{t('recentInvoices')}</h2>
       <Table>
         <TableHeader>
           <TableRow>
@@ -67,7 +69,7 @@ export function RecentInvoices() {
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">جاري التحميل...</TableCell>
+              <TableCell colSpan={5} className="text-center text-muted-foreground">{t('loading')}</TableCell>
             </TableRow>
           ) : invoices.length === 0 ? (
             <TableRow>

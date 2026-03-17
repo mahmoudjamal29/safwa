@@ -1,3 +1,5 @@
+import * as React from 'react'
+
 import { cn } from '@/utils/cn'
 
 type StatCardVariant = 'gold' | 'green' | 'blue' | 'red'
@@ -5,7 +7,7 @@ type StatCardVariant = 'gold' | 'green' | 'blue' | 'red'
 interface StatCardProps {
   label: string
   value: string | number
-  icon: string
+  icon: React.ReactNode
   variant?: StatCardVariant
   onClick?: () => void
 }
@@ -35,7 +37,7 @@ export function StatCard({ icon, label, onClick, value, variant = 'blue' }: Stat
       onClick={onClick}
       role={onClick ? 'button' : undefined}
     >
-      <span className="text-3xl">{icon}</span>
+      <span className="flex items-center justify-center">{icon}</span>
       <div className="flex flex-col gap-1">
         <span className="text-sm text-muted-foreground">{label}</span>
         <span className={cn('text-2xl font-bold', valueClasses[variant])}>{value}</span>

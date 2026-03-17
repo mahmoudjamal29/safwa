@@ -5,7 +5,7 @@ import {
   PackageIcon,
   ArrowRightLeftIcon,
   UsersIcon
-} from 'lucide-react'
+} from '@/lib/icons'
 
 import type { MenuConfig } from '@/types/sidebar'
 

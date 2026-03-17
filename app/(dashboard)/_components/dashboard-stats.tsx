@@ -3,8 +3,10 @@
 import * as React from 'react'
 
 import { useQuery , queryOptions } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 
 import { createClient } from '@/lib/supabase/client'
+import { FileTextIcon, InvoiceIcon, MoneyIcon, PackageIcon } from '@/lib/icons'
 
 import { fmtCurrency } from '@/utils/formatters'
 
@@ -86,6 +88,7 @@ function dashboardStatsOptions(period: Period, fromDate: string, toDate: string)
 }
 
 export function DashboardStats() {
+  const t = useTranslations('dashboard')
   const [period, setPeriod] = React.useState<Period>('month')
   const [fromDate, setFromDate] = React.useState('')
   const [toDate, setToDate] = React.useState('')
@@ -93,10 +96,10 @@ export function DashboardStats() {
   const { data: stats, isLoading } = useQuery(dashboardStatsOptions(period, fromDate, toDate))
 
   const periods: { key: Period; label: string }[] = [
-    { key: 'today', label: 'اليوم' },
-    { key: 'month', label: 'هذا الشهر' },
-    { key: 'all', label: 'الكل' },
-    { key: 'custom', label: 'تخصيص' },
+    { key: 'today', label: t('periods.today') },
+    { key: 'month', label: t('periods.month') },
+    { key: 'all', label: t('periods.all') },
+    { key: 'custom', label: t('customPeriod') },
   ]
 
   return (
@@ -121,7 +124,7 @@ export function DashboardStats() {
               onChange={e => setFromDate(e.target.value)}
               className="h-9 w-36"
             />
-            <span className="text-muted-foreground text-sm">إلى</span>
+            <span className="text-muted-foreground text-sm">{t('to')}</span>
             <Input
               type="date"
               value={toDate}
@@ -135,27 +138,27 @@ export function DashboardStats() {
       {/* Stat cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="إجمالي المبيعات"
+          label={t('stats.revenue')}
           value={isLoading ? '...' : fmtCurrency(stats?.revenue ?? 0)}
-          icon="💰"
+          icon={<MoneyIcon size={28} />}
           variant="gold"
         />
         <StatCard
-          label="إجمالي الفواتير"
+          label={t('stats.invoices')}
           value={isLoading ? '...' : (stats?.invoiceCount ?? 0)}
-          icon="🧾"
+          icon={<InvoiceIcon size={28} />}
           variant="blue"
         />
         <StatCard
-          label="المنتجات"
+          label={t('stats.products')}
           value={isLoading ? '...' : (stats?.productCount ?? 0)}
-          icon="📦"
+          icon={<PackageIcon size={28} />}
           variant="green"
         />
         <StatCard
-          label="مخزون منخفض"
+          label={t('stats.lowStock')}
           value={isLoading ? '...' : (stats?.lowStockCount ?? 0)}
-          icon="⚠️"
+          icon={<FileTextIcon size={28} />}
           variant="red"
         />
       </div>

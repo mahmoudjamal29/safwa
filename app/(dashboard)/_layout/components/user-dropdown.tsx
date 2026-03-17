@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 
-import { LogOutIcon, UserIcon } from 'lucide-react'
+import { LogOutIcon, UserIcon } from '@/lib/icons'
 import { useTranslations } from 'next-intl'
 
 import { createClient } from '@/lib/supabase/client'

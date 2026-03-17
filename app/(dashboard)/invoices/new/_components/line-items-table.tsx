@@ -1,6 +1,7 @@
 'use client'
 
-import { Trash2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { Trash2Icon } from '@/lib/icons'
 
 import { fmtCurrency } from '@/utils/formatters'
 
@@ -24,6 +25,7 @@ interface LineItemsTableProps {
 }
 
 export function LineItemsTable({ items, onRemoveItem, onUpdateItem }: LineItemsTableProps) {
+  const t = useTranslations('invoices')
   const subtotal = items.reduce((sum, item) => sum + item.total, 0)
 
   function handleQtyChange(index: number, value: string) {
@@ -41,7 +43,7 @@ export function LineItemsTable({ items, onRemoveItem, onUpdateItem }: LineItemsT
   if (items.length === 0) {
     return (
       <div className="border rounded-lg p-6 text-center text-sm text-muted-foreground">
-        لم يتم إضافة منتجات بعد. اضغط &quot;+ إضافة منتج&quot; للبدء.
+        {t('lineItems.empty')}
       </div>
     )
   }
@@ -51,11 +53,11 @@ export function LineItemsTable({ items, onRemoveItem, onUpdateItem }: LineItemsT
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>المنتج</TableHead>
-            <TableHead>البيع بـ</TableHead>
-            <TableHead>الكمية</TableHead>
-            <TableHead>سعر الوحدة</TableHead>
-            <TableHead>الإجمالي</TableHead>
+            <TableHead>{t('lineItems.product')}</TableHead>
+            <TableHead>{t('lineItems.sellBy')}</TableHead>
+            <TableHead>{t('lineItems.qty')}</TableHead>
+            <TableHead>{t('lineItems.unitPrice')}</TableHead>
+            <TableHead>{t('lineItems.total')}</TableHead>
             <TableHead></TableHead>
           </TableRow>
         </TableHeader>
@@ -64,7 +66,7 @@ export function LineItemsTable({ items, onRemoveItem, onUpdateItem }: LineItemsT
             <TableRow key={i}>
               <TableCell className="font-medium">{item.product_name}</TableCell>
               <TableCell className="text-sm text-muted-foreground">
-                {item.sell_by === 'unit' ? 'وحدة' : 'قطعة'}
+                {item.sell_by === 'unit' ? t('lineItems.unit') : t('lineItems.piece')}
               </TableCell>
               <TableCell>
                 <Input
@@ -95,13 +97,13 @@ export function LineItemsTable({ items, onRemoveItem, onUpdateItem }: LineItemsT
                   className="text-destructive h-8 w-8"
                   onClick={() => onRemoveItem(i)}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2Icon className="h-4 w-4" />
                 </Button>
               </TableCell>
             </TableRow>
           ))}
           <TableRow className="bg-muted/50 font-semibold">
-            <TableCell colSpan={4} className="text-left">المجموع الفرعي</TableCell>
+            <TableCell colSpan={4} className="text-left">{t('lineItems.subtotal')}</TableCell>
             <TableCell>{fmtCurrency(subtotal)}</TableCell>
             <TableCell />
           </TableRow>

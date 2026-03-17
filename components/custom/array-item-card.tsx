@@ -1,4 +1,4 @@
-import { TrashIcon } from 'lucide-react'
+import { TrashIcon } from '@/lib/icons'
 
 import { cn } from '@/utils'
 
