@@ -1,0 +1,985 @@
+---
+description: Master guide for the EDGE Admin Dashboard application. Comprehensive overview of application purpose, architecture, technology stack, dependencies, folder structure, available Cursor rules, MCP tools, and development patterns. Serves as the primary reference for understanding and working with the codebase.
+alwaysApply: true
+---
+
+# EDGE Admin Dashboard - Master Guide
+
+## Application Overview
+
+**EDGE Dashboard** is a modern, enterprise-grade admin dashboard application built with Next.js 15 (App Router), React 19, TypeScript, and Tailwind CSS. It serves as a comprehensive administrative panel for managing a workspace dashboard.
+
+### Primary Purpose
+
+The application provides administrative tools for managing:
+
+- **Tenants** - Multi-tenant organizations (Corporate/School clients)
+- **Admins** - System administrators and tenant administrators
+- **Roles & Permissions** - Role-based access control (RBAC) system
+- **Drivers** - Driver management and profiles
+- **Vehicles** - Vehicle fleet management
+- **Riders/Users** - End-user management
+- **Routes** - Transportation route management
+- **Bookings/Trips** - Trip and booking management
+- **Leaves** - Leave request management
+- **Payslips** - Payroll management
+- **Dashboard** - Analytics and statistics
+
+### Application Type
+
+- **Framework**: Next.js 16.1.1 with App Router
+- **React Version**: React 19.2.1
+- **Language**: TypeScript 5.8.3 (strict mode)
+- **Styling**: Tailwind CSS 4.1.17
+- **Authentication**: JWT-based with session management
+- **Internationalization**: next-intl 4.5.8 (Arabic/English support)
+- **Architecture**: Server Components by default, Client Components when needed
+- **Package Manager**: Bun 1.3.5
+
+## Technology Stack
+
+### Core Framework & Runtime (Frontend)
+
+- **Next.js 16.1.1** - React framework with App Router
+- **React 19.2.1** - UI library
+- **React DOM 19.2.1** - React DOM renderer
+- **TypeScript 5.8.3** - Type safety
+- **Node.js** - Runtime environment
+- **Bun 1.3.5** - Package manager
+
+### UI & Styling (Frontend)
+
+- **Tailwind CSS 4.1.17** - Utility-first CSS framework
+- **Radix UI** - Accessible component primitives (20+ components)
+- **Shadcn UI** - Pre-built component library (79 components)
+- **MagicUI** - Advanced UI components
+- **Lucide React 0.556.0** - Icon library
+- **Framer Motion 12.16.0** - Animation library
+- **next-themes 0.4.6** - Dark mode support
+- **PostCSS 8.5.6** - CSS processing
+
+### State Management & Data Fetching (Frontend)
+
+- **TanStack Query 5.90.3** - Server state management
+- **TanStack Form (via @tanstack/react-form-nextjs 1.27.2)** - Form state management
+- **TanStack Table 8.21.3** - Table/data grid
+- **Zustand 5.0.8** - Client state management
+- **nuqs 2.7.1** - URL state management
+
+### Forms & Validation (Frontend)
+
+- **TanStack Form (via @tanstack/react-form-nextjs 1.27.2)** - Primary form library
+- **Zod 3.25.58** - Schema validation
+- **React Hook Form 7.57.0** (via @hookform/resolvers 5.1.1) - Alternative form library (legacy)
+
+### HTTP & API (Frontend)
+
+- **Axios 1.12.2** - HTTP client
+- **Custom Fetcher** - API wrapper in `lib/fetcher/`
+
+### Maps & Location (Frontend)
+
+- **@react-google-maps/api 2.20.7** - Google Maps integration
+- **Geocoding Service** - Custom geocoding utilities
+
+### Internationalization (Frontend)
+
+- **next-intl 4.5.8** - Internationalization framework
+- **@lingual/i18n-check 0.8.14** - Translation validation
+
+### Utilities & Helpers (Frontend)
+
+- **date-fns 4.1.0** - Date manipulation
+- **date-fns-tz 3.2.0** - Timezone support for date-fns
+- **clsx 2.1.1** - Conditional classnames
+- **tailwind-merge 3.4.0** - Tailwind class merging
+- **class-variance-authority 0.7.1** - Component variants
+- **jose 6.1.0** - JWT handling
+- **canvas-confetti** - Celebrations
+- **recharts 3.5.0** - Charts and data visualization
+
+### File Upload (Frontend)
+
+- **react-dropzone 14.3.8** - File upload handling
+
+### Phone Input (Frontend)
+
+- **react-phone-number-input 3.4.14** - International phone input
+
+### Development Tools (Frontend)
+
+- **ESLint 9.28.0** - Code linting
+- **ESLint Config Next 16.0.7** - Next.js ESLint configuration
+- **Prettier 3.6.2** - Code formatting
+- **Husky 9.1.7** - Git hooks
+- **@tanstack/react-query-devtools 5.91.0** - Query debugging
+- **TypeScript 5.8.3** - Type checking
+- **Jest 30.2.0** - Testing framework
+
+## Backend Technology Stack
+
+### Core Framework & Runtime (Backend)
+
+- **Laravel Framework 12.0** - PHP framework
+- **PHP 8.2+** - Programming language runtime
+- **Composer** - PHP dependency manager
+
+### Backend Modules & Architecture
+
+- **nwidart/laravel-modules 12.0** - Modular architecture (Module-based Laravel)
+- **Modules**: Admin, Area, Center, Core, Product, Space, User
+
+### Authentication & Security (Backend)
+
+- **php-open-source-saver/jwt-auth 2.8** - JWT authentication
+- **Laravel Sanctum/Socialite 5.21** - Social authentication
+
+### Database & ORM (Backend)
+
+- **Laravel Eloquent ORM** - Object-relational mapping
+- **prettus/l5-repository 2.10** - Repository pattern
+- **tucker-eric/eloquentfilter 3.5** - Query filtering
+
+### Localization & Translations (Backend)
+
+- **astrotomic/laravel-translatable v11.16** - Model translations
+- **mcamara/laravel-localization 2.3** - Localization middleware
+
+### Utilities & Helpers (Backend)
+
+- **cviebrock/eloquent-sluggable 12.0** - URL slug generation
+- **maatwebsite/excel 3.1** - Excel import/export
+- **stripe/stripe-php 17.4** - Stripe payment integration
+- **league/flysystem-aws-s3-v3 3.29** - AWS S3 storage
+- **spatie/laravel-backup** - Backup management
+
+### Notifications & Services (Backend)
+
+- **kreait/laravel-firebase 6.0** - Firebase integration
+- **laravel-notification-channels/fcm 5.1** - Firebase Cloud Messaging
+- **pusher/pusher-php-server 7.2** - Real-time notifications
+
+### Development Tools (Backend)
+
+- **Laravel Pail 1.2.2** - Log viewer
+- **Laravel Pint 1.13** - Code style fixer
+- **PHPUnit 11.5.3** - Testing framework
+- **Mockery 1.6** - Mocking framework
+- **FakerPHP/Faker 1.23** - Fake data generation
+
+### Frontend Assets (Backend)
+
+- **Vite 6.2.4** - Frontend build tool
+- **Tailwind CSS 4.0.0** (via @tailwindcss/vite 4.0.0) - CSS framework
+- **Laravel Vite Plugin 1.2.0** - Vite integration
+
+## Version Requirements & Documentation
+
+**⚠️ CRITICAL: Always check current versions before working with any library, framework, tool, or stack**
+
+### Version Reference
+
+- **Frontend versions**: See `package.json` in project root
+- **Backend versions**: See `backend/composer.json`
+- **Current versions documented above** - Always reference this section for exact version numbers
+
+### Version Checking Requirements
+
+1. **Before working with any library/stack/tool**, verify the current version in:
+   - Frontend: `package.json` (see Technology Stack section above)
+   - Backend: `backend/composer.json` (see Backend Technology Stack section above)
+   - Or reference this master-guide.mdc for documented versions
+
+2. **Use Context7 MCP** to fetch documentation for the specific version you're working with
+
+3. **Version-specific APIs** - Different versions may have different APIs, breaking changes, or new features
+
+4. **Mandatory Context7 lookup** - When:
+   - You don't know the exact API for the current version
+   - You're unsure about version-specific behavior
+   - Documentation or examples are needed for the current version
+   - Checking for deprecated APIs in the current version
+
+## Application Structure
+
+### Directory Organization
+
+```
+alouf-admin-dashboard/
+├── app/                          # Next.js App Router
+│   ├── (app)/                    # Main authenticated routes
+│   │   ├── _layout/              # App layout components
+│   │   ├── dashboard/            # Dashboard pages
+│   │   ├── tenants/              # Tenant management
+│   │   ├── drivers/              # Driver management
+│   │   ├── vehicles/             # Vehicle management
+│   │   ├── administration/       # Admin & roles management
+│   │   ├── leaves/                # Leave management
+│   │   ├── payslips/             # Payslip management
+│   │   └── ...                    # Other feature routes
+│   ├── (Auth)/                   # Authentication routes
+│   │   ├── login/                # Login page
+│   │   └── forgot-password/      # Password reset
+│   └── layout.tsx                # Root layout
+├── components/                   # React components
+│   ├── ui/                       # Shadcn UI components (79 files)
+│   ├── form/                     # Form components & hooks
+│   ├── forms/                    # Reusable form components
+│   ├── custom/                   # Custom UI components
+│   ├── data-table/               # DataTable components
+│   ├── icons/                    # SVG icons
+│   └── magicui/                  # MagicUI components
+├── lib/                          # Core libraries
+│   ├── auth/                     # Authentication system
+│   ├── fetcher/                  # API client
+│   ├── providers/                # React providers
+│   ├── i18n/                     # Internationalization
+│   ├── map/                      # Map utilities
+│   └── geocoding/                # Geocoding service
+├── query/                        # TanStack Query hooks
+│   ├── tenants/                  # Tenant queries
+│   ├── drivers/                  # Driver queries
+│   ├── vehicles/                 # Vehicle queries
+│   └── ...                       # Other feature queries
+├── query-client/                 # Query client configuration
+│   ├── endpoints.ts              # API endpoints
+│   ├── get-query-client.ts       # Query client setup
+│   └── query.d.ts                # Query key types
+├── hooks/                        # Custom React hooks
+├── utils/                        # Utility functions
+├── types/                        # TypeScript types
+├── config/                       # Configuration files
+└── styles/                       # Global styles
+```
+
+### Route Groups
+
+**`app/(app)/`** - Main authenticated application
+
+- Protected routes requiring authentication
+- Includes sidebar, header, and navigation
+- All CRUD operations for various entities
+
+**`app/(Auth)/`** - Authentication pages
+
+- Login, forgot password, password reset
+- Separate layout from main app
+- Public routes (no authentication required)
+
+### Feature Modules
+
+Each feature follows the standardized folder structure pattern:
+
+- `page.tsx` - Main list/detail page
+- `create/page.tsx` - Create page
+- `[{id}]/` - Dynamic routes for details
+- `_{feature}/` - Private feature folder with shared components
+
+## Available Cursor Rules
+
+The following cursor rules are available to guide development:
+
+### 1. **react-query.mdc** (Always Applied)
+
+**Purpose**: Standardized patterns for React Query/TanStack Query
+**When to use**: Creating queries, mutations, or API endpoints
+**Key patterns**:
+
+- Query folder structure
+- ENDPOINTS configuration
+- Query options pattern
+- Mutation patterns with meta options
+- API error handling
+
+### 2. **tanstack-form.mdc**
+
+**Purpose**: TanStack Form implementation patterns
+**When to use**: Creating forms, field components, or form validation
+**Key patterns**:
+
+- `useAppForm` hook usage
+- `withForm` HOC for reusable components
+- `formOptions` pattern
+- Field component usage
+- Multi-step forms
+- API validation error handling
+
+### 3. **feature-folder-structure.mdc**
+
+**Purpose**: Feature folder organization patterns
+**When to use**: Creating new features or organizing code
+**Key patterns**:
+
+- Main feature directory structure
+- Private feature folder (`_{feature}/`)
+- Column, form, table, component organization
+- Routing patterns
+- URL conventions
+
+### 4. **create-new-page.mdc**
+
+**Purpose**: Standard page structure patterns
+**When to use**: Creating new pages in the application
+**Key patterns**:
+
+- PageHeader component usage
+- Form integration with PageHeader
+- Form structure requirements
+- Content layout structure
+
+### 5. **permissions-system.mdc**
+
+**Purpose**: RBAC permissions implementation
+**When to use**: Implementing permission checks or protecting routes
+**Key patterns**:
+
+- Permission definitions
+- Route protection
+- Component-level permissions
+- Permission hooks usage
+- Permission checking patterns
+
+## Available MCP Tools
+
+**⚠️ CRITICAL: For Next.js Development - Start every session by calling `nextjs_init` FIRST:**
+
+```typescript
+// ⚠️ ALWAYS CALL THIS FIRST at the start of every Next.js development session
+nextjs_init({ project_path: '/Users/salah/Developer/edge-admin-dashboard' })
+```
+
+This establishes proper documentation context and requirements for all Next.js work.
+
+### Context7 MCP (Documentation)
+
+**🚨 MANDATORY: Context7 MCP is REQUIRED for all documentation lookups**
+
+**⚠️ CRITICAL: See [context7-docs.mdc](mdc:.cursor/rules/_common/context7-docs.mdc) for complete mandatory requirements and error handling procedures.**
+
+**Purpose**: Fetch official library documentation
+
+**Tools**:
+
+- `resolve-library-id` - Resolve library name to Context7 ID
+- `query-docs` - Fetch library documentation (formerly `get-library-docs`)
+
+**⚠️ MANDATORY Usage Scenarios**:
+
+1. **User asks for documentation** - ALWAYS use Context7 MCP before providing any docs
+2. **AI lacks knowledge** - MUST use Context7 when encountering unfamiliar libraries/tech
+3. **Before implementation** - Fetch docs before implementing features with external libraries
+4. **Verification needed** - Use Context7 to verify assumptions against official docs
+
+**Required Workflow**:
+
+```typescript
+// Step 1: ALWAYS resolve library ID first
+;(await mcp_context7_resolve) -
+  library -
+  id({
+    libraryName: 'library-name',
+    query: 'user query or task description'
+  })
+
+// Step 2: Fetch documentation
+;(await mcp_context7_query) -
+  docs({
+    libraryId: 'resolved-library-id',
+    query: 'specific topic or question'
+  })
+```
+
+**⚠️ MANDATORY Error Handling**:
+
+- **If Context7 has ANY error**: STOP all work, report error, request user to fix MCP configuration
+- **DO NOT proceed** with assumptions or incomplete knowledge
+- **Wait for MCP fix** before continuing implementation
+
+**Common Libraries**:
+
+- `tanstack-query` / `@tanstack/react-query`
+- `tanstack-form` / `@tanstack/react-form`
+- `next.js` / `next`
+- `react` / `@types/react`
+- `zod`
+- `typescript`
+- Any other library used in the project
+
+**Reference**: See [context7-docs.mdc](mdc:.cursor/rules/_common/context7-docs.mdc) for complete requirements, error handling, and examples.
+
+### Next.js DevTools MCP (Mandatory for Next.js Development)
+
+**⚠️ IMPORTANT: Start every Next.js session by calling the init tool to set up proper context:**
+
+```typescript
+// Call this FIRST at the start of every Next.js development session
+nextjs_init({ project_path: '/path/to/project' })
+```
+
+**Purpose**: Real-time Next.js development server integration and diagnostics
+
+**Repository**: [https://github.com/vercel/next-devtools-mcp](https://github.com/vercel/next-devtools-mcp)
+
+**Tools**:
+
+- `nextjs_init` - **⚠️ REQUIRED FIRST STEP** - Initialize Next.js DevTools context (call once per session). Sets up documentation requirements and establishes context for all Next.js queries.
+- `nextjs_index` - Discover running Next.js dev servers and available tools
+- `nextjs_call` - Call specific Next.js MCP tools (get routes, errors, build status, etc.)
+- `nextjs_docs` - Search and retrieve Next.js official documentation
+- `browser_eval` - Browser automation and testing via Playwright
+- `upgrade_nextjs_16` - Guide through upgrading to Next.js 16 with automated codemods
+- `enable_cache_components` - Migrate to Cache Components mode with automated error detection and fixing
+
+**Usage Workflow**:
+
+```typescript
+// Step 1: ⚠️ ALWAYS START HERE - Initialize context (once per session)
+nextjs_init({ project_path: '/Users/salah/Developer/edge-admin-dashboard' })
+
+// Step 2: Discover dev server (optional, if you need runtime diagnostics)
+const servers = nextjs_index() // Returns server info and available tools
+
+// Step 3: Query runtime information (requires Next.js 16+ with running dev server)
+nextjs_call({
+  port: '3000',
+  toolName: 'get_routes' // or 'get_errors', 'get_build_status', etc.
+})
+
+// Step 4: Get Next.js documentation (MANDATORY for all Next.js concepts)
+nextjs_docs({
+  action: 'search', // or 'get' with specific path
+  query: 'app router patterns'
+})
+```
+
+**Key Features**:
+
+1. **Runtime Diagnostics & Live State Access** (Next.js 16+):
+   - Real-time build and runtime errors
+   - Application routes, pages, and component metadata
+   - Development server logs and diagnostics
+   - Server Actions and component hierarchies
+
+2. **Development Automation**:
+   - Automated Next.js 16 upgrades with official codemods
+   - Cache Components migration with error detection and automated fixes
+   - Browser testing integration via Playwright
+
+3. **Knowledge Base & Documentation**:
+   - Curated Next.js 16 knowledge base
+   - Direct access to official Next.js documentation
+   - Pre-configured prompts for upgrade guidance
+
+**When to use**:
+
+- **⚠️ MANDATORY FIRST STEP**: Start every Next.js development session with `nextjs_init` to establish proper documentation context
+- **MANDATORY**: Before creating or modifying any Next.js page, route, or component
+- Checking existing routes before creating new ones
+- Verifying compilation and runtime errors
+- Understanding Next.js App Router patterns
+- Validating build status
+- Debugging Next.js-specific issues
+- Upgrading Next.js versions
+- Migrating to Cache Components mode
+
+**Documentation Requirements**:
+
+- The `nextjs_init` tool establishes that **ALL Next.js concepts MUST be looked up using `nextjs_docs`**
+- Never answer Next.js questions from memory - always query the official documentation
+- Use `nextjs_docs` with action `'search'` for queries, or action `'get'` with specific paths
+- The initialization fetches the complete Next.js documentation index for efficient lookups
+- Documentation lookup is **100% REQUIRED** with **ZERO EXCEPTIONS** for any Next.js-related query
+
+**Requirements**:
+
+- Next.js 16+ (MCP support added in v16)
+- For runtime diagnostics: Dev server must be running (`npm run dev`)
+- MCP endpoint automatically available at `/_next/mcp` when dev server starts
+- Tools like `nextjs_docs`, `upgrade_nextjs_16`, and `enable_cache_components` work without a running server
+
+**Architecture**:
+
+The Next.js DevTools MCP server provides a bridge between your coding agent and Next.js development tools:
+
+```
+Coding Agent
+      ↓
+  next-devtools-mcp
+      ↓
+      ├─→ Next.js Dev Server MCP Endpoint (/_next/mcp) ← Runtime diagnostics (Next.js 16+)
+      ├─→ Playwright MCP Server ← Browser automation
+      └─→ Knowledge Base & Tools ← Documentation, upgrades, setup automation
+```
+
+**See [create-new-page.mdc](mdc:.cursor/rules/feature-development/create-new-page.mdc) for mandatory workflow requirements.**
+
+### Browser Extension MCP
+
+**Purpose**: Browser automation and testing
+
+**Available Tools**:
+
+- Navigation: `browser_navigate`, `browser_navigate_back`
+- Interaction: `browser_click`, `browser_type`, `browser_hover`
+- Information: `browser_snapshot`, `browser_take_screenshot`
+- Forms: `browser_fill_form`, `browser_select_option`
+- Evaluation: `browser_evaluate`
+- Network: `browser_network_requests`
+- Console: `browser_console_messages`
+
+**When to use**: Testing UI, debugging browser issues, automation
+
+### Linear MCP (Project Management)
+
+**Purpose**: Linear issue tracking and project management
+
+**Available Tools**:
+
+- Issues: `list_issues`, `get_issue`, `create_issue`, `update_issue`
+- Projects: `list_projects`, `get_project`, `create_project`
+- Teams: `list_teams`, `get_team`
+- Labels: `list_issue_labels`, `create_issue_label`
+- Comments: `create_comment`, `list_comments`
+
+**When to use**: Creating/managing issues, tracking tasks
+
+**Available Tools**:
+
+- Collections: `getCollections`, `createCollection`, `deleteCollection`
+- Requests: `createCollectionRequest`, `getCollectionRequest`
+- Environments: `createEnvironment`, `getEnvironment`
+- Mocks: `createMock`, `getMock`
+- Monitors: `createMonitor`, `getMonitor`
+
+**When to use**: API testing, collection management
+
+## Development Patterns
+
+### Server vs Client Components
+
+**Default**: Server Components (no `'use client'` directive)
+
+**Use Client Components when**:
+
+- Using hooks (`useState`, `useEffect`, etc.)
+- Event handlers (`onClick`, `onChange`)
+- Browser APIs (`localStorage`, `window`)
+- Context providers
+- TanStack Query hooks (in components)
+- TanStack Form hooks
+
+**Pattern**:
+
+```typescript
+// Server Component (default)
+export default async function Page() {
+  const data = await fetchData()
+  return <ClientComponent data={data} />
+}
+
+// Client Component
+'use client'
+export function ClientComponent({ data }) {
+  const [state, setState] = useState()
+  return <div>...</div>
+}
+```
+
+### Data Fetching Pattern
+
+**Server Components**:
+
+**⚠️ CRITICAL: Server components MUST use `prefetchQuery` with try-catch and `HydrationBoundary` for detail pages**
+
+```typescript
+import { Metadata } from 'next'
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query'
+
+import { getQueryClient } from '@/query-client'
+import { getTenantByIdQuery } from '@/query/tenants'
+import { TenantTabs } from '@/app/(app)/tenants/_tenants/tabs/tenant-tabs'
+
+export default async function TenantDetailPage({ params }) {
+  const { tenantId } = await params
+  const queryClient = getQueryClient()
+
+  // Pre-fetch data on server with error handling
+  try {
+    await queryClient.prefetchQuery(getTenantByIdQuery(tenantId))
+  } catch (error) {
+    console.error(error)
+  }
+
+  // Wrap client component with HydrationBoundary to pass dehydrated state
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <TenantTabs tenantId={tenantId} />
+    </HydrationBoundary>
+  )
+}
+```
+
+**Client Components**:
+
+**⚠️ MANDATORY: Client/child components MUST use `useQuery` directly - they should NOT access data from server prefetch**
+
+```typescript
+'use client'
+import { useQuery } from '@tanstack/react-query'
+import { getAllTenantsQuery } from '@/query/tenants'
+
+export default function TenantsPage() {
+  // ✅ CORRECT: Client component uses useQuery directly
+  // The prefetched data from server is automatically used via HydrationBoundary
+  const { data, isLoading } = useQuery(getAllTenantsQuery(params))
+  return <div>...</div>
+}
+```
+
+**⚠️ MANDATORY Pattern for Detail Pages:**
+
+1. **Server component**: Use `prefetchQuery` with try-catch, wrap with `HydrationBoundary`
+2. **Client component**: Use `useQuery` directly - do NOT receive prefetched data as props
+3. **Reference**: See `app/(Dashboard)/customers/user/[userID]/page.tsx` for server pattern and `app/(Dashboard)/customers/_customers/tabs/user-tabs.tsx` for client pattern
+
+### Form Pattern
+
+```typescript
+'use client'
+import { useAppForm } from '@/components/form'
+import { FormOptions, createSchema } from './form-options'
+
+const form = useAppForm({
+  ...FormOptions(existingData),
+  validators: {
+    onChange: createSchema
+  },
+  onSubmit: async ({ formApi, value }) => {
+    apiFormValidation(() => mutationFn(value), formApi)
+  }
+})
+
+return (
+  <form id="form-id" onSubmit={(e) => {
+    e.preventDefault()
+    form.handleSubmit()
+  }}>
+    <form.AppField name="field">
+      {(field) => <field.Input label="Label" />}
+    </form.AppField>
+    <form.AppForm>
+      <form.SubmitButton form="form-id">Submit</form.SubmitButton>
+    </form.AppForm>
+  </form>
+)
+```
+
+### Query Pattern
+
+```typescript
+// query/{feature}/{feature}-query.ts
+import { queryOptions } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
+import { fetcher } from '@/lib/fetcher'
+import { ENDPOINTS } from '@/query-client'
+
+export const getAll{Resource}Query = (params: unknown) =>
+  queryOptions<API<PaginatedResponse<{Resource}[]>>, AxiosError<API>>({
+    queryFn: () =>
+      fetcher(ENDPOINTS.{FEATURE}.GET_ALL, {
+        auth: true,
+        params
+      }),
+    queryKey: ['{resource}', params]
+  })
+```
+
+### Mutation Pattern
+
+```typescript
+import { mutationOptions } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
+import { fetcher } from '@/lib/fetcher'
+import { ENDPOINTS } from '@/query-client'
+
+export const create{Resource}MutationOptions = mutationOptions<
+  API,
+  AxiosError<API>,
+  InputType
+>({
+  meta: {
+    invalidatesQuery: [['{resource}']]
+    // ⚠️ DO NOT add successMessage/errorMessage - messages are handled by backend
+  },
+  mutationFn: async (data) =>
+    fetcher(ENDPOINTS.{FEATURE}.CREATE, {
+      auth: true,
+      body: data,
+      method: 'POST'
+    })
+})
+```
+
+## Key Architectural Decisions
+
+### 1. Next.js App Router
+
+- Server Components by default
+- Route groups for organization
+- Server-side authentication
+- Middleware for route protection
+
+### 2. Type Safety
+
+- TypeScript strict mode
+- Query key types in `query-client/query.d.ts`
+- Endpoint types via `ENDPOINTS` constant
+- Form schema types with Zod
+
+### 3. Authentication & Authorization
+
+- JWT-based authentication
+- Session management via cookies
+- RBAC permissions system
+- Route-level and component-level protection
+
+### 4. Data Fetching
+
+- TanStack Query for server state
+- `queryOptions` pattern for better caching
+- Automatic error handling via MutationCache
+- Toast notifications via meta options
+
+### 5. Form Management
+
+- TanStack Form as primary form library
+- `useAppForm` hook with pre-bound components
+- `withForm` HOC for reusable components
+- `formOptions` pattern for configurations
+- Zod schemas for validation
+
+### 6. Component Composition
+
+- Shadcn UI components as base
+- Custom components in `components/custom/`
+- Feature-specific components in `_{feature}/`
+- Reusable form components with `withForm`
+
+### 7. Internationalization
+
+- next-intl for translations (optional - only when explicitly requested)
+- RTL/LTR support (Arabic/English) - available when translations are added
+- Locale stored in cookies
+- Direction set at root layout level
+- **⚠️ IMPORTANT: By default, use hard-coded English strings. Translations should only be added when explicitly requested by the user.**
+
+## Path Aliases
+
+```typescript
+"@/*" → Root directory or "./app/components/*"
+```
+
+**Usage**:
+
+```typescript
+import { useAppForm } from '@/components/form'
+import { ENDPOINTS } from '@/query-client'
+import { getAllTenantsQuery } from '@/query/tenants'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+```
+
+## Environment Variables
+
+The application uses `@t3-oss/env-nextjs` for type-safe environment variables:
+
+- Configuration in `lib/env.ts`
+- Type-safe access throughout the app
+- Validation at build time
+
+## Scripts
+
+```bash
+npm run dev          # Development server with Turbopack
+npm run build        # Production build
+npm run start        # Production server
+npm run lint         # Lint code
+npm run lint:fix     # Fix linting issues
+npm run validate     # Lint + TypeScript check
+npm run t:validate   # Validate i18n translations
+```
+
+## Code Quality Standards
+
+### TypeScript
+
+- Strict mode enabled
+- Type-safe query keys
+- Type-safe endpoints
+- Proper type inference
+
+### ESLint
+
+- Next.js config
+- jsx-a11y plugin
+- perfectionist plugin
+- project-structure plugin
+- tailwindcss plugin
+
+### Prettier
+
+- Tailwind CSS plugin
+- Consistent formatting
+
+### Git Hooks
+
+- Husky for pre-commit hooks
+- Automated quality checks
+
+## Important Notes
+
+### React 19 Requirements
+
+- Requires `npm install --force`
+- Some peer dependency warnings are expected
+- Latest React features supported
+
+### Development Mode
+
+- Set `NEXT_PUBLIC_DEV_MODE=true` for:
+  - Source maps in production
+  - React error overlay
+  - Full URL logging in fetches
+
+### Image Configuration
+
+- Remote images from `s3.us-east-2.amazonaws.com`
+- SVG handling via `@svgr/webpack`
+
+### Session Management
+
+- Sessions handled via cookies
+- JWT tokens managed server-side
+- Automatic session refresh
+- Protected routes via middleware
+
+## When to Use Official Documentation
+
+**🚨 MANDATORY: Context7 MCP is REQUIRED in these scenarios:**
+
+1. **User explicitly asks for documentation** - MUST use Context7 before providing any docs
+2. **AI lacks required knowledge** - MUST use Context7 when encountering unfamiliar libraries, frameworks, or tech stacks
+3. **Uncertain about library APIs or patterns** - MUST verify with Context7 before proceeding
+4. **Implementing new features** - MUST fetch docs for libraries not fully covered in cursor rules
+5. **Checking for deprecated features** - MUST verify current APIs with Context7
+6. **Understanding official best practices** - MUST consult official docs via Context7
+7. **Learning new library features** - MUST use Context7 to understand new capabilities
+
+**⚠️ CRITICAL Error Handling**: If Context7 MCP has ANY error, you MUST:
+
+- STOP all implementation work immediately
+- Report the error clearly to the user
+- Request user to fix MCP configuration
+- DO NOT proceed with assumptions or incomplete knowledge
+
+**Common scenarios requiring Context7 lookup**:
+
+- New TanStack Query patterns
+- TanStack Form advanced features
+- Next.js App Router patterns
+- React Server Components
+- TypeScript advanced types
+- Zod validation patterns
+- Any library or framework documentation request
+
+**Reference**: See [context7-docs.mdc](mdc:.cursor/rules/_common/context7-docs.mdc) for complete mandatory requirements, error handling procedures, and examples.
+
+## Quick Reference
+
+### Creating a New Feature
+
+1. **Follow feature-folder-structure.mdc**
+2. **Create query files** following react-query.mdc
+3. **Create form files** following tanstack-form.mdc
+4. **Add endpoints** to `query-client/endpoints.ts`
+5. **Register query keys** in `query-client/query.d.ts`
+6. **Create pages** following create-new-page.mdc
+7. **Add permissions** following permissions-system.mdc
+
+### Common Imports
+
+```typescript
+// Forms
+import { useAppForm, withForm } from '@/components/form'
+
+// Queries
+import { getAllTenantsQuery } from '@/query/tenants'
+import { ENDPOINTS } from '@/query-client'
+
+// Components
+import { PageHeader } from '@/components/custom/page-header'
+import { DataTable } from '@/components/data-table'
+import { Column } from '@/components/data-table/columns'
+
+// Auth
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { usePermissions } from '@/hooks/use-permissions'
+
+// Utils
+import { apiFormValidation } from '@/utils'
+import { cn } from '@/utils/utils'
+```
+
+### Common Patterns
+
+**Page with DataTable**:
+
+- Use `useQuery` with query options
+- Use `useDataTable` hook
+- Include `DataTableToolbar` for filters/search
+- Use `DataTable` component
+- **⚠️ MANDATORY: Use `Column.DateColumn` for all date/time columns**
+
+**Form Page**:
+
+- Use `useAppForm` hook
+- Include `PageHeader` with submit button
+- Use `Card` components for sections
+- Handle submission with `apiFormValidation`
+- **⚠️ MANDATORY: Use `formatDate` from `@/utils` for all date/time displays**
+
+**Protected Route**:
+
+- Server component checks permissions
+- Use `usePermissions` hook in client components
+- Check permissions before rendering actions
+- Redirect unauthorized users
+
+**Date/Time Formatting**:
+
+- **Table columns**: Use `Column.DateColumn` from `@/components/data-table/columns/date`
+- **All other components**: Use `formatDate` from `@/utils/formatters`
+- **NEVER use manual formatting** (e.g., `new Date().toLocaleDateString()`, `date-fns.format()`, etc.)
+- See [data-table.mdc](mdc:.cursor/rules/ui-components/data-table.mdc) and [feature-structure.mdc](mdc:.cursor/rules/feature-development/feature-structure.mdc) for complete requirements
+
+## Best Practices Summary
+
+1. ✅ **Always use `useAppForm`** for forms
+2. ✅ **Always use `queryOptions`** for queries
+3. ✅ **Register query keys** in `query.d.ts`
+4. ✅ **Use `ENDPOINTS` constant** (never string literals)
+5. ✅ **Use `apiFormValidation`** for mutation error handling
+6. ✅ **Follow feature folder structure** pattern
+7. ✅ **Use Context7 MCP** for official documentation
+8. ✅ **Server Components by default**, Client Components when needed
+9. ✅ **Type safety** everywhere (TypeScript strict mode)
+10. ✅ **Permission checks** at route and component level
+11. ✅ **⚠️ MANDATORY: Date/Time Formatting** - Use `Column.DateColumn` for table columns, `formatDate` for all other components
+
+## Getting Help
+
+- **Cursor Rules**: Check `.cursor/rules/` directory
+- **Official Docs**: Use Context7 MCP tools
+- **Code Examples**: See tenants feature implementation
+- **Type Definitions**: Check `types/` and `query-client/query.d.ts`
+
+This master guide provides comprehensive context for understanding and working with the AlOuf Admin Dashboard codebase. Refer to specific cursor rules for detailed implementation patterns.

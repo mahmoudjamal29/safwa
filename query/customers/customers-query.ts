@@ -4,6 +4,27 @@ import { createClient } from '@/lib/supabase/client'
 
 import type { Customer } from './customers-types'
 
+export const getCustomerBalancesQuery = (customerIds: string[]) =>
+  queryOptions<Record<string, number>>({
+    enabled: customerIds.length > 0,
+    queryFn: async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('invoices')
+        .select('customer_id, total, paid_amount')
+        .in('customer_id', customerIds)
+        .neq('status', 'ملغاة')
+      const map: Record<string, number> = {}
+      for (const row of data ?? []) {
+        if (!row.customer_id) continue
+        map[row.customer_id] = (map[row.customer_id] ?? 0) + (row.total - row.paid_amount)
+      }
+      return map
+    },
+    queryKey: ['customer-balances', customerIds],
+    staleTime: 60 * 1000,
+  })
+
 export const getAllCustomersQuery = (params?: Record<string, unknown>) =>
   queryOptions<PaginatedResponse<Customer[]>>({
     queryFn: async () => {

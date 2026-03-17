@@ -1,0 +1,202 @@
+---
+description: MANDATORY requirement to use Context7 MCP for all documentation lookups and knowledge gaps
+globs: **/*
+alwaysApply: true
+---
+
+## 🚨 MANDATORY: Context7 MCP Documentation Lookup
+
+**⚠️ CRITICAL RULE: This is a MANDATORY requirement with NO EXCEPTIONS.**
+
+### When Context7 MCP MUST Be Used
+
+**✅ ALWAYS use Context7 MCP in these scenarios:**
+
+1. **User explicitly asks for documentation**
+   - When user requests docs, tutorials, or information about any library, framework, or technology
+   - **MUST use Context7 MCP** before providing any documentation or examples
+
+2. **AI lacks required knowledge about a library or tech stack**
+   - When encountering unfamiliar libraries, frameworks, APIs, or patterns
+   - When unsure about correct implementation patterns
+   - When documentation or examples are needed to proceed
+   - **When knowledge might be outdated** - Always check current versions first
+   - **Version checking**: Always verify current version in `package.json`, `backend/composer.json`, or [master-guide.mdc](mdc:.cursor/rules/core/master-guide.mdc) before fetching docs. See [version-checking.mdc](mdc:.cursor/rules/_common/version-checking.mdc) for complete requirements.
+
+3. **Before implementing any feature using external libraries**
+   - When implementing features with libraries not fully covered in cursor rules
+   - When using new or updated library features
+   - When checking for deprecated APIs or breaking changes
+
+4. **When assumptions need verification**
+   - Before making assumptions about library behavior
+   - When cross-checking planned changes against official documentation
+   - When upgrading libraries or introducing unfamiliar capabilities
+
+### Required Workflow
+
+**Step 1: Check Current Version**
+
+```typescript
+// ✅ REQUIRED: Always check version first
+// 1. Check package.json or backend/composer.json for exact version
+// 2. Reference master-guide.mdc for documented versions
+// 3. Note the exact version in your query to Context7
+```
+
+**Step 2: Attempt Context7 MCP Lookup**
+
+```typescript
+// ✅ REQUIRED: Always attempt Context7 MCP lookup with version context
+// 1. Resolve library ID (include version in query if needed)
+;(await mcp_context7_resolve) -
+  library -
+  id({
+    libraryName: 'library-name',
+    query: 'user query or task description - version X.Y.Z'
+  })
+
+// 2. Get library documentation (specify version in query if needed)
+;(await mcp_context7_query) -
+  docs({
+    libraryId: 'resolved-library-id',
+    query: 'specific topic or question for version X.Y.Z'
+  })
+```
+
+**Version Reference**: Check [master-guide.mdc](mdc:.cursor/rules/core/master-guide.mdc) Technology Stack section for frontend versions, or Backend Technology Stack section for backend versions.
+
+**Step 2: Handle Context7 Errors**
+
+**⚠️ MANDATORY: If Context7 MCP has ANY error, you MUST:**
+
+1. **STOP all implementation work immediately**
+2. **DO NOT proceed with assumptions or incomplete knowledge**
+3. **Report the error to the user clearly**
+4. **Request user to fix the MCP configuration before proceeding**
+
+**Error Handling Pattern:**
+
+```typescript
+// ❌ DON'T: Continue with assumptions if Context7 fails
+if (context7Error) {
+  // Continue anyway - WRONG!
+}
+
+// ✅ DO: Stop and request MCP fix
+if (context7Error) {
+  // STOP: Cannot proceed without documentation
+  // Report error to user
+  // Request MCP configuration fix
+  // Wait for user confirmation before proceeding
+}
+```
+
+**Required Error Message Template:**
+
+```
+⚠️ Context7 MCP Error: [Error details]
+
+I cannot proceed with [task/feature] because Context7 MCP encountered an error while fetching documentation for [library/technology].
+
+To continue, please:
+1. Verify your MCP configuration in `.mcp.json`
+2. Check that Context7 MCP server is properly configured
+3. Ensure API keys or credentials are valid (if required)
+4. Test the MCP connection
+
+Once the MCP is fixed, I'll retry the documentation lookup and proceed with the implementation.
+```
+
+**Step 3: Proceed Only After Successful Lookup**
+
+- ✅ **Proceed with implementation** only after successfully fetching documentation
+- ✅ **Use fetched documentation** to guide implementation
+- ✅ **Reference official patterns** from the documentation
+
+### Documentation Lookup Best Practices
+
+- **Use specific queries** - Provide detailed queries to get relevant documentation
+- **Resolve library ID first** - Always call `resolve-library-id` before `query-docs`
+- **Capture key findings** - Note important patterns, APIs, and best practices from documentation
+- **Verify against rules** - Cross-reference documentation with existing cursor rules for consistency
+
+### Integration with Other Rules
+
+- **Combine with feature rules** - Use Context7 MCP alongside [create-new-page.mdc](mdc:.cursor/rules/feature-development/create-new-page.mdc), [feature-structure.mdc](mdc:.cursor/rules/feature-development/feature-structure.mdc), etc.
+- **Support React Query patterns** - See [react-query.mdc](mdc:.cursor/rules/data-layer/react-query.mdc) for TanStack Query specific guidance
+- **Next.js development** - Use Next.js DevTools MCP for Next.js-specific diagnostics (separate from Context7) - See [nextjs-devtools.mdc](mdc:.cursor/rules/_common/nextjs-devtools.mdc)
+
+### Common Library Lookups
+
+Frequently needed documentation lookups:
+
+- `tanstack-query` / `@tanstack/react-query` - React Query patterns
+- `tanstack-form` / `@tanstack/react-form` - Form handling
+- `next.js` / `next` - Next.js App Router patterns
+- `react` - React hooks, components, patterns
+- `zod` - Schema validation
+- `typescript` - TypeScript features
+- `tailwindcss` - Tailwind CSS utilities
+- Any other library used in the project
+
+### Examples
+
+**✅ CORRECT: Using Context7 before implementing**
+
+```typescript
+// User asks: "How do I use React Query mutations with optimistic updates?"
+
+// Step 1: MUST resolve library ID
+;(await mcp_context7_resolve) -
+  library -
+  id({
+    libraryName: 'tanstack-query',
+    query: 'mutations with optimistic updates'
+  })
+
+// Step 2: MUST fetch documentation
+;(await mcp_context7_query) -
+  docs({
+    libraryId: '/tanstack/react-query',
+    query: 'optimistic updates in mutations'
+  })
+
+// Step 3: Proceed with implementation based on documentation
+```
+
+**❌ WRONG: Proceeding without Context7 when needed**
+
+```typescript
+// User asks: "How do I use React Query mutations with optimistic updates?"
+
+// ❌ WRONG: Providing answer from memory without Context7 lookup
+// Even if you think you know the answer, MUST use Context7 first
+```
+
+**✅ CORRECT: Error handling when Context7 fails**
+
+```typescript
+// Context7 lookup failed with error
+if (context7Error) {
+  // ✅ CORRECT: Stop and report error
+  return "⚠️ Context7 MCP Error: [details]\n\nI cannot proceed because Context7 MCP encountered an error. Please fix your MCP configuration and I'll retry."
+}
+```
+
+**❌ WRONG: Ignoring Context7 errors**
+
+```typescript
+// Context7 lookup failed
+if (context7Error) {
+  // ❌ WRONG: Continue anyway with assumptions
+  // Proceed with implementation from memory
+}
+```
+
+### Enforcement
+
+- **This rule has NO EXCEPTIONS** - Context7 MCP is mandatory for all documentation needs
+- **Error handling is mandatory** - Must stop and request MCP fix if Context7 fails
+- **Do not proceed with assumptions** - Always wait for successful documentation lookup
+- **User must fix MCP** - Implementation cannot continue until MCP is working

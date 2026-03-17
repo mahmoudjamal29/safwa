@@ -1,0 +1,39 @@
+---
+description: Shared Next.js DevTools MCP requirements for feature development
+globs: app/**/*.tsx, app/**/*.ts
+alwaysApply: false
+---
+
+# Next.js DevTools MCP Requirements
+
+**CRITICAL: Before creating or modifying any Next.js page, route, or component, you MUST use Next.js DevTools MCP as a mandatory step.**
+
+## Required Workflow
+
+1. **Initialize Next.js DevTools** (if not already initialized):
+   - Call `nextjs_init` MCP tool to establish Next.js DevTools context
+   - This fetches the latest Next.js documentation and establishes requirements
+
+2. **Discover Running Dev Server**:
+   - Call `nextjs_index` MCP tool to discover all running Next.js development servers
+   - This identifies available MCP tools and server information
+
+3. **Query Runtime Information** (before implementation):
+   - Use `nextjs_call` MCP tool to query:
+     - Current routes: Check existing route structure and avoid duplicates
+     - Compilation errors: Identify any build issues
+     - Runtime errors: Check for runtime problems
+     - Build status: Verify compilation state
+
+4. **Verify After Implementation**:
+   - After creating or modifying features, use `nextjs_call` to:
+     - Verify routes are properly registered
+     - Check for compilation errors
+     - Validate runtime behavior
+     - Ensure no regressions
+
+## Integration
+
+- **Feature Development**: Use when creating new pages or routes (see [feature-structure.mdc](mdc:.cursor/rules/feature-development/feature-structure.mdc))
+- **Page Creation**: Use when creating new pages (see [create-new-page.mdc](mdc:.cursor/rules/feature-development/create-new-page.mdc))
+- **Component Development**: Use when creating or modifying Next.js components

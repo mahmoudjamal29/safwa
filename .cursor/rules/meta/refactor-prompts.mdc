@@ -1,0 +1,32 @@
+---
+description: Ensure .txt prompt refactors follow the Taskmaster PRD templates
+globs: **/*.txt
+alwaysApply: false
+---
+
+- **Map Every Refactor Request To The Templates**
+  - Whenever a user asks to refactor or rewrite a `.txt` prompt or PRD, restructure the output using both [example_prd.txt](mdc:.taskmaster/templates/example_prd.txt) and [example_prd_rpg.txt](mdc:.taskmaster/templates/example_prd_rpg.txt)
+  - Preserve any critical user-provided details while aligning section headings and ordering with the templates
+
+- **Edit Files In Place**
+  - When performing a refactor, update the originating `.txt` file directly so the new content replaces the old version rather than only sharing the rewrite in chat
+  - Use the standard editing tools to overwrite the file content with the refactored structure
+
+- **Enforce Dual Template Coverage**
+  - Combine the standard PRD sections (`Overview`, `Core Features`, etc.) with the RPG layers (functional decomposition, structural decomposition, dependency graph, implementation roadmap, test strategy, architecture, risks, appendix)
+  - Highlight where content satisfies guidance from each template so future Taskmaster parsing remains dependency-aware
+
+- **Answer In Structured Markdown**
+  - Reproduce the exact heading hierarchy from the templates, including `<context>`, `<PRD>`, `<functional-decomposition>`, `<structural-decomposition>`, and other tagged blocks when relevant
+  - Use checklists, bullet points, and code fences as shown in the templates to maintain consistency
+
+- **Call Out Missing Information**
+  - If the user prompt lacks data required by either template, clearly mark the missing fields and suggest what details are needed
+  - Do not invent specifics; request clarification or leave placeholder brackets mirroring the template style
+
+- **Reference All Relevant Cursor Rules Per Task**
+  - For every generated section or task, explicitly list the applicable Cursor rules (e.g., [context7-docs.mdc](mdc:.cursor/rules/_common/context7-docs.mdc), [master-guide.mdc](mdc:.cursor/rules/core/master-guide.mdc), [self_improve.mdc](mdc:.cursor/rules/core/self_improve.mdc), [feature-structure.mdc](mdc:.cursor/rules/feature-development/feature-structure.mdc), [permissions-system.mdc](mdc:.cursor/rules/feature-development/permissions-system.mdc), plus any feature-specific rules such as React Query guidance)
+  - Default to including the common rule set above unless a section is clearly unrelated; add any other rule files that directly influence the task’s implementation details
+
+- **Scope: Fires On Refactor Intents**
+  - Apply this rule automatically whenever the user explicitly requests to “refactor,” “rewrite,” or “convert” a `.txt` document or PRD; otherwise leave `.txt` content untouched

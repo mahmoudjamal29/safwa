@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Plus } from 'lucide-react'
 
 import { useTranslations } from 'next-intl'
 
@@ -17,7 +18,9 @@ export default function CustomersPage() {
     <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{t('title')}</h1>
-        <Button onClick={() => setDialogOpen(true)}>+ {t('newCustomer')}</Button>
+        <Button onClick={() => setDialogOpen(true)}>
+          <Plus /> {t('newCustomer')}
+        </Button>
       </div>
       <CustomersTable />
       <CustomerFormDialog open={dialogOpen} onOpenChange={setDialogOpen} />

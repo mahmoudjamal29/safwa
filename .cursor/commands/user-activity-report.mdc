@@ -1,0 +1,610 @@
+---
+alwaysApply: false
+description: 'Generate concise user activity reports with bullet points analyzing commits by specific author within date ranges, understanding feature implementations, API integrations, and project progress.'
+---
+
+# User Activity Report Generation
+
+## Overview
+
+This rule provides a systematic approach to generate concise, bullet-point reports of changes implemented by a specific user within a specific time period. The report analyzes git history to understand feature implementations, API integrations, form building, and overall project progress.
+
+## When to Use
+
+Use this rule when the user requests:
+
+- Activity reports for specific developers
+- Progress reports for time periods
+- Feature implementation summaries
+- Work summaries (e.g., "what did I do yesterday?", "what was done from Dec 30 to Jan 1?")
+- Developer contribution analysis
+
+## Report Format
+
+### Short Report Structure
+
+```markdown
+# Activity Report: [Author Name] - [Date Range]
+
+## Summary
+
+- **Total Commits**: X commits
+- **Files Changed**: X files
+- **Lines Added**: +X
+- **Lines Removed**: -X
+- **Primary Focus**: [Main feature/area]
+
+## Features Implemented
+
+### [Feature Name]
+
+- **Building form of [feature]**: Description of form implementation
+  - Files: `path/to/form.tsx`, `path/to/form-options.ts`
+  - Status: Completed/In Progress
+
+### [Another Feature]
+
+- **Integrating [API/Service] API**: Description of API integration
+  - Files: `query/[feature]/[feature]-query.ts`, `lib/api/[service].ts`
+  - Endpoints: `/api/endpoint`, `/api/another-endpoint`
+  - Status: Completed/In Progress
+
+## Bug Fixes
+
+- **Fixed [issue]**: Brief description
+  - Files: `path/to/fix.tsx`
+  - Impact: High/Medium/Low
+
+## Improvements & Refactoring
+
+- **Refactored [component/module]**: Description
+  - Files: `path/to/refactored.tsx`
+  - Benefits: Performance, maintainability, etc.
+
+## Project Progress
+
+- **Feature X**: [Progress percentage or status]
+- **Feature Y**: [Progress percentage or status]
+- **Overall**: [Summary of project state]
+```
+
+## Analysis Workflow
+
+### Step 1: Gather Git History
+
+#### Filter by Author and Date Range
+
+**Author Name Matching:**
+
+- Git author names can be case-sensitive or case-insensitive depending on git config
+- Use flexible matching: try exact match first, then case-insensitive
+- Common formats: "First Last", "first last", "FirstLast"
+
+**Date Range Formats:**
+
+- **Relative dates**: "yesterday", "last week", "last month"
+- **Absolute dates**: "2024-12-30", "Dec 30 2024", "30 Dec 2024"
+- **Date ranges**: "2024-12-30 to 2025-01-01", "Dec 30 to Jan 1", "30 Dec to 1 Jan"
+
+**Git Commands:**
+
+```bash
+# Get commits by author and date range (relative)
+git log --author="Salah Mohsen" --since="yesterday" --until="now" --oneline
+
+# Get commits by author and date range (absolute)
+git log --author="Salah Mohsen" --since="2024-12-30" --until="2025-01-01" --oneline
+
+# Get commits with full details
+git log --author="Salah Mohsen" --since="2024-12-30" --until="2025-01-01" \
+  --pretty=format:"%h - %an, %ar : %s" --name-status
+
+# Get statistics
+git log --author="Salah Mohsen" --since="2024-12-30" --until="2025-01-01" \
+  --stat --oneline
+
+# Get file changes summary
+git log --author="Salah Mohsen" --since="2024-12-30" --until="2025-01-01" \
+  --pretty=format:"" --name-only | sort | uniq -c | sort -rn
+
+# Get diff statistics
+git log --author="Salah Mohsen" --since="2024-12-30" --until="2025-01-01" \
+  --numstat --pretty=format:"%h %s"
+```
+
+#### Handle Date Range Variations
+
+```bash
+# Parse user input for date ranges
+# Examples:
+# - "yesterday" → --since="yesterday" --until="now"
+# - "30 Dec to 1 Jan" → --since="2024-12-30" --until="2025-01-01"
+# - "Dec 30 to Jan 1" → --since="2024-12-30" --until="2025-01-01"
+# - "from 30 Dec to 1 Jan" → --since="2024-12-30" --until="2025-01-01"
+
+# For current year, assume current year if not specified
+# For year transitions, handle appropriately (Dec 30 to Jan 1 = Dec 30 of current year to Jan 1 of next year)
+```
+
+### Step 2: Analyze Commits and Changes
+
+#### Categorize Changes
+
+**Feature Implementation Detection:**
+
+Look for patterns indicating new features:
+
+```bash
+# New form components
+git log --author="Salah Mohsen" --since="..." --until="..." \
+  --name-only --pretty=format:"" | grep -E "(form|Form)" | grep -E "\.tsx?$"
+
+# New API integrations
+git log --author="Salah Mohsen" --since="..." --until="..." \
+  --name-only --pretty=format:"" | grep -E "(query|api|fetcher)" | grep -E "\.ts$"
+
+# New pages/routes
+git log --author="Salah Mohsen" --since="..." --until="..." \
+  --name-only --pretty=format:"" | grep -E "app/.*/page\.tsx$"
+
+# New components
+git log --author="Salah Mohsen" --since="..." --until="..." \
+  --name-only --pretty=format:"" | grep -E "components/.*\.tsx$"
+```
+
+**API Integration Detection:**
+
+```bash
+# Check for new endpoints
+git log --author="Salah Mohsen" --since="..." --until="..." \
+  --all -- "query-client/endpoints.ts" | grep -E "^\+.*ENDPOINTS"
+
+# Check for new query files
+git log --author="Salah Mohsen" --since="..." --until="..." \
+  --name-only --pretty=format:"" | grep -E "query/.*-query\.ts$"
+
+# Check for new mutations
+git log --author="Salah Mohsen" --since="..." --until="..." \
+  --name-only --pretty=format:"" | grep -E "query/.*-mutations\.ts$"
+```
+
+**Form Building Detection:**
+
+```bash
+# Check for form files
+git log --author="Salah Mohsen" --since="..." --until="..." \
+  --name-only --pretty=format:"" | grep -E "(form|Form)" | grep -E "\.tsx?$"
+
+# Check for form options/schemas
+git log --author="Salah Mohsen" --since="..." --until="..." \
+  --name-only --pretty=format:"" | grep -E "form-options" | grep -E "\.ts$"
+```
+
+### Step 3: Deep Analysis of Changes
+
+#### Analyze File Changes
+
+For each significant change, determine:
+
+1. **What was implemented?**
+   - New feature (form, table, page, API integration)
+   - Bug fix
+   - Refactoring
+   - Improvement
+
+2. **How was it implemented?**
+   - Files created/modified
+   - Dependencies added
+   - Patterns followed
+
+3. **What's the purpose?**
+   - User-facing feature
+   - Internal improvement
+   - API integration
+   - Bug resolution
+
+#### Extract Specific Implementation Details
+
+**Form Implementations:**
+
+```bash
+# Get form-related changes
+git log --author="Salah Mohsen" --since="..." --until="..." \
+  --all -- "**/forms/**" "**/form-options/**" --pretty=format:"%s" --name-only
+
+# Analyze form files to extract:
+# - Form name/feature
+# - Fields implemented
+# - Validation rules
+# - Integration points
+```
+
+**API Integrations:**
+
+```bash
+# Get API-related changes
+git log --author="Salah Mohsen" --since="..." --until="..." \
+  --all -- "query/**" "query-client/**" --pretty=format:"%s" --name-only
+
+# Analyze to extract:
+# - API service name (e.g., "Space API", "Payment API")
+# - Endpoints added
+# - Query/mutation implementations
+# - Integration points
+```
+
+**Feature Building:**
+
+```bash
+# Get feature-related changes
+git log --author="Salah Mohsen" --since="..." --until="..." \
+  --all -- "app/**" "components/**" --pretty=format:"%s" --name-only
+
+# Analyze to extract:
+# - Feature name
+# - Components created
+# - Pages created
+# - Complete feature scope
+```
+
+### Step 4: Understand Project Progress
+
+#### Before/After Analysis
+
+**Get State Before Date Range:**
+
+```bash
+# Get commits before the start date to understand starting point
+git log --author="Salah Mohsen" --until="2024-12-30" --oneline | head -10
+
+# Get file structure before changes
+git show $(git rev-list -1 --before="2024-12-30" --author="Salah Mohsen" HEAD):path/to/file 2>/dev/null || echo "File didn't exist"
+```
+
+**Get State After Date Range:**
+
+```bash
+# Get commits after the end date to see continuation
+git log --author="Salah Mohsen" --since="2025-01-01" --oneline | head -10
+
+# Get current file structure
+git show HEAD:path/to/file
+```
+
+**Compare States:**
+
+```bash
+# Compare feature completeness
+git diff $(git rev-list -1 --before="2024-12-30" HEAD) HEAD -- "app/(app)/feature/**"
+
+# Compare query implementations
+git diff $(git rev-list -1 --before="2024-12-30" HEAD) HEAD -- "query/feature/**"
+```
+
+#### Progress Indicators
+
+**Feature Completion Status:**
+
+- **New Feature Started**: Files created, basic structure in place
+- **In Progress**: Core functionality implemented, some parts missing
+- **Completed**: All components, forms, queries, pages implemented
+- **Enhanced**: Additional improvements to existing feature
+
+**API Integration Status:**
+
+- **Initial Integration**: Endpoints added, basic queries created
+- **Complete Integration**: Queries, mutations, error handling, types all implemented
+- **Enhanced**: Additional endpoints, optimizations, error handling improvements
+
+**Form Implementation Status:**
+
+- **Form Created**: Basic form structure
+- **Fields Added**: All form fields implemented
+- **Validation Added**: Schema and validation rules implemented
+- **Complete**: Form, validation, submission, error handling all done
+
+### Step 5: Generate Report
+
+#### Report Generation Template
+
+```markdown
+# Activity Report: [Author Name] - [Date Range]
+
+## Summary
+
+- **Period**: [Start Date] to [End Date]
+- **Total Commits**: [X] commits
+- **Files Changed**: [X] files
+- **Lines Added**: +[X]
+- **Lines Removed**: -[X]
+- **Primary Focus**: [Main feature/area worked on]
+
+## Features Implemented
+
+### [Feature Name]
+
+- **Building form of [feature]**: [Description]
+  - Created form component: `app/(app)/[feature]/_[feature]/forms/[feature]-form.tsx`
+  - Added form options and validation: `app/(app)/[feature]/_[feature]/form-options/[feature]-form-options.ts`
+  - Implemented create/edit pages: `app/(app)/[feature]/create/page.tsx`, `app/(app)/[feature]/[id]/edit/page.tsx`
+  - Status: [Completed/In Progress]
+
+### [Another Feature]
+
+- **Integrating [API/Service] API**: [Description]
+  - Added endpoints: `query-client/endpoints.ts`
+  - Created query hooks: `query/[feature]/[feature]-query.ts`
+  - Implemented mutations: `query/[feature]/[feature]-mutations.ts`
+  - Added types: `query/[feature]/[feature]-types.ts`
+  - Endpoints integrated: `/api/[endpoint1]`, `/api/[endpoint2]`
+  - Status: [Completed/In Progress]
+
+### [Third Feature]
+
+- **Building [feature] table**: [Description]
+  - Created table component: `app/(app)/[feature]/_[feature]/tables/[feature]-table.tsx`
+  - Added column definitions: `app/(app)/[feature]/_[feature]/columns/[feature]-columns.tsx`
+  - Implemented data fetching: `query/[feature]/[feature]-query.ts`
+  - Status: [Completed/In Progress]
+
+## Bug Fixes
+
+- **Fixed [issue description]**: [What was fixed]
+  - Files: `path/to/fix.tsx`
+  - Impact: [High/Medium/Low]
+  - Related commits: [commit hashes]
+
+## Improvements & Refactoring
+
+- **Refactored [component/module]**: [What was refactored]
+  - Files: `path/to/refactored.tsx`
+  - Benefits: [Performance improvement, maintainability, code quality, etc.]
+
+## Project Progress
+
+### Feature Completion Status
+
+- **[Feature 1]**: [X]% complete - [Status description]
+- **[Feature 2]**: [X]% complete - [Status description]
+- **[Feature 3]**: [X]% complete - [Status description]
+
+### Overall Progress
+
+[Summary of overall project state, what was accomplished, what's next]
+```
+
+## Implementation Commands
+
+### Complete Analysis Script
+
+```bash
+#!/bin/bash
+
+AUTHOR="${1:-Salah Mohsen}"
+SINCE="${2:-yesterday}"
+UNTIL="${3:-now}"
+
+echo "=== Activity Report: $AUTHOR - $SINCE to $UNTIL ==="
+echo ""
+
+# Get commit count
+COMMIT_COUNT=$(git log --author="$AUTHOR" --since="$SINCE" --until="$UNTIL" --oneline | wc -l | tr -d ' ')
+echo "Total Commits: $COMMIT_COUNT"
+echo ""
+
+# Get file statistics
+echo "=== File Changes ==="
+git log --author="$AUTHOR" --since="$SINCE" --until="$UNTIL" \
+  --numstat --pretty=format:"" | \
+  awk '{added+=$1; deleted+=$2} END {print "Lines Added: +" added "\nLines Removed: -" deleted}'
+echo ""
+
+# Get unique files changed
+echo "=== Files Changed ==="
+git log --author="$AUTHOR" --since="$SINCE" --until="$UNTIL" \
+  --name-only --pretty=format:"" | sort | uniq | wc -l | xargs echo "Unique files:"
+echo ""
+
+# Get commits
+echo "=== Commits ==="
+git log --author="$AUTHOR" --since="$SINCE" --until="$UNTIL" \
+  --pretty=format:"- %h - %s (%ar)" --reverse
+echo ""
+
+# Get feature implementations
+echo "=== Feature Implementations ==="
+git log --author="$AUTHOR" --since="$SINCE" --until="$UNTIL" \
+  --name-only --pretty=format:"%s" | \
+  grep -E "(feat|✨)" | head -10
+echo ""
+
+# Get form implementations
+echo "=== Form Implementations ==="
+git log --author="$AUTHOR" --since="$SINCE" --until="$UNTIL" \
+  --name-only --pretty=format:"" | \
+  grep -E "(form|Form)" | grep -E "\.tsx?$" | sort | uniq
+echo ""
+
+# Get API integrations
+echo "=== API Integrations ==="
+git log --author="$AUTHOR" --since="$SINCE" --until="$UNTIL" \
+  --name-only --pretty=format:"" | \
+  grep -E "(query|api|fetcher)" | grep -E "\.ts$" | sort | uniq
+```
+
+### Date Range Parsing
+
+Handle various date formats:
+
+```bash
+# Function to parse date ranges
+parse_date_range() {
+  local input="$1"
+
+  # Handle "yesterday"
+  if [[ "$input" == "yesterday" ]]; then
+    echo "--since=yesterday --until=now"
+    return
+  fi
+
+  # Handle "30 Dec to 1 Jan" format
+  if [[ "$input" =~ ([0-9]+)\s+(Dec|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov)\s+to\s+([0-9]+)\s+(Dec|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov) ]]; then
+    # Parse and convert to YYYY-MM-DD format
+    # Implementation depends on current year detection
+    echo "--since=2024-12-30 --until=2025-01-01"
+    return
+  fi
+
+  # Handle "Dec 30 to Jan 1" format
+  if [[ "$input" =~ (Dec|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov)\s+([0-9]+)\s+to\s+(Dec|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov)\s+([0-9]+) ]]; then
+    # Parse and convert
+    echo "--since=2024-12-30 --until=2025-01-01"
+    return
+  fi
+
+  # Handle "2024-12-30 to 2025-01-01" format
+  if [[ "$input" =~ ([0-9]{4}-[0-9]{2}-[0-9]{2})\s+to\s+([0-9]{4}-[0-9]{2}-[0-9]{2}) ]]; then
+    echo "--since=${BASH_REMATCH[1]} --until=${BASH_REMATCH[2]}"
+    return
+  fi
+}
+```
+
+## Specific Pattern Detection
+
+### Form Building Pattern
+
+**Detect when forms are built:**
+
+```bash
+# Check for form files
+FORM_FILES=$(git log --author="$AUTHOR" --since="$SINCE" --until="$UNTIL" \
+  --name-only --pretty=format:"" | \
+  grep -E ".*/forms/.*-form\.tsx$" | sort | uniq)
+
+# Extract feature name from path
+# Example: app/(app)/tenants/_tenants/forms/tenant-form.tsx → "tenant"
+# Report: "Building form of tenant"
+```
+
+### API Integration Pattern
+
+**Detect API integrations:**
+
+```bash
+# Check for new endpoints
+NEW_ENDPOINTS=$(git log --author="$AUTHOR" --since="$SINCE" --until="$UNTIL" \
+  --all -- "query-client/endpoints.ts" | \
+  grep -E "^\+.*ENDPOINTS\." | \
+  sed 's/^+.*ENDPOINTS\.\([A-Z_]*\):.*/\1/' | sort | uniq)
+
+# Check for new query files
+NEW_QUERIES=$(git log --author="$AUTHOR" --since="$SINCE" --until="$UNTIL" \
+  --name-only --pretty=format:"" | \
+  grep -E "query/.*-query\.ts$" | sort | uniq)
+
+# Extract API/service name from commit messages or file names
+# Report: "Integrating [Service] API"
+```
+
+### Feature Implementation Pattern
+
+**Detect complete feature implementations:**
+
+```bash
+# Check for new pages
+NEW_PAGES=$(git log --author="$AUTHOR" --since="$SINCE" --until="$UNTIL" \
+  --name-only --pretty=format:"" | \
+  grep -E "app/.*/page\.tsx$" | sort | uniq)
+
+# Check for related components
+RELATED_COMPONENTS=$(git log --author="$AUTHOR" --since="$SINCE" --until="$UNTIL" \
+  --name-only --pretty=format:"" | \
+  grep -E "app/.*/_.*/.*\.tsx$" | sort | uniq)
+
+# Group by feature directory
+# Report: "Building [feature] feature" or "Implementing [feature] management"
+```
+
+## Best Practices
+
+1. **Always parse date ranges flexibly** - Handle various formats (relative, absolute, with/without year)
+2. **Use case-insensitive author matching** when exact match fails
+3. **Group related changes** - Forms, queries, pages for the same feature should be grouped
+4. **Extract specific details** - Don't just list files, explain what was implemented
+5. **Understand context** - Analyze before/after to understand progress
+6. **Be specific** - Use exact feature names, API names, form names
+7. **Show progress** - Indicate completion status, not just what was done
+8. **Prioritize user-facing changes** - Features and forms before refactoring
+9. **Link related changes** - Show how forms, queries, pages work together
+10. **Keep it concise** - Bullet points, not paragraphs
+
+## Example Usage
+
+**User Request:**
+
+> "Generate a report for Salah Mohsen from 30 Dec to 1 Jan"
+
+**AI Response Process:**
+
+1. Parse date range: `--since="2024-12-30" --until="2025-01-01"`
+2. Get commits: `git log --author="Salah Mohsen" --since="2024-12-30" --until="2025-01-01"`
+3. Analyze changes:
+   - New form files → "Building form of [feature]"
+   - New query files → "Integrating [API] API"
+   - New pages → "Implementing [feature] feature"
+4. Get statistics: commits, files, lines
+5. Generate report with bullet points
+
+**User Request:**
+
+> "What did I do yesterday?"
+
+**AI Response Process:**
+
+1. Parse date: `--since="yesterday" --until="now"`
+2. Get current user from git config: `git config user.name`
+3. Follow same analysis process
+4. Generate concise report
+
+## Integration with Other Rules
+
+- Use `@conventional-commits.mdc` to understand commit message patterns
+- Use `@change-analysis.mdc` for deep file change analysis
+- Use `@generate-pr-description.mdc` for similar change categorization patterns
+- Reference `@feature-structure.mdc` to understand feature organization
+- Reference `@react-query.mdc` to understand query/API patterns
+
+## Output Format Requirements
+
+**✅ DO:**
+
+- Use bullet points for clarity
+- Group related changes together
+- Include specific file paths
+- Show completion status
+- Use clear, concise language
+- Highlight major features prominently
+
+**❌ DON'T:**
+
+- Write long paragraphs
+- List every single file change
+- Use vague descriptions
+- Mix unrelated changes
+- Skip important features
+- Use technical jargon without context
+
+## Automation Tips
+
+When generating reports:
+
+1. **Start with statistics** - Get the big picture first
+2. **Categorize commits** - Group by feature/type
+3. **Analyze file patterns** - Detect forms, APIs, features
+4. **Extract specifics** - Get exact feature names, API names
+5. **Understand progress** - Compare before/after states
+6. **Generate concise report** - Focus on what matters
+7. **Review and refine** - Ensure accuracy and completeness
+
+Remember: The goal is to provide a clear, concise summary of what was accomplished, focusing on user-facing features, API integrations, and significant improvements that show project progress.

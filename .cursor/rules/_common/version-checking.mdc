@@ -1,0 +1,49 @@
+---
+description: Shared version checking requirements before using Context7 MCP or implementing features
+globs: **/*
+alwaysApply: true
+---
+
+# Version Checking Requirements
+
+**⚠️ CRITICAL: Always check current versions before working with any library, framework, tool, or tech stack**
+
+## Version Reference
+
+- **Frontend versions**: Check `package.json` in project root
+- **Backend versions**: Check `backend/composer.json`
+- **Documented versions**: See [master-guide.mdc](mdc:.cursor/rules/core/master-guide.mdc) Technology Stack sections
+
+## Version Checking Requirements
+
+1. **Before working with any library/stack/tool**, verify the current version in:
+   - Frontend: `package.json` (see Technology Stack section in master-guide.mdc)
+   - Backend: `backend/composer.json` (see Backend Technology Stack section in master-guide.mdc)
+   - Or reference master-guide.mdc for documented versions
+
+2. **Use Context7 MCP** to fetch documentation for the specific version you're working with
+
+3. **Version-specific APIs** - Different versions may have different APIs, breaking changes, or new features
+
+4. **Mandatory Context7 lookup** - When:
+   - You don't know the exact API for the current version
+   - You're unsure about version-specific behavior
+   - Documentation or examples are needed for the current version
+   - Checking for deprecated APIs in the current version
+
+## Context7 MCP Usage with Version Context
+
+Always specify the version in your Context7 query:
+
+```typescript
+// Include version in query
+mcp_context7_resolve_library_id({
+  libraryName: 'tanstack-query',
+  query: 'mutations with optimistic updates - version 5.90.3'
+})
+
+mcp_context7_query_docs({
+  libraryId: '/tanstack/react-query',
+  query: 'optimistic updates in mutations for version 5.90.3'
+})
+```

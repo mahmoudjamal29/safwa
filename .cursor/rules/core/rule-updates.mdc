@@ -1,0 +1,213 @@
+---
+description: Guidelines for maintaining the cursor rules system structure and preventing future mess
+globs: .cursor/rules/**/*.mdc
+alwaysApply: true
+---
+
+# Rule Updates & Maintenance Guidelines
+
+This document provides guidelines for maintaining the cursor rules system structure and preventing redundancies.
+
+## Folder Structure Rules
+
+### Rule Location Guidelines
+
+**Place rules in the appropriate category folder:**
+
+- **`_common/`** - Shared content used by multiple rules (Code Comments, Context7, Version Checking, Next.js DevTools)
+- **`core/`** - Core application rules (Master Guide, Rule Formatting, Rule Improvement)
+- **`data-layer/`** - Data fetching patterns (React Query, API Integration)
+- **`ui-components/`** - UI component patterns (Data Table, TanStack Form, Shadcn, Tabs)
+- **`feature-development/`** - Feature creation patterns (Feature Structure, Create New Page, Permissions)
+- **`styling/`** - Styling and i18n rules (Styling Guide, i18n Translation)
+- **`workflow/`** - Git and workflow rules (Commit Workflow, Conventional Commits, Change Analysis, PR Analysis)
+- **`meta/`** - Meta rules (Refactor Prompts, etc.)
+
+### When to Create New Rules
+
+**Create a new rule file when:**
+
+- ✅ Pattern appears in 3+ files across the codebase
+- ✅ New technology/pattern needs comprehensive coverage
+- ✅ Rule file would exceed 2000 lines (consider splitting)
+- ✅ Category doesn't exist yet (create appropriate folder first)
+
+**Do NOT create new rules for:**
+
+- ❌ Content that belongs in `_common/` (shared by multiple rules)
+- ❌ Small patterns covered by existing rules
+- ❌ One-off patterns that don't repeat
+
+## Shared Content Rules
+
+### Always Use `_common/` for Shared Content
+
+**Shared content MUST be placed in `_common/` and referenced, NEVER duplicated:**
+
+- **Code Comments** → Use [code-comments.mdc](_common/code-comments.mdc)
+- **Context7 MCP** → Use [context7-docs.mdc](_common/context7-docs.mdc)
+- **Version Checking** → Use [version-checking.mdc](_common/version-checking.mdc)
+- **Next.js DevTools** → Use [nextjs-devtools.mdc](_common/nextjs-devtools.mdc)
+
+**Pattern:**
+
+```markdown
+**⚠️ MANDATORY:** See [context7-docs.mdc](mdc:.cursor/rules/_common/context7-docs.mdc) for Context7 MCP requirements.
+```
+
+**❌ DON'T:**
+
+```markdown
+## Code Comments
+
+- Minimal commenting...
+- Concise and clear...
+```
+
+**✅ DO:**
+
+```markdown
+See [code-comments.mdc](mdc:.cursor/rules/_common/code-comments.mdc) for code commenting standards.
+```
+
+## Cross-Reference Guidelines
+
+### Update All References When Moving Files
+
+**When moving or renaming rule files:**
+
+1. Search for all `mdc:` references to the old path
+2. Update all references to the new path
+3. Update README.md if the rule is listed there
+4. Verify all links work after changes
+
+### Reference Format
+
+**Always use full relative paths from `.cursor/rules/`:**
+
+```markdown
+✅ CORRECT:
+[react-query.mdc](mdc:.cursor/rules/data-layer/react-query.mdc)
+[feature-structure.mdc](mdc:.cursor/rules/feature-development/feature-structure.mdc)
+
+❌ WRONG:
+[react-query.mdc](mdc:react-query.mdc)
+[../data-layer/react-query.mdc]
+```
+
+## File Size Guidelines
+
+### Maximum File Size
+
+**Keep rule files under 2000 lines:**
+
+- If a file exceeds 2000 lines, consider splitting into logical sub-sections
+- Split by topic/pattern, not arbitrarily
+- Maintain clear organization and cross-references
+
+### When to Split Large Files
+
+**Split when:**
+
+- File exceeds 2500 lines
+- Multiple distinct topics in one file
+- Maintenance becomes difficult
+- Related rules could be grouped separately
+
+**Keep together when:**
+
+- Content is tightly related
+- Splitting would create circular dependencies
+- Related patterns need to be seen together
+
+## Redundancy Prevention
+
+### Check for Existing Content First
+
+**Before adding new content:**
+
+1. Search `_common/` for shared patterns
+2. Search existing rules for similar content
+3. Reference existing rules instead of duplicating
+4. Only add new content if it's truly unique
+
+### Common Redundancies to Avoid
+
+**These should NEVER be duplicated:**
+
+- ❌ Code commenting standards → Use `_common/code-comments.mdc`
+- ❌ Context7 MCP requirements → Use `_common/context7-docs.mdc`
+- ❌ Version checking → Use `_common/version-checking.mdc`
+- ❌ Next.js DevTools workflow → Use `_common/nextjs-devtools.mdc`
+- ❌ Date formatting requirements → Reference from one source only
+
+## Update Workflow
+
+### Before Updating a Rule
+
+1. **Check if content belongs in `_common/`** - If shared by multiple rules, extract to `_common/`
+2. **Search for existing content** - Avoid duplicating patterns
+3. **Update all references** - When moving/renaming, update all `mdc:` links
+4. **Update README.md** - If rule location or description changes
+
+### Update Checklist
+
+- [ ] Content is in the correct category folder
+- [ ] Shared content references `_common/` rules (not duplicated)
+- [ ] All cross-references use correct paths
+- [ ] README.md reflects any structural changes
+- [ ] File size is reasonable (< 2000 lines)
+- [ ] No redundant sections remain
+
+## README Maintenance
+
+### When to Update README.md
+
+**Update README.md when:**
+
+- New rule file is created
+- Rule file is moved to different category
+- Rule description needs updating
+- New category folder is created
+- Quick reference section needs changes
+
+**Keep README.md:**
+
+- ✅ Organized by category (matching folder structure)
+- ✅ Brief descriptions (1-2 sentences per rule)
+- ✅ Accurate file paths
+- ✅ Clear navigation
+
+## Example: Adding a New Rule
+
+**Scenario:** Need to add a rule for testing patterns
+
+**Steps:**
+
+1. **Determine category:** Testing → Could be `workflow/` or new `testing/` category
+2. **Check for shared content:** Code comments? Use `_common/code-comments.mdc`
+3. **Create file:** `workflow/testing.mdc` or `testing/testing.mdc`
+4. **Add to README:** Update README.md with new rule
+5. **Add cross-references:** Reference related rules (e.g., feature-structure, data-table)
+6. **Verify links:** Check all `mdc:` links work correctly
+
+## Example: Moving Content to `_common/`
+
+**Scenario:** Date formatting pattern duplicated in 3 rules
+
+**Steps:**
+
+1. **Extract content:** Create `_common/date-formatting.mdc`
+2. **Remove duplicates:** Remove from all 3 rule files
+3. **Add references:** Replace removed content with reference to `_common/date-formatting.mdc`
+4. **Update README:** If needed, document the new shared rule
+5. **Verify:** Check all references work correctly
+
+## Integration with self_improve.mdc
+
+This rule works alongside [self_improve.mdc](core/self_improve.mdc):
+
+- **self_improve.mdc** - When and how to improve rules (content, patterns, examples)
+- **rule-updates.mdc** - How to maintain structure and prevent mess (this file)
+
+Both rules should be followed when updating the rules system.

@@ -2,12 +2,15 @@
 
 import * as React from 'react'
 
+import { useForm } from '@tanstack/react-form'
+import { useTranslations } from 'next-intl'
+
 import { useCreateCustomer, useUpdateCustomer, type Customer } from '@/query/customers'
 
+import { FieldWrapper } from '@/components/form/field-wrapper'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 
 interface CustomerFormDialogProps {
   open: boolean
@@ -15,97 +18,132 @@ interface CustomerFormDialogProps {
   customer?: Customer | null
 }
 
-interface FormState {
-  name: string
-  phone: string
-  address: string
-  tax_number: string
-  notes: string
-}
-
-const defaultForm: FormState = {
-  address: '',
-  name: '',
-  notes: '',
-  phone: '',
-  tax_number: '',
-}
-
 export function CustomerFormDialog({ customer, onOpenChange, open }: CustomerFormDialogProps) {
+  const t = useTranslations('customers')
   const createMutation = useCreateCustomer()
   const updateMutation = useUpdateCustomer()
 
-  const [form, setForm] = React.useState<FormState>(defaultForm)
+  const form = useForm({
+    defaultValues: {
+      name: customer?.name ?? '',
+      phone: customer?.phone ?? '',
+      address: customer?.address ?? '',
+      tax_number: customer?.tax_number ?? '',
+      notes: customer?.notes ?? '',
+    },
+    onSubmit: async ({ value }) => {
+      const payload = {
+        name: value.name,
+        phone: value.phone || null,
+        address: value.address || null,
+        tax_number: value.tax_number || null,
+        notes: value.notes || null,
+      }
+      if (customer) {
+        await updateMutation.mutateAsync({ id: customer.id, payload })
+      } else {
+        await createMutation.mutateAsync(payload)
+      }
+      onOpenChange(false)
+    },
+  })
 
   React.useEffect(() => {
-    if (customer) {
-      setForm({
-        address: customer.address ?? '',
-        name: customer.name ?? '',
-        notes: customer.notes ?? '',
-        phone: customer.phone ?? '',
-        tax_number: customer.tax_number ?? '',
-      })
-    } else {
-      setForm(defaultForm)
-    }
+    form.setFieldValue('name', customer?.name ?? '')
+    form.setFieldValue('phone', customer?.phone ?? '')
+    form.setFieldValue('address', customer?.address ?? '')
+    form.setFieldValue('tax_number', customer?.tax_number ?? '')
+    form.setFieldValue('notes', customer?.notes ?? '')
   }, [customer, open])
-
-  function set(key: keyof FormState, value: string) {
-    setForm(prev => ({ ...prev, [key]: value }))
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    const payload = {
-      address: form.address || null,
-      name: form.name,
-      notes: form.notes || null,
-      phone: form.phone || null,
-      tax_number: form.tax_number || null,
-    }
-    if (customer) {
-      await updateMutation.mutateAsync({ id: customer.id, payload })
-    } else {
-      await createMutation.mutateAsync(payload)
-    }
-    onOpenChange(false)
-  }
-
-  const isPending = createMutation.isPending || updateMutation.isPending
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{customer ? 'تعديل العميل' : 'عميل جديد'}</DialogTitle>
+          <DialogTitle>{customer ? t('editCustomer') : t('newCustomer')}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label>اسم العميل *</Label>
-            <Input value={form.name} onChange={e => set('name', e.target.value)} required placeholder="اسم العميل" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>رقم الهاتف</Label>
-            <Input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="01xxxxxxxxx" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>العنوان</Label>
-            <Input value={form.address} onChange={e => set('address', e.target.value)} placeholder="المحافظة، المنطقة" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>الرقم الضريبي</Label>
-            <Input value={form.tax_number} onChange={e => set('tax_number', e.target.value)} placeholder="اختياري" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>ملاحظات</Label>
-            <Input value={form.notes} onChange={e => set('notes', e.target.value)} />
-          </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            form.handleSubmit()
+          }}
+          className="flex flex-col gap-4"
+        >
+          <form.Field name="name">
+            {(field) => (
+              <FieldWrapper field={field} label={t('form.name')} required>
+                <Input
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                  placeholder={t('form.namePlaceholder')}
+                />
+              </FieldWrapper>
+            )}
+          </form.Field>
+
+          <form.Field name="phone">
+            {(field) => (
+              <FieldWrapper field={field} label={t('form.phone')}>
+                <Input
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                  placeholder={t('form.phonePlaceholder')}
+                />
+              </FieldWrapper>
+            )}
+          </form.Field>
+
+          <form.Field name="address">
+            {(field) => (
+              <FieldWrapper field={field} label={t('form.address')}>
+                <Input
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                  placeholder={t('form.addressPlaceholder')}
+                />
+              </FieldWrapper>
+            )}
+          </form.Field>
+
+          <form.Field name="tax_number">
+            {(field) => (
+              <FieldWrapper field={field} label={t('form.taxNumber')}>
+                <Input
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                  placeholder={t('form.taxPlaceholder')}
+                />
+              </FieldWrapper>
+            )}
+          </form.Field>
+
+          <form.Field name="notes">
+            {(field) => (
+              <FieldWrapper field={field} label={t('form.notes')}>
+                <Input
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                />
+              </FieldWrapper>
+            )}
+          </form.Field>
+
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? 'جاري الحفظ...' : 'حفظ'}
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {t('form.cancel')}
             </Button>
+            <form.Subscribe selector={(s) => s.isSubmitting}>
+              {(isSubmitting) => (
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? t('form.saving') : t('form.save')}
+                </Button>
+              )}
+            </form.Subscribe>
           </div>
         </form>
       </DialogContent>

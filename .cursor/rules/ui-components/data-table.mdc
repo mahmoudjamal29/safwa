@@ -1,0 +1,4398 @@
+---
+alwaysApply: false
+description: This role defines the complete pattern for building data tables with TanStack Table, including query management, permission handling, column definitions, and table page structure. This pattern ensures consistency, type safety, and maintainability across all table implementations.
+---
+
+# Data Table Pattern and Architecture
+
+## Overview
+
+This role defines the complete pattern for building data tables with TanStack Table, including query management, permission handling, column definitions, and table page structure. This pattern ensures consistency, type safety, and maintainability across all table implementations.
+
+## ⚠️⚠️⚠️ MANDATORY: Date and Time Formatting Requirements ⚠️⚠️⚠️
+
+**🚨 CRITICAL: ALL dates and times in the application MUST use standardized formatting functions. This is a mandatory requirement with NO exceptions.**
+
+### For Table Columns (DataTable)
+
+**ALL date/time values in table columns MUST use `Column.DateColumn` from `@/components/data-table/columns/date`:**
+
+```typescript
+// ✅ CORRECT: Use Column.DateColumn for all date/time columns
+cell: ({ row }) => (
+  <Column.DateColumn value={row.original.created_at} />
+)
+
+// ❌ WRONG: Any other method is STRICTLY FORBIDDEN
+cell: ({ row }) => {
+  const date = new Date(row.original.created_at)
+  return <div>{date.toLocaleDateString()}</div>
+}
+```
+
+**See the "Column.DateColumn" section below for complete details.**
+
+### For All Other Components (Outside Tables)
+
+**ALL date/time values displayed outside of table columns MUST use `formatDate` from `@/utils/formatters`:**
+
+```typescript
+import { formatDate } from '@/utils'
+
+// ✅ CORRECT: Use formatDate for all date/time displays
+const { date, time, dateTime } = formatDate(entity.created_at)
+return <div>{date} {time}</div>
+
+// ✅ CORRECT: With custom options
+const { date } = formatDate(entity.created_at, {
+  dateFormat: 'dd MMM yyyy',
+  disableRelativeFormatting: true
+})
+
+// ❌ WRONG: Manual date formatting - STRICTLY FORBIDDEN
+const date = new Date(entity.created_at)
+return <div>{date.toLocaleDateString()}</div>
+
+// ❌ WRONG: Using date-fns directly - STRICTLY FORBIDDEN
+import { format } from 'date-fns'
+return <div>{format(new Date(entity.created_at), 'dd/MM/yyyy')}</div>
+
+// ❌ WRONG: Any other date formatting method - STRICTLY FORBIDDEN
+return <div>{new Intl.DateTimeFormat().format(new Date(entity.created_at))}</div>
+```
+
+**Why this is mandatory:**
+
+- **Consistency**: Ensures all dates are formatted identically across the application
+- **Locale support**: Automatic Arabic/English locale detection and formatting
+- **Timezone handling**: Proper client timezone conversion via `formatInTimeZone`
+- **RTL support**: Correct right-to-left layout for Arabic
+- **Maintainability**: Single source of truth for date formatting logic
+- **User experience**: Smart formatting (Today/Yesterday) improves readability
+- **Internationalization**: Proper locale-aware formatting for all supported languages
+
+**The `formatDate` function provides:**
+
+- `date`: Formatted date string (with "Today"/"Yesterday" support)
+- `time`: Formatted time string (HH:mm a format)
+- `dateTime`: Combined date and time string
+- Automatic locale detection (from document locale or next-intl)
+- Automatic timezone handling (from client timezone)
+- Fallback handling for null/undefined values
+
+**Reference Implementation:**
+
+- Table columns: `@/components/data-table/columns/date.tsx` (uses `formatDate` internally)
+- Formatter function: `@/utils/formatters.ts` (exports `formatDate`)
+
+See [code-comments.mdc](mdc:.cursor/rules/_common/code-comments.mdc) for code commenting standards.
+
+- **Column dividers exception** - The comment dividers between columns (see section 14) are required for organization and are an exception to minimal commenting
+
+## Table Architecture
+
+**⚠️ CRITICAL: Table Structure Pattern**
+
+**ALL table components MUST follow this exact pattern:**
+
+- **`main` element**: MUST use `className={cn('relative m-5', className)}` where `className` is an optional prop
+- **`toolbar` prop**: `DataTableToolbar` MUST be passed via the `toolbar` prop to `DataTable`, NOT as a separate sibling element
+- **Component props**: Table components MUST accept `className?: string` prop and merge it using `cn()` utility
+
+```typescript
+<main className={cn('relative m-5', className)}>
+  <DataTable
+    toolbar={
+      <DataTableToolbar
+        createButtonHref="/feature/create"
+        table={table}
+      />
+    }
+    table={table}
+  />
+</main>
+```
+
+**❌ WRONG: Do NOT use separate DataTableToolbar and DataTable as siblings**
+
+```typescript
+// ❌ DON'T: Separate DataTableToolbar and DataTable
+<main className="flex flex-col gap-5">
+  <DataTableToolbar ... />
+  <DataTable ... />
+</main>
+```
+
+### 1. File Structure
+
+Every table feature must follow this exact structure:
+
+```
+app/(app)/{feature-name}/
+├── page.tsx                          # Main table page component
+└── _{feature-name}/                  # Feature implementation folder
+    ├── columns/
+    │   └── {feature-name}-columns.tsx # Column definitions
+    ├── hooks/
+    │   ├── {feature-name}-params.ts   # Query params hook (optional when using queryOptions pattern)
+    │   └── index.ts                   # Barrel export
+    └── [other-feature-files]
+
+query/{feature-name}/
+├── {feature-name}-query.ts           # Query options using queryOptions
+├── {feature-name}-mutations.ts       # mutationOptions (see react-query.mdc)
+├── {feature-name}-types.ts           # TypeScript types
+└── index.ts                          # Barrel exports
+```
+
+**Note**: The `{feature-name}-params.ts` hook is optional when using the `queryOptions` pattern with `useDataTable` (preferred). URL parameters are automatically detected and passed to the query function. Params hooks are still useful for legacy `data` mode or when you need direct access to URL state.
+
+## Inter-Rule References
+
+- Place generated files according to the `feature-structure` rule.
+- **⚠️ PREFERRED: Use `queryOptions` pattern with `useDataTable` for data tables** - See [Using Queries with useDataTable](mdc:.cursor/rules/data-layer/react-query.mdc#using-queries-with-usedatatable) section in `react-query` rule. This pattern automatically handles URL parameter detection and query execution.
+- **Alternative**: Fetch data using hooks from the `react-query` rule (e.g., `useQuery(get{FeaturePlural}Options(...))`) when not using the `queryOptions` pattern. Avoid inlining fetch calls in components.
+- Use the `tanstack-form` rule for create/edit flows associated with the table.
+- Apply the `permission-system` rule to guard create buttons and row actions.
+- **⚠️ CRITICAL: ALL `form.SubmitButton` components MUST include `isLoading` prop** - See `tanstack-form` rule for details. Every submit button must reflect the mutation's pending state for consistent loading feedback.
+
+### 2. Main Table Page Component
+
+**⚠️ CRITICAL: Table Structure Requirements**
+
+- **ALWAYS use `<main>` element with `className={cn('relative m-5', className)}`** - The main wrapper must use `cn('relative m-5', className)` to merge base classes (including `m-5` spacing) with passed className prop.
+- **ALWAYS pass `toolbar` prop to `DataTable`** - The `DataTableToolbar` component MUST be passed via the `toolbar` prop, NOT as a separate sibling element.
+- Table components MUST accept `className` prop and merge it using `cn()` utility.
+
+**⚠️ CRITICAL: Table Spacing Pattern**
+
+**Table components MUST include `m-5` directly in their className:**
+
+- **✅ DO**: Use `className={cn('relative m-5', className)}` in the table component's `<main>` element
+- **✅ DO**: When table is inside tabs, the `className` prop can override spacing if needed (e.g., `className="m-0"` to remove margin)
+- **❌ DON'T**: Rely on parent pages to pass `m-5` - spacing is built into the table component
+
+**Pattern for Direct Table Pages (No Tabs):**
+
+```tsx
+// ✅ CORRECT: Table component has m-5 built-in
+// app/(app)/{feature}/page.tsx
+import { Metadata } from 'next'
+import { {Resource}Table } from './_{feature}/tables/{resource}-table'
+import {PageHeader} from '@/components/custom/page-header'
+
+export default async function {Resource}Page() {
+  return (
+    <>
+      <PageHeader description="Manage {Resources}" title="{Resources}" />
+      <{Resource}Table />
+    </>
+  )
+}
+```
+
+**Pattern for Tables Inside Tabs:**
+
+```tsx
+// ✅ CORRECT: Table has m-5 built-in, can override if tabs handle spacing
+// app/(app)/{feature}/_{feature}/tabs/{feature}-tabs.tsx
+<TabsContent value="table">
+  <{Resource}Table className="m-0" /> {/* Override m-5 if tabs handle spacing */}
+</TabsContent>
+```
+
+**⚠️ CRITICAL: Constants Outside Component Pattern**
+
+**🚨 MANDATORY: ALL constants (permissions, filter keys, toolbar permissions) MUST be defined outside the component to avoid recreation on every render.**
+
+**✅ DO: Define constants outside component**
+
+```typescript
+// Constants moved outside component to avoid recreation
+const PERMISSIONS_CONFIG = {
+  delete: PERMISSIONS.FEATURES_DESTROY,
+  update: PERMISSIONS.FEATURES_UPDATE,
+  view: PERMISSIONS.FEATURES_SHOW
+} as const
+
+const TOOLBAR_PERMISSIONS = {
+  create: PERMISSIONS.FEATURES_CREATE,
+  export: PERMISSIONS.FEATURES_EXPORT
+} as const
+
+const FILTER_KEYS = [
+  'statusFilter',
+  'typeFilter'
+] as FilterType[]
+
+export const FeatureTable: React.FC<{ className?: string }> = ({
+  className
+}) => {
+  const { deleteDialog, permissions, setRowAction } = useRowActions<Feature>({
+    deleteDialogConfig: {
+      description: 'Are you sure you want to delete this feature?',
+      itemNameKey:  item name key,
+      title: 'Delete Feature'
+    },
+    deleteMutationOptions: deleteFeatureMutationOptions,
+    permissions: PERMISSIONS_CONFIG,
+    redirectOnUpdate: (feature) => `/features/${feature.id}/edit`,
+    redirectOnView: (feature) => `/features/${feature.id}`
+  })
+```
+
+**❌ DON'T: Define constants inside component**
+
+```typescript
+export const FeatureTable: React.FC<{ className?: string }> = ({
+  className
+}) => {
+  // ❌ WRONG: Constants recreated on every render
+  const permissions = {
+    delete: PERMISSIONS.FEATURES_DESTROY,
+    update: PERMISSIONS.FEATURES_UPDATE,
+    view: PERMISSIONS.FEATURES_SHOW
+  }
+
+  // ❌ WRONG: Constants defined inside component (recreated on every render)
+  const PERMISSIONS_CONFIG = {
+    delete: PERMISSIONS.FEATURES_DESTROY,
+    update: PERMISSIONS.FEATURES_UPDATE,
+    view: PERMISSIONS.FEATURES_SHOW
+  }
+
+  const { deleteDialog, permissions, setRowAction } = useRowActions<Feature>({
+    permissions: PERMISSIONS_CONFIG // ❌ WRONG: Object recreated on every render
+  })
+
+  // ❌ ALSO WRONG: Inline object recreation
+  const { deleteDialog, permissions, setRowAction } = useRowActions<Feature>({
+    permissions: {
+      delete: PERMISSIONS.FEATURES_DESTROY, // ❌ WRONG: Inline object recreation
+      update: PERMISSIONS.FEATURES_UPDATE,
+      view: PERMISSIONS.FEATURES_SHOW
+    }
+  })
+```
+
+**Why this pattern is mandatory:**
+
+- **Performance**: Prevents object recreation on every render
+- **Memory efficiency**: Constants are created once, not on every component render
+- **React optimization**: Helps React's reconciliation algorithm avoid unnecessary re-renders
+- **Consistency**: Ensures all table components follow the same pattern
+
+The main table component structure:
+
+```typescript
+'use client'
+
+import React, { useMemo } from 'react'
+// When translations are requested, add: import { useTranslations } from 'next-intl'
+
+import { DataTable, DataTableToolbar } from '@/components/data-table'
+import { useDataTable } from '@/hooks/use-data-table'
+import { useRowActions } from '@/hooks/use-row-actions'
+import { cn } from '@/utils'
+
+import { useFeatureColumns } from '@/app/(app)/{feature}/_{feature}/columns/{feature}-columns'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { getAllFeatureQuery, Feature, deleteFeatureMutationOptions } from '@/query/{feature}'
+import { FilterType, useAppFilters } from '@/hooks/use-app-filters'
+
+// Constants moved outside component to avoid recreation
+const PERMISSIONS_CONFIG = {
+  delete: PERMISSIONS.FEATURES_DESTROY,
+  update: PERMISSIONS.FEATURES_UPDATE,
+  view: PERMISSIONS.FEATURES_SHOW
+} as const
+
+const TOOLBAR_PERMISSIONS = {
+  create: PERMISSIONS.FEATURES_CREATE,
+  export: PERMISSIONS.FEATURES_EXPORT
+} as const
+
+const FILTER_KEYS = [
+  'statusFilter',
+  'typeFilter'
+] as FilterType[]
+
+export const FeatureTable: React.FC<{ className?: string }> = ({
+  className
+}) => {
+  // When translations are requested, add:
+  // const t = useTranslations('{feature}.table')
+  // const tFilters = useTranslations('{feature}.table.filters')
+
+  const { statusFilter, typeFilter } = useAppFilters(FILTER_KEYS)
+
+  const { deleteDialog, permissions, setRowAction } = useRowActions<Feature>({
+    deleteDialogConfig: {
+      description: 'Are you sure you want to delete this feature?',
+      itemNameKey: item name key,
+      title: 'Delete Feature'
+    },
+    deleteMutationOptions: deleteFeatureMutationOptions,
+    permissions: PERMISSIONS_CONFIG,
+    redirectOnUpdate: (feature) => `/features/${feature.id}/edit`,
+    redirectOnView: (feature) => `/features/${feature.id}`
+  })
+
+  // Column configuration with permissions from useRowActions
+  // Note: useRowActions returns 'update', but columns expect 'edit' - map accordingly
+  const columns = useFeatureColumns({
+    permissions: {
+      delete: permissions.delete,
+      edit: permissions.update,
+      view: permissions.view
+    },
+    setRowAction
+  })
+
+  // Table configuration with queryOptions pattern
+  const {
+    data: featuresData,
+    error,
+    isError,
+    isLoading,
+    pagination,
+    refetch,
+    table
+  } = useDataTable({
+    columns,
+    getRowId: (originalRow) => `${originalRow.id}`,
+    initialState: {
+      columnPinning: { right: ['actions'] },
+    },
+    queryOptions: (params) => getAllFeatureQuery(params)
+  })
+
+  const filters = useMemo(
+    () => [statusFilter, typeFilter],
+    [statusFilter, typeFilter]
+  )
+
+  return (
+    <main className={cn('relative m-5', className)}>
+      <DataTable
+        deleteDialog={deleteDialog}
+        error={error}
+        isError={isError}
+        isLoading={isLoading}
+        pagination={pagination}
+        refetch={refetch}
+        toolbar={
+          <DataTableToolbar
+            createButtonHref="/features/create"
+            createButtonText="Create Feature"
+            filters={filters}
+            permissions={TOOLBAR_PERMISSIONS}
+            searchKey="search"
+            searchPlaceholder="Search features..."
+            table={table}
+          />
+        }
+        table={table}
+      />
+      {/* When translations are requested, replace hard-coded strings with:
+          createButtonText={t('createButtonText')}
+          label: tFilters('status.label')
+          placeholder: tFilters('status.placeholder')
+          searchPlaceholder={t('searchPlaceholder')}
+          deleteDialogConfig: {
+            description: tDeleteDialog('description'),
+            title: tDeleteDialog('title')
+          }
+      */}
+    </main>
+  )
+}
+```
+
+## Filter System
+
+**⚠️ IMPORTANT: For complete filter system documentation, see [data-table-filters.mdc](mdc:.cursor/rules/ui-components/data-table-filters.mdc).**
+
+The filter system supports **9 filter variants** with URL-based state management via `nuqs`. Filters are configured in the `DataTableToolbar` component via the `filters` prop.
+
+**Quick Reference**:
+
+- **Default Filter** (`variant: 'default'`) - Simple dropdown select
+- **Date Filter** (`variant: 'date'`) - Single date picker
+- **Date-Time Filter** (`variant: 'date-time'`) - Date and time picker
+- **Date Range Filter** (`variant: 'date-range'`) - Date range picker
+- **Date Range Time Filter** (`variant: 'date-range-time'`) - Date range with times
+- **Time Filter** (`variant: 'time'`) - Single time picker
+- **Time Range Filter** (`variant: 'time-range'`) - Time range picker
+- **Autocomplete Static Filter** (`variant: 'autocomplete'` with `options`) - Autocomplete with static options
+- **Autocomplete Query Filter** (`variant: 'autocomplete'` without `options`) - Autocomplete with API query
+
+**Basic Example**:
+
+```typescript
+<DataTableToolbar
+  filters={[
+    {
+      key: 'status',
+      label: 'Status',
+      options: [
+        { key: 'active', label: 'Active', value: '1' },
+        { key: 'inactive', label: 'Inactive', value: '0' }
+      ],
+      placeholder: 'Select status',
+      variant: 'default'
+    }
+  ]}
+  table={table}
+/>
+```
+
+See [data-table-filters.mdc](mdc:.cursor/rules/ui-components/data-table-filters.mdc) for complete documentation of all filter variants, props, examples, best practices, and state management patterns.
+
+## Column Definition Pattern
+
+### ⚠️ CRITICAL: Columns MUST Be Custom Hooks
+
+**ALWAYS create column definitions as custom hooks.** Column definitions must be produced by a **custom hook** (for example `useFeatureColumns`) exported from the feature's `columns/` directory. **DO NOT** create column definitions as regular functions or constants - they must be React hooks.
+
+**⚠️ REACT RULES OF HOOKS VIOLATION:** If you use `useTranslations` or any other hooks inside a column definition function, you **MUST** convert it to a custom hook. Regular functions cannot call hooks - this violates React's Rules of Hooks and will cause runtime errors. See: https://react.dev/link/rules-of-hooks
+
+**❌ WRONG - Regular function calling hooks:**
+
+```typescript
+// ❌ DON'T: Regular function calling hooks violates Rules of Hooks
+export function FeatureColumns({ ... }: Props): ColumnDef<Feature>[] {
+  const t = useTranslations('features') // ❌ Hook called in regular function
+  return [...]
+}
+```
+
+**✅ CORRECT - Custom hook:**
+
+```typescript
+// ✅ DO: Custom hook can call other hooks at top level
+export function useFeatureColumns({ ... }: Props): ColumnDef<Feature>[] {
+  const t = useTranslations('features') // ✅ Hook called in hook
+  return useMemo(() => [...], [t, ...])
+}
+```
+
+This hook can call other hooks (such as `useTranslations`, `useMemo`, or `useCallback`) at its top level, but **hooks must never be called inside the column configuration objects or cell renderers**.
+
+Key requirements:
+
+- **MUST export a hook whose name starts with `use`** so React treats it as a hook (e.g., `useFeatureColumns`, `useTenantsColumns`).
+- **When translations are requested**, call `useTranslations` and other hooks at the top level of the custom hook (before `useMemo`) to keep copy centralized and localized. **By default, use hard-coded English strings.**
+- **DO NOT create regular functions** that call hooks - always use custom hooks.
+- Default actions to navigation: `createRowActions` handlers should push to `/create` or `/[id]/edit` pages unless the specification explicitly calls for inline modals.
+- **For enum values, when translations are requested**, use `useTranslations` with the `enums.*` namespace. **By default, use hard-coded English labels** (e.g., `status === 1 ? 'Active' : 'Inactive'`). When translations are requested, use: `const tStatusEnum = useTranslations('enums.status.enum')` then `tStatusEnum(\`${status}\`)` in the cell renderer.
+- **When translations are requested**, use translations from the `enums.*` namespace instead of manually mapping enum values to string literals using nested ternary operators or if-else chains.
+  - **Translation Setup**: Ensure the enum has translations in `lib/i18n/en.json` and `lib/i18n/ar.json` under the `enums.{enum_name}` key. The translation keys should match the enum numeric values as strings (e.g., `"1": "Scheduled"`, `"2": "In Progress"`).
+  - **For enum-to-translation mapping**: Use `useTranslations('enums.{enum_name}')` and call it with the enum value as a string key (e.g., `tTripStatus(\`${row.original.status}\`)`).
+  - **For enum-to-component mapping** (when using StatusBadge or similar components that need a status type): Map the enum to the component's status type directly in the cell renderer using a `Record` object lookup. Use the translation function directly to get the label (e.g., `tTripStatus(\`${statusEnum}\`)`). **DO NOT** create helper functions for this - keep it inline in the cell renderer.
+  - **Example of WRONG pattern** (DO NOT DO THIS):
+    ```typescript
+    // ❌ DON'T: Nested ternary mapping enum to string literals
+    const status = row.original.status === TripStatusEnum.SCHEDULED
+      ? 'scheduled'
+      : row.original.status === TripStatusEnum.IN_PROGRESS
+        ? 'in_progress'
+        : row.original.status === TripStatusEnum.COMPLETED
+          ? 'completed'
+          : 'unknown'
+    return <StatusBadge status={status} />
+    ```
+    ```typescript
+    // ❌ DON'T: Hard-coded string labels without translations
+    cell: ({ row }) => {
+      const label = row.original.status === TripStatusEnum.SCHEDULED
+        ? 'Scheduled'
+        : row.original.status === TripStatusEnum.IN_PROGRESS
+          ? 'In Progress'
+          : 'Unknown'
+      return <Chip>{label}</Chip>
+    }
+    ```
+  - **Example of CORRECT pattern** (using StatusBadge with translations):
+
+    ```typescript
+    // ✅ DO: Use translations directly and map enum to status type inline
+    const tTripStatus = useTranslations('enums.trip_status')
+
+    // In cell renderer:
+    cell: ({ row }) => {
+      const statusEnum = row.original.status
+      // Map enum to StatusBadge status type for variant/icon
+      const statusTypeMap: Record<TripStatusEnum, Status> = {
+        [TripStatusEnum.CANCELLED]: 'cancelled',
+        [TripStatusEnum.COMPLETED]: 'completed',
+        [TripStatusEnum.IN_PROGRESS]: 'in_progress',
+        [TripStatusEnum.SCHEDULED]: 'scheduled'
+      }
+      const statusType = statusTypeMap[statusEnum] ?? 'unknown'
+      return (
+        <StatusBadge
+          label={tTripStatus(`${statusEnum}`)}
+          status={statusType}
+        />
+      )
+    }
+    ```
+
+  - **Example of CORRECT pattern** (using Column.Chip with translations):
+
+    ```typescript
+    // ✅ DO: Use translations directly with Column.Chip component
+    import { Column } from '@/components/data-table/columns'
+    const tStatusEnum = useTranslations('enums.status.enum')
+
+    // In cell renderer:
+    cell: ({ row }) => (
+      <Column.Chip
+        label={tStatusEnum(`${row.original.status}`)}
+        variant={row.original.status === 1 ? 'success' : 'secondary'}
+      />
+    )
+    ```
+
+- Wrap the returned array of `ColumnDef` objects in `useMemo` and include every external dependency in the dependency array to avoid re-creating definitions unnecessarily.
+- Continue passing permission-driven `disabled` predicates from the parent component; do **not** call `usePermissions` inside the columns hook.
+- When backend fields are not yet available, render a clear placeholder (e.g., `TODO: implement when backend provides status`) rather than leaving the cell empty or throwing.
+
+### Column Structure
+
+```typescript
+'use client'
+
+import { useMemo } from 'react'
+import { ColumnDef } from '@tanstack/react-table'
+import { useTranslations } from 'next-intl'
+import { Column } from '@/components/data-table/columns'
+import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header'
+import { createRowActions, DataTableRowActions } from '@/components/data-table/data-table-row-actions'
+
+import { Feature } from '@/query/{feature}/{feature}-types'
+import { DataTableRowAction } from '@/types/data-table'
+
+// ✅ PREFERRED: Permissions pattern (use boolean values with hidden property)
+type FeatureColumnsProps = {
+  permissions: {
+    delete?: boolean
+    edit?: boolean
+    view?: boolean
+  }
+  setRowAction: (rowAction?: DataTableRowAction<Feature> | null) => void
+}
+
+export function useFeatureColumns({
+  permissions = {
+    delete: true,
+    edit: true,
+    view: true
+  },
+  setRowAction
+}: FeatureColumnsProps): ColumnDef<Feature>[] {
+  const t = useTranslations('features.table') // Adjust namespace per feature
+
+  return useMemo(
+    () => [
+      {
+        accessorKey: 'id',
+        cell: ({ row }) => <Column.Text text={row.original.id} variant="id" />,
+        enableHiding: true,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title={t('columns.id')} />
+        ),
+        id: 'id',
+        maxSize: 120,
+        minSize: 120,
+        size: 120
+      },
+      {
+        accessorKey: 'name',
+        cell: ({ row }) => <Column.Text text={row.original.name} />,
+        enableColumnFilter: true,
+        enableHiding: true,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title={t('columns.name')} />
+        ),
+        id: 'name'
+      },
+      {
+        accessorKey: 'status',
+        cell: ({ row }) => {
+          const status = row.original.status
+          const variant =
+            status === 1 ? 'success' : status === 0 ? 'destructive' : 'warning'
+
+          if (status == null) {
+            return <Column.Text color="muted" text="TODO: implement when backend provides status" />
+          }
+
+          return (
+            <Column.Chip
+              label={t('statuses.active')}
+              variant={variant}
+            />
+          )
+        },
+        enableColumnFilter: true,
+        enableHiding: true,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title={t('columns.status')} />
+        ),
+        id: 'status',
+        size: 100
+      },
+      {
+        cell: ({ row }) => {
+          const actions = createRowActions({
+            delete: permissions.delete
+              ? {
+                  hidden: () => !permissions.delete,
+                  onClick: () => setRowAction({ row, variant: 'delete' })
+                }
+              : undefined,
+
+            edit: permissions.edit
+              ? {
+                  hidden: () => !permissions.edit,
+                  onClick: () => setRowAction({ row, variant: 'update' })
+                }
+              : undefined,
+
+            view: permissions.view
+              ? {
+                  hidden: () => !permissions.view,
+                  onClick: () => setRowAction({ row, variant: 'view' })
+                }
+              : undefined
+          })
+
+          return <DataTableRowActions actions={actions} row={row} />
+        },
+        enableHiding: false,
+        header: () => (
+          <div className="text-center font-semibold">
+            {t('columns.actions')}
+          </div>
+        ),
+        id: 'actions',
+        size: 150
+      }
+    ],
+    [permissions, setRowAction, t]
+  )
+}
+```
+
+### Column Configuration Rules
+
+1. **Export a custom hook** (e.g., `useFeatureColumns`) from every columns file located in the `columns/` folder.
+2. **Call translation hooks (`useTranslations`) for enums or textual constants** at the top level of the custom hook; never hard-code enum labels.
+3. **Wrap the column array in `useMemo`** and include all captured dependencies so React can memoize definitions safely.
+4. **When backend data is not yet available**, render a clear placeholder (e.g., `TODO: implement when backend provides status`) instead of crashing or guessing.
+5. **Continue to pass permission predicates via props**; do not call `usePermissions` inside the columns hook.
+6. **Always include the ID column** with `font-mono text-sm` styling and size properties: `maxSize: 120`, `minSize: 120`, `size: 120`. **DO NOT** add a "#" prefix or any other decorative characters before the ID value - display the ID directly (e.g., `{row.original.id}`, not `#{row.original.id}`).
+7. **Actions column is required** and must:
+   - Use `enableHiding: false`
+   - Center align header with `text-center font-semibold`
+   - Pin to right in initial state: `columnPinning: { right: ['actions'] }`
+   - Size: 150px (or 40px for compact tables)
+   - **⚠️ CRITICAL: Permissions defaults MUST be `true`** - Default values for permissions prop must be `{ delete: true, edit: true, view: true }`, not `false`
+   - **⚠️ CRITICAL: Always define actions in createRowActions** - Actions should always be defined (not conditionally created), use `hidden` property with `!!![permissions?.action]` pattern to control visibility:
+
+     ```typescript
+     // ✅ CORRECT: Always define actions, use hidden property
+     actions={createRowActions({
+       delete: {
+         hidden: () => !!!permissions?.delete,
+         onClick: () => setRowAction({ row, variant: 'delete' })
+       },
+       edit: {
+         hidden: () => !!!permissions?.edit,
+         onClick: () => setRowAction({ row, variant: 'update' })
+       }
+     })}
+
+     // ❌ WRONG: Conditional action creation
+     actions={createRowActions({
+       delete: permissions.delete
+         ? { hidden: () => !permissions.delete, onClick: ... }
+         : undefined
+     })}
+     ```
+
+   - Never call `usePermissions` inside the columns hook
+
+8. **Use DataTableColumnHeader** for all sortable headers
+9. **Enable filtering** with `enableColumnFilter: true` when appropriate
+10. **Enable sorting** with `enableSorting: true` (default for most columns)
+11. **Enable hiding** with `enableHiding: true` for data columns
+12. **⚠️ CRITICAL: ALL cell renderers MUST use Column.{Component}** - Never use raw HTML elements (`<div>`, `<span>`) or direct component imports (`<Chip>`, `<Avatar>`) in cell renderers. Always use the `Column` namespace components:
+    - `Column.Text` - For all text cells (IDs, names, emails, money, etc.)
+    - `Column.Flex` - For avatar + title/subtitle layouts
+    - `Column.Chip` - For status badges and labels (supports single or multiple chips with per-item props)
+    - `Column.DateColumn` - For date/time columns
+    - `Column.Attachment` - For file/image previews
+    - `Column.Image` - For image display with preview
+    - See "Column Cell Components" section below for detailed usage
+
+    **❌ WRONG Examples to Avoid:**
+
+    ```typescript
+    // ❌ DON'T: Raw HTML elements
+    cell: ({ row }) => <div className="font-medium">{row.original.name}</div>
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.email}</span>
+    cell: ({ row }) => <div className="font-mono text-sm">{row.original.id}</div>
+
+    // ❌ DON'T: Direct component imports
+    import { Chip } from '@/components/ui/chip'
+    cell: ({ row }) => <Chip variant="success">{row.original.status}</Chip>
+
+    // ✅ CORRECT: Use Column.* components
+    cell: ({ row }) => <Column.Text text={row.original.name} />
+    cell: ({ row }) => <Column.Text text={row.original.email} variant="email" />
+    cell: ({ row }) => <Column.Text text={row.original.id} variant="id" />
+    cell: ({ row }) => <Column.Chip label={tStatus('1')} variant="success" />
+    ```
+
+13. **Set appropriate sizes** for fixed-width columns
+14. **⚠️ CRITICAL: ALWAYS add comment dividers between columns** - Each column definition MUST be separated by a comment divider block:
+
+```typescript
+// ========================================================================
+// ID COLUMN
+// ========================================================================
+{
+  accessorKey: 'id',
+  // ... column definition
+},
+
+// ========================================================================
+// NAME COLUMN
+// ========================================================================
+{
+  accessorKey: 'name',
+  // ... column definition
+},
+```
+
+**Format:**
+
+- Use exactly 75 equals signs (`=`) for the divider line
+- Column name should be in uppercase (e.g., `ID COLUMN`, `NAME COLUMN`, `STATUS COLUMN`)
+- Include descriptive notes in parentheses if needed (e.g., `NAME COLUMN (with avatar)`)
+- Place divider immediately before each column definition
+- Keep divider consistent across all column files
+
+## Column Cell Components
+
+**⚠️ CRITICAL: ALL cell renderers MUST use Column.{Component} from `@/components/data-table/columns`. DO NOT use raw HTML elements or direct component imports in cell renderers.**
+
+### Import Statement
+
+```typescript
+import { Column } from '@/components/data-table/columns'
+```
+
+### Available Components
+
+#### 1. Column.Text
+
+**Purpose**: Display text with automatic truncation and tooltip for long text.
+
+**Props**:
+
+- `text?: string | null | number` - The text to display (numbers are supported for money variant)
+- `variant?: 'default' | 'id' | 'money' | 'email' | 'phone' | 'date' | 'time'` - Text style variant
+  - `'default'` - Standard foreground text (default, no variant needed for regular text)
+  - `'id'` - Monospace font for IDs (auto-pads with leading zeros)
+  - `'money'` - Formats numbers as prices (uses `formatPrice` utility)
+  - `'email'` - Clickable mailto link with primary color and hover underline
+  - `'phone'` - Clickable tel link with hover underline
+  - `'date'` - For date values (⚠️ Use `Column.DateColumn` instead - see below)
+  - `'time'` - For time values (⚠️ Use `Column.DateColumn` instead - see below)
+- `color?: 'default' | 'muted' | 'secondary'` - Text color (use `color="muted"` for secondary text, NOT `variant="muted"`)
+- `className?: string` - Additional CSS classes
+
+**⚠️ CRITICAL: Variant Usage Rules**
+
+- **ONLY use variants for these specific types:**
+  - `variant="email"` - For email addresses (creates mailto link)
+  - `variant="phone"` - For phone numbers (creates tel link)
+  - `variant="id"` - For ID numbers (monospace font, auto-padding)
+  - `variant="money"` - For monetary values (formats with formatPrice)
+  - `variant="date"` - For date values (⚠️ Use `Column.DateColumn` instead)
+  - `variant="time"` - For time values (⚠️ Use `Column.DateColumn` instead)
+
+- **DO NOT add variant prop for:**
+  - Regular text (names, descriptions, etc.) - defaults to 'default'
+  - Secondary text - use `color="muted"` prop instead
+
+- **Date/Time columns:** Use `Column.DateColumn` component, NOT `Column.Text` with variant
+
+**Usage Examples**:
+
+```typescript
+// ✅ CORRECT: Standard text (no variant needed)
+cell: ({ row }) => <Column.Text text={row.original.name} />
+
+// ✅ CORRECT: Secondary/muted text (use color prop, NOT variant)
+cell: ({ row }) => <Column.Text color="muted" text={row.original.description} />
+
+// ✅ CORRECT: Email column (creates mailto link)
+cell: ({ row }) => <Column.Text text={row.original.email} variant="email" />
+
+// ✅ CORRECT: Phone column (creates tel link)
+cell: ({ row }) => <Column.Text text={row.original.phone} variant="phone" />
+
+// ✅ CORRECT: ID column with monospace font
+cell: ({ row }) => (
+  <Column.Text
+    text={row.original.id.toString().padStart(2, '0')}
+    variant="id"
+  />
+)
+
+// ✅ CORRECT: Money formatting
+cell: ({ row }) => (
+  <Column.Text text={row.original.total_due} variant="money" />
+)
+
+// ❌ WRONG: Raw HTML
+cell: ({ row }) => <div className="font-medium">{row.original.name}</div>
+
+// ❌ WRONG: Direct span element
+cell: ({ row }) => <span className="text-muted-foreground">{row.original.email}</span>
+
+// ❌ WRONG: Manual price formatting
+cell: ({ row }) => (
+  <Column.Text text={`$${row.original.price.toFixed(2)}`} />
+)
+
+// ❌ WRONG: Manual email link
+cell: ({ row }) => (
+  <a href={`mailto:${row.original.email}`}>{row.original.email}</a>
+)
+```
+
+**Auto-features**:
+
+- Automatically truncates text longer than 30 characters
+- Shows tooltip with full text on hover for truncated text
+- Handles null/undefined values gracefully
+
+#### 2. Column.Flex
+
+**Purpose**: Display avatar with title and/or subtitle in a flexible layout.
+
+**Props**:
+
+- `avatar?: string` - Avatar image URL
+- `avatarFallback?: string | ReactNode` - Fallback content when no avatar (defaults to initials from title)
+- `avatarShape?: 'rounded' | 'square'` - Avatar shape (default: 'rounded')
+- `avatarSize?: number` - Custom avatar size in pixels (defaults: 16px for avatar-only, 32px with content)
+- `title?: string` - Main title text
+- `subtitle?: string` - Subtitle text below title
+- `viewOptions?: FlexViewOptions` - Control visibility of avatar/title/subtitle
+  - `avatar?: boolean` - Show/hide avatar (default: true)
+  - `title?: boolean` - Show/hide title (default: true)
+  - `subtitle?: boolean` - Show/hide subtitle (default: true)
+- `className?: string` - Additional CSS classes
+
+**Usage Examples**:
+
+```typescript
+// ✅ CORRECT: Avatar + title + subtitle
+cell: ({ row }) => {
+  const user = row.original
+  return (
+    <Column.Flex
+      avatar={user.image_url || undefined}
+      avatarFallback={user.name.charAt(0).toUpperCase()}
+      subtitle={user.email}
+      title={user.name}
+    />
+  )
+}
+
+// ✅ CORRECT: Avatar only (photo column)
+cell: ({ row }) => (
+  <Column.Flex
+    avatar={row.original.photo}
+    avatarFallback={row.original.name.charAt(0).toUpperCase()}
+    avatarShape="square"
+  />
+)
+
+// ✅ CORRECT: Avatar + title only
+cell: ({ row }) => (
+  <Column.Flex
+    avatar={row.original.image_url}
+    title={row.original.name}
+  />
+)
+
+// ❌ WRONG: Manual avatar + text layout
+cell: ({ row }) => (
+  <div className="flex items-center gap-3">
+    <Avatar>
+      <AvatarImage src={row.original.image_url} />
+      <AvatarFallback>{row.original.name.charAt(0)}</AvatarFallback>
+    </Avatar>
+    <div>
+      <div className="font-medium">{row.original.name}</div>
+      <div className="text-sm text-muted-foreground">{row.original.email}</div>
+    </div>
+  </div>
+)
+```
+
+**Auto-features**:
+
+- Responsive sizing based on content
+- Automatic fallback initials generation
+- Configurable avatar shape and size
+
+#### 3. Column.Chip
+
+**Purpose**: Display status badges, labels, or type indicators. Supports both single and multiple chip modes.
+
+**⚠️ CRITICAL: Two Distinct Prop Patterns**
+
+The `Column.Chip` component supports two mutually exclusive prop patterns:
+
+1. **Single Label Mode**: Use `label` prop for a single chip
+2. **Multiple Labels Mode**: Use `labels` array for multiple chips, each with optional individual props
+
+**Type Definitions**:
+
+- `ColumnChipProps`: Union type of `MultipleColumnChipProps | SingleColumnChipProps`
+- `BaseColumnChipProps`: `Omit<ChipProps, 'className' | 'label'>` - Base props that can be shared or per-item
+- `LabelItem`: `{ label: number | string; props?: BaseColumnChipProps }` - Individual label with optional props
+- `SingleColumnChipProps`: `BaseColumnChipProps & { label: null | number | string | undefined; classNames?: { chip?: string; wrapper?: string } }`
+- `MultipleColumnChipProps`: `{ labels: LabelItem[]; maxLength?: number; classNames?: { chip?: string; wrapper?: string } }`
+
+**Single Label Mode Props**:
+
+- `label: null | number | string | undefined` - The text to display in the chip
+- `variant?: 'default' | 'destructive' | 'success' | 'warning' | 'info' | 'secondary' | 'outline' | 'flat'` - Visual variant
+- `color?: 'default' | 'danger' | 'info' | 'primary' | 'secondary' | 'success' | 'warning'` - Color scheme
+- `Icon?: LucideIcon` - Optional icon component
+- `classNames?: { chip?: string; wrapper?: string }` - Additional CSS classes for chip and wrapper
+
+**Multiple Labels Mode Props**:
+
+- `labels: LabelItem[]` - Array of label items, each with `label` and optional `props`
+- `maxLength?: number` - Maximum number of chips to display before showing "+N" tooltip (default: 2)
+- `classNames?: { chip?: string; wrapper?: string }` - Additional CSS classes applied to all chips and wrapper
+
+**⚠️ CRITICAL: maxLength Usage**
+
+- **❌ DON'T add `maxLength` prop unless the user explicitly requests it with a specific number**
+- **✅ DO omit `maxLength` prop by default** - The component has a default value of 2, but you should not explicitly pass it unless requested
+- **✅ DO only add `maxLength` when the user explicitly asks for it** (e.g., "add maxLength of 3", "limit to 5 chips", etc.)
+
+**Single Label Mode Examples**:
+
+```typescript
+// ✅ CORRECT: Status with variant and enum translation
+cell: ({ row }) => {
+  const isActive = row.original.status === 1
+  const tStatus = useTranslations('enums.status.enum')
+  return (
+    <Column.Chip
+      label={isActive ? tStatus(`${StatusEnum.ACTIVE}`) : tStatus(`${StatusEnum.INACTIVE}`)}
+      variant={isActive ? 'success' : 'destructive'}
+    />
+  )
+}
+
+// ✅ CORRECT: Type label with enum translation
+cell: ({ row }) => {
+  const tUserType = useTranslations('enums.user_type')
+  return (
+    <Column.Chip
+      label={tUserType(`${row.original.type}`)}
+      variant="default"
+    />
+  )
+}
+
+// ✅ CORRECT: Role badge
+cell: ({ row }) => {
+  const roleName = row.original.role?.name || tEmpty('noRole')
+  return <Column.Chip label={roleName} variant="default" />
+}
+
+// ✅ CORRECT: With icon
+cell: ({ row }) => (
+  <Column.Chip Icon={FileIcon} label="Document" variant="info" />
+)
+
+// ✅ CORRECT: With custom classNames
+cell: ({ row }) => (
+  <Column.Chip
+    label={row.original.name}
+    variant="success"
+    classNames={{ chip: "custom-chip-class" }}
+  />
+)
+```
+
+**Multiple Labels Mode Examples**:
+
+```typescript
+// ✅ CORRECT: Multiple labels with different variants per item (no maxLength - default behavior)
+cell: ({ row }) => {
+  const tStatus = useTranslations('enums.status.enum')
+  const tTripStatus = useTranslations('enums.trip_status')
+
+  return (
+    <Column.Chip
+      labels={[
+        {
+          label: tStatus(`${row.original.status}`),
+          props: { variant: row.original.status === 1 ? 'success' : 'destructive' }
+        },
+        {
+          label: tTripStatus(`${row.original.trip_status}`),
+          props: { variant: 'info' }
+        }
+      ]}
+    />
+  )
+}
+
+// ✅ CORRECT: Multiple labels from array (no maxLength - default behavior)
+cell: ({ row }) => {
+  const templates = row.original.pricing_templates || []
+  if (templates.length === 0) {
+    return <Column.Text color="muted" text="—" />
+  }
+  return (
+    <Column.Chip
+      labels={templates.map((template) => ({
+        label: template,
+        props: { variant: 'default' }
+      }))}
+    />
+  )
+}
+
+// ✅ CORRECT: Per-item customization with different props (no maxLength)
+cell: ({ row }) => (
+  <Column.Chip
+    labels={[
+      {
+        label: "Active",
+        props: { variant: 'success', Icon: CheckIcon }
+      },
+      {
+        label: "Verified",
+        props: { variant: 'info', Icon: ShieldIcon }
+      },
+      {
+        label: "Premium",
+        props: { variant: 'warning', color: 'primary' }
+      }
+    ]}
+  />
+)
+
+// ✅ CORRECT: Multiple labels from enum values (no maxLength - default behavior)
+cell: ({ row }) => {
+  const tRouteType = useTranslations('enums.route_type')
+  const routeTypes = row.original.route_types || []
+
+  return (
+    <Column.Chip
+      labels={routeTypes.map(type => ({
+        label: tRouteType(`${type}`),
+        props: {
+          variant: type === RouteTypeEnum.FIXED ? 'success' : 'default'
+        }
+      }))}
+    />
+  )
+}
+
+// ❌ WRONG: Adding maxLength without explicit user request
+cell: ({ row }) => {
+  const templates = row.original.pricing_templates || []
+  return (
+    <Column.Chip
+      labels={templates.map((template) => ({
+        label: template,
+        props: { variant: 'default' }
+      }))}
+      maxLength={2}  // ❌ DON'T: Only add when user explicitly requests it
+    />
+  )
+}
+
+// ✅ CORRECT: Only add maxLength when user explicitly requests it (e.g., "add maxLength of 3")
+cell: ({ row }) => {
+  const tags = row.original.tags || []
+  const tTags = useTranslations('enums.tags')
+
+  return (
+    <Column.Chip
+      labels={tags.map(tag => ({
+        label: tTags(`${tag}`),
+        props: { variant: 'default' }
+      }))}
+      maxLength={3}  // ✅ OK: Only when user explicitly requested "maxLength of 3"
+      classNames={{ wrapper: "gap-1" }}
+    />
+  )
+}
+```
+
+**Common Patterns**:
+
+```typescript
+// ✅ CORRECT: Single label with status enum
+const tStatus = useTranslations('enums.status.enum')
+<Column.Chip
+  label={tStatus(`${row.original.status}`)}
+  variant={row.original.status === StatusEnum.ACTIVE ? 'success' : 'destructive'}
+/>
+
+// ✅ CORRECT: Multiple labels showing all items (no maxLength - default behavior)
+<Column.Chip
+  labels={items.map(item => ({
+    label: item.name,
+    props: { variant: item.active ? 'success' : 'default' }
+  }))}
+/>
+
+// ✅ CORRECT: Multiple labels with per-item icons
+<Column.Chip
+  labels={[
+    { label: "Email", props: { Icon: MailIcon, variant: 'info' } },
+    { label: "SMS", props: { Icon: MessageIcon, variant: 'default' } }
+  ]}
+/>
+```
+
+**❌ WRONG Patterns**:
+
+```typescript
+// ❌ WRONG: Direct Chip import
+import { Chip } from '@/components/ui/chip'
+cell: ({ row }) => <Chip variant="success">{row.original.status}</Chip>
+
+// ❌ WRONG: Raw HTML badge
+cell: ({ row }) => (
+  <span className="rounded-full bg-green-100 px-2 py-1 text-green-800">
+    {row.original.status}
+  </span>
+)
+
+// ❌ WRONG: Using label as array (use labels prop instead)
+cell: ({ row }) => (
+  <Column.Chip label={['Active', 'Verified']} /> // ❌ Doesn't work
+)
+
+// ❌ WRONG: Mixing label and labels props
+cell: ({ row }) => (
+  <Column.Chip
+    label="Active"
+    labels={[{ label: "Verified" }]} // ❌ Only use one pattern
+  />
+)
+
+// ❌ WRONG: Hard-coded enum strings instead of enum values
+cell: ({ row }) => (
+  <Column.Chip
+    label={tStatus('1')} // ❌ Use enum value: tStatus(`${StatusEnum.ACTIVE}`)
+    variant="success"
+  />
+)
+```
+
+**Auto-features**:
+
+- **Single label mode**: Consistent styling across all status indicators
+- **Multiple labels mode**: Automatic "+N" tooltip when `maxLength` is exceeded
+- **Per-item customization**: Each label in the array can have its own variant, color, icon, etc.
+- **Color variants**: Support for different states and visual communication
+- **Icon support**: Enhanced visual communication with per-item icons
+- **Type safety**: Full TypeScript support with exported types
+
+#### 4. Column.DateColumn
+
+**⚠️⚠️⚠️ MANDATORY: ALL date/time values in table columns MUST use `Column.DateColumn` ⚠️⚠️⚠️**
+
+**Purpose**: Display dates and times with smart formatting (Today/Yesterday) and proper locale/timezone handling.
+
+**⚠️ CRITICAL REQUIREMENT**:
+
+- **ALL date/time columns MUST use `Column.DateColumn`** - No exceptions
+- **NEVER use manual date formatting** (e.g., `new Date().toLocaleDateString()`, `date-fns.format()`, etc.)
+- **NEVER display raw date strings** - Always use `Column.DateColumn`
+- **This is a mandatory requirement** - Violations will cause inconsistent date formatting across the application
+
+**Props**:
+
+- `value?: string | Date | null` - Date value to display
+- `date?: boolean` - Show date portion (default: `true`)
+- `time?: boolean` - Show time portion (default: `true`)
+
+**Usage Examples**:
+
+```typescript
+// ✅ CORRECT: Created date with both date and time (default)
+cell: ({ row }) => (
+  <Column.DateColumn value={row.original.created_at} />
+)
+
+// ✅ CORRECT: Date only (no time)
+cell: ({ row }) => (
+  <Column.DateColumn value={row.original.start_date} date time={false} />
+)
+
+// ✅ CORRECT: Updated date with both date and time
+cell: ({ row }) => (
+  <Column.DateColumn value={row.original.updated_at} date time />
+)
+
+// ✅ CORRECT: End date without time
+cell: ({ row }) => (
+  <Column.DateColumn value={row.original.end_date} date time={false} />
+)
+
+// ❌ WRONG: Manual date formatting - STRICTLY FORBIDDEN
+cell: ({ row }) => {
+  const date = new Date(row.original.created_at)
+  return <div>{date.toLocaleDateString()}</div>
+}
+
+// ❌ WRONG: Using date-fns directly - STRICTLY FORBIDDEN
+cell: ({ row }) => {
+  const formatted = format(new Date(row.original.created_at), 'dd/MM/yyyy')
+  return <Column.Text text={formatted} />
+}
+
+// ❌ WRONG: Raw date string - STRICTLY FORBIDDEN
+cell: ({ row }) => <Column.Text text={row.original.created_at} />
+
+// ❌ WRONG: Any other date formatting method - STRICTLY FORBIDDEN
+cell: ({ row }) => {
+  return <span>{new Intl.DateTimeFormat('en-US').format(new Date(row.original.created_at))}</span>
+}
+```
+
+**Auto-features**:
+
+- Shows "Today" for today's dates (localized: "اليوم" in Arabic, "Today" in English)
+- Shows "Yesterday" for yesterday's dates (localized: "أمس" in Arabic, "Yesterday" in English)
+- Formats other dates as "dd/MM/yyyy" (respects locale)
+- Time displayed as "HH:mm a" (12-hour format with AM/PM) when `time={true}` (default)
+- Can display date-only (`date={true} time={false}`) or date+time (`date={true} time={true}`, default)
+- Handles null/undefined values with "-" fallback (renders as muted text)
+- **Automatic locale detection** - Uses document locale or next-intl locale
+- **Automatic timezone handling** - Uses client timezone
+- **RTL support** - Properly formatted for Arabic locale
+
+#### 5. Column.Attachment
+
+**Purpose**: Display file attachments (images, PDFs) with previews and download links.
+
+**Props**:
+
+- `src?: string | null` - File URL
+- `variant: AttachmentTypeEnum | null` - Attachment type (IMAGE or PDF)
+- `alt?: string` - Alt text for images
+- `imageFallbackIcon?: ReactNode` - Custom fallback icon for images (default: ImageOffIcon)
+- `pdfFallbackIcon?: ReactNode` - Custom fallback icon for PDFs (default: FileXIcon)
+
+**Usage Examples**:
+
+```typescript
+// ✅ CORRECT: Image attachment
+cell: ({ row }) => (
+  <Column.Attachment
+    alt={row.original.name}
+    src={row.original.image_url}
+    variant={AttachmentTypeEnum.IMAGE}
+  />
+)
+
+// ✅ CORRECT: PDF attachment
+cell: ({ row }) => (
+  <Column.Attachment
+    src={row.original.document_url}
+    variant={AttachmentTypeEnum.PDF}
+  />
+)
+
+// ❌ WRONG: Manual image rendering
+cell: ({ row }) => (
+  <Image
+    alt={row.original.name}
+    height={40}
+    src={row.original.image_url}
+    width={40}
+  />
+)
+```
+
+**Auto-features**:
+
+- Image preview modal on click
+- PDF download links
+- Fallback icons for missing files
+- Proper error handling
+
+#### 6. Column.Image
+
+**Purpose**: Display images in table columns with preview functionality and placeholder fallback.
+
+**Props**:
+
+- `src?: string | null` - Image source URL
+- `alt?: string` - Alt text for image (default: 'Image')
+
+**Usage Examples**:
+
+```typescript
+// ✅ CORRECT: Image with preview
+cell: ({ row }) => (
+  <Column.Image src={row.original.photo} alt={row.original.title} />
+)
+
+// ✅ CORRECT: Handles null/undefined gracefully
+cell: ({ row }) => (
+  <Column.Image src={row.original.image_url} alt={row.original.name} />
+)
+
+// ❌ WRONG: Using raw NextImage or img tag
+cell: ({ row }) => (
+  <NextImage src={row.original.photo} alt="Photo" width={100} height={100} />
+)
+
+// ❌ WRONG: Using Column.Flex for simple image display
+cell: ({ row }) => (
+  <Column.Flex avatar={row.original.photo} />
+)
+```
+
+**Auto-features**:
+
+- Automatically shows placeholder icon when `src` is null/undefined
+- Clickable image opens preview modal via `ImagePreview` component
+- Consistent sizing (60px × 60px container with 100px × 100px image)
+- Hover effects for better UX (opacity transition)
+
+**When to use**:
+
+- Displaying photos/images in table columns
+- When you need image preview on click
+- For consistent image display across tables
+
+**When NOT to use**:
+
+- For avatars (use `Column.Flex` instead)
+- For file attachments (use `Column.Attachment` instead)
+
+### Complete Column Example
+
+```typescript
+'use client'
+
+import { useMemo } from 'react'
+import { ColumnDef } from '@tanstack/react-table'
+import { useTranslations } from 'next-intl'
+
+import { Column } from '@/components/data-table/columns'
+import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header'
+import { createRowActions, DataTableRowActions } from '@/components/data-table/data-table-row-actions'
+
+import { Feature } from '@/query/{feature}/{feature}-types'
+import { DataTableRowAction } from '@/types/data-table'
+
+export function useFeatureColumns({
+  permissions = { delete: true, edit: true, view: true }, // ⚠️ CRITICAL: Permissions defaults MUST be true
+  setRowAction
+}: FeatureColumnsProps): ColumnDef<Feature>[] {
+  const tColumns = useTranslations('features.table.columns')
+  const tStatus = useTranslations('enums.status.enum')
+
+  return useMemo(
+    () => [
+      // ========================================================================
+      // ID COLUMN
+      // ========================================================================
+      {
+        accessorKey: 'id',
+        cell: ({ row }) => (
+          <Column.Text
+            text={row.original.id.toString().padStart(2, '0')}
+            variant="id"
+          />
+        ),
+        enableHiding: true,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title={tColumns('id')} />
+        ),
+        id: 'id',
+        maxSize: 120,
+        minSize: 120,
+        size: 120
+      },
+
+      // ========================================================================
+      // NAME COLUMN (with avatar)
+      // ========================================================================
+      {
+        accessorKey: 'name',
+        cell: ({ row }) => {
+          const feature = row.original
+          return (
+            <Column.Flex
+              avatar={feature.image_url || undefined}
+              avatarFallback={feature.name.charAt(0).toUpperCase()}
+              title={feature.name}
+            />
+          )
+        },
+        enableColumnFilter: true,
+        enableHiding: true,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title={tColumns('name')} />
+        ),
+        id: 'name'
+      },
+
+      // ========================================================================
+      // EMAIL COLUMN
+      // ========================================================================
+      {
+        accessorKey: 'email',
+        cell: ({ row }) => (
+          <Column.Text text={row.original.email} variant="email" />
+        ),
+        enableColumnFilter: true,
+        enableHiding: true,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title={tColumns('email')} />
+        ),
+        id: 'email'
+      },
+
+      // ========================================================================
+      // STATUS COLUMN
+      // ========================================================================
+      {
+        accessorKey: 'status',
+        cell: ({ row }) => {
+          const isActive = row.original.status === 1
+          return (
+            <Column.Chip
+              label={isActive ? tStatus('1') : tStatus('0')}
+              variant={isActive ? 'success' : 'destructive'}
+            />
+          )
+        },
+        enableColumnFilter: true,
+        enableHiding: true,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title={tColumns('status')} />
+        ),
+        id: 'status'
+      },
+
+      // ========================================================================
+      // CREATED DATE COLUMN
+      // ========================================================================
+      {
+        accessorKey: 'created_at',
+        cell: ({ row }) => (
+          <Column.DateColumn value={row.original.created_at} />
+        ),
+        enableHiding: true,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title={tColumns('created')} />
+        ),
+        id: 'created_at'
+      },
+
+      // ========================================================================
+      // ACTIONS COLUMN
+      // ========================================================================
+      {
+        cell: ({ row }) => (
+          <DataTableRowActions
+            actions={createRowActions({
+              delete: {
+                hidden: () => !!!permissions?.delete,
+                onClick: () => setRowAction({ row, variant: 'delete' })
+              },
+              edit: {
+                hidden: () => !!!permissions?.edit,
+                onClick: () => setRowAction({ row, variant: 'update' })
+              },
+              view: {
+                hidden: () => !!!permissions?.view,
+                onClick: () => setRowAction({ row, variant: 'view' })
+              }
+            })}
+            row={row}
+          />
+        ),
+        enableHiding: false,
+        header: () => (
+          <div className="text-center font-semibold">{tColumns('actions')}</div>
+        ),
+        id: 'actions',
+        size: 150
+      }
+    ],
+    [permissions, setRowAction, tColumns, tStatus]
+  )
+}
+```
+
+## Query Params Hook Pattern
+
+**⚠️ CRITICAL: ALWAYS create query parameters in a custom params hook** for the feature. **DO NOT** create query params objects inline in components or tabs. The params hook should be located in `_{feature}/hooks/use-{feature}-params.ts` (e.g., `use-centers-params.ts`).
+
+**⚠️ CRITICAL: Feature params hooks MUST use `useStandardParams` from `@/hooks/use-standard-params`** as it's shared across all features. This ensures consistency and reduces duplication.
+
+**⚠️ CRITICAL: File naming convention**: Hook files MUST be named `use-{feature}-params.ts` (e.g., `use-centers-params.ts`, `use-tenants-params.ts`).
+
+### Standard Query Params
+
+**The `standardParams` from `useStandardParams` already contains ONLY the following three standard parameters:**
+
+- `page` - Current page number
+- `per_page` - Items per page
+- `search` - Search query string
+
+**DO NOT** create a duplicate `standardQueryParams` object - return `standardParams` directly from `useStandardParams`.
+
+**✅ CORRECT: Use useStandardParams in feature params hook**
+
+```typescript
+import { parseAsStringEnum, useQueryState } from 'nuqs'
+import { useStandardParams } from '@/hooks/use-standard-params'
+
+export const useFeatureParams = () => {
+  const { standardParams, setStandardParams } = useStandardParams()
+
+  // Feature-specific filters (not in useStandardParams)
+  const [status, setStatus] = useQueryState(
+    'status',
+    parseAsStringEnum(['0', '1', '']).withDefault('')
+  )
+  const [type, setType] = useQueryState(
+    'type',
+    parseAsStringEnum(['0', '1', '2', '']).withDefault('')
+  )
+
+  return {
+    ...standardParams, // Spread for individual property access (page, per_page, search)
+    setStandardParams,
+    setStatus,
+    setType,
+    standardParams, // Return standardParams as property for direct object access
+    status,
+    type
+  }
+}
+```
+
+**Key Requirements:**
+
+- **File naming**: Hook file MUST be named `use-{feature}-params.ts` (e.g., `use-centers-params.ts`)
+- **Return standardParams directly**: Use spread operator `...standardParams` to return all standard params - DO NOT create a duplicate `standardQueryParams` object
+- **Add feature-specific filters**: Use `useQueryState` for feature-specific filters (status, type, etc.)
+- **No duplication**: `standardParams` from `useStandardParams` already contains only `page`, `per_page`, and `search` - use it directly
+
+**❌ WRONG: Creating query params inline or not using useStandardParams**
+
+```typescript
+// ❌ DON'T: Create query params inline in components
+const [queryParams, setQueryParams] = useState({
+  page: 1,
+  perPage: 15,
+  search: undefined,
+  status: undefined
+})
+
+// ❌ DON'T: Use useState for query params - use nuqs instead
+useEffect(() => {
+  setQueryParams({ page, perPage, search, status })
+}, [page, perPage, search, status])
+
+// ❌ DON'T: Create params hook without using useStandardParams
+export const useFeatureParams = () => {
+  const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(1))
+  const [perPage, setPerPage] = useQueryState(
+    'per_page',
+    parseAsInteger.withDefault(15)
+  )
+  // ... should use useStandardParams instead
+}
+```
+
+**Usage in components/tabs:**
+
+**⚠️ PREFERRED: Use `queryOptions` pattern with `useDataTable` (URL params are auto-detected)**
+
+```typescript
+// ✅ DO: Use queryOptions pattern (preferred) - params are auto-detected from URL
+const {
+  data: featuresData,
+  error,
+  isError,
+  isLoading,
+  pagination,
+  refetch,
+  table
+} = useDataTable({
+  columns,
+  queryOptions: (params) => getAllFeatureQuery(params) // params includes page, per_page, search, and all filter params
+})
+
+<DataTable
+  error={error}
+  isError={isError}
+  isLoading={isLoading}
+  pagination={pagination}
+  refetch={refetch}
+  table={table}
+/>
+```
+
+**Alternative: Legacy pattern with params hook (only if not using queryOptions pattern)**
+
+```typescript
+// ✅ DO: Use params hook when not using queryOptions pattern (legacy)
+const { standardParams, type, status } = useFeatureParams()
+const { data } = useQuery(
+  getFeatureQuery({
+    ...standardParams, // Contains page, per_page, search
+    ...(type && { type }),
+    ...(status && { status })
+  })
+)
+
+// ❌ DON'T: Create query params inline
+const queryParams = { page, per_page: perPage } // Don't do this
+
+// ❌ DON'T: Create duplicate standardQueryParams object
+const standardQueryParams = {
+  page: standardParams.page,
+  per_page: standardParams.per_page,
+  search: standardParams.search
+} // Don't do this - use standardParams directly
+```
+
+**Note**: When using the `queryOptions` pattern with `useDataTable`, params hooks are optional - URL parameters (including filters) are automatically detected and passed to the query function.
+
+## Permission System Integration
+
+### 1. Permission Storage and Access
+
+Permissions are stored in Zustand admin store and accessed via `usePermissions` hook:
+
+**File Structure:**
+
+- `lib/auth/permissions.ts` - Core permission definitions (`PERMISSIONS` constant, `PERMISSION` type, `hasPermission()` function)
+- `lib/auth/permissions-utils.ts` - All permission utilities (validation, role extraction, route protection)
+- `lib/auth/route-permissions.ts` - Route-to-permission mapping
+
+```typescript
+// lib/auth/permissions.ts
+export const PERMISSIONS = {
+  FEATURES_CREATE: 'features.create',
+  FEATURES_DESTROY: 'features.destroy',
+  FEATURES_EXPORT: 'features.export',
+  FEATURES_SHOW: 'features.show',
+  FEATURES_UPDATE: 'features.update',
+  SUPER_ADMIN: 'super-admin'
+} as const
+
+export type PERMISSION = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]
+
+// lib/auth/permissions-utils.ts exports:
+// - PermissionSchema (Zod validation)
+// - validatePermissions() (validates permission arrays)
+// - extractUserPermissions() (extracts permissions from role)
+// - getRequiredPermissionForRoute() (gets permission for route)
+// - isProtectedRoute() (checks if route is protected)
+```
+
+### 2. Permission Checking in Components
+
+**⚠️ CRITICAL: ALWAYS use `useRowActions` hook for permission checking in table components. The hook handles permissions internally and returns computed permission values.**
+
+#### ✅ PREFERRED: useRowActions Hook Pattern
+
+```typescript
+import { useRowActions } from '@/hooks/use-row-actions'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+
+// Constants moved outside component to avoid recreation
+const PERMISSIONS_CONFIG = {
+  delete: PERMISSIONS.FEATURES_DESTROY,
+  update: PERMISSIONS.FEATURES_UPDATE,
+  view: PERMISSIONS.FEATURES_SHOW
+} as const
+
+// ✅ CORRECT: Use useRowActions hook - permissions are computed internally
+const { deleteDialog, permissions, setRowAction } = useRowActions<Feature>({
+  deleteMutationOptions: deleteFeatureMutationOptions,
+  deleteDialogConfig: {
+    title: 'Delete Feature',
+    description: 'Are you sure you want to delete this feature?',
+    itemNameKey: 'item key name'
+  },
+  permissions: PERMISSIONS_CONFIG,
+  redirectOnUpdate: (feature) => `/features/${feature.id}/edit`,
+  redirectOnView: (feature) => `/features/${feature.id}`
+})
+
+// ✅ CORRECT: Pass permissions inline - map update to edit where needed
+const columns = useFeatureColumns({
+  permissions: {
+    delete: permissions.delete,
+    edit: permissions.update, // Map update to edit (columns expect 'edit', hook returns 'update')
+    view: permissions.view
+  },
+  setRowAction
+})
+```
+
+**❌ WRONG: Wrapping columnsPermissions in useMemo**
+
+```typescript
+// ❌ DON'T: useMemo is unnecessary - permissions from useRowActions is already memoized
+const { permissions, setRowAction } = useRowActions<Feature>({
+  permissions: PERMISSIONS_CONFIG
+})
+
+const columnsPermissions = useMemo(
+  () => ({
+    delete: permissions.delete,
+    edit: permissions.update,
+    view: permissions.view
+  }),
+  [permissions.delete, permissions.update, permissions.view]
+)
+
+const columns = useFeatureColumns({
+  permissions: columnsPermissions,
+  setRowAction
+})
+```
+
+**Why this is wrong:**
+
+- The `useRowActions` hook already memoizes `permissions` internally using `useMemo` (lines 97-137 in `hooks/use-row-actions.ts`)
+- Creating a new object from already-memoized properties doesn't need additional memoization
+- Wrapping `columnsPermissions` in `useMemo` creates unnecessary object recreation
+- The hook's internal memoization is sufficient
+
+**✅ CORRECT: Pass permissions inline (map update to edit where needed)**
+
+```typescript
+const { permissions, setRowAction } = useRowActions<Feature>({
+  permissions: PERMISSIONS_CONFIG
+})
+
+// ✅ CORRECT: Pass permissions inline - no useMemo needed
+// Note: useRowActions returns 'update', but columns expect 'edit'
+const columns = useFeatureColumns({
+  permissions: {
+    delete: permissions.delete,
+    edit: permissions.update, // Map update to edit
+    view: permissions.view
+  },
+  setRowAction
+})
+```
+
+**❌ WRONG: Wrapping translation strings in useMemo**
+
+```typescript
+// ❌ DON'T: useMemo is unnecessary - useTranslations returns a stable function reference
+const t = useTranslations('feature.table')
+
+const createButtonText = useMemo(() => t('createButtonText'), [t])
+const searchPlaceholder = useMemo(() => t('searchPlaceholder'), [t])
+
+return (
+  <DataTableToolbar
+    createButtonText={createButtonText}
+    searchPlaceholder={searchPlaceholder}
+    table={table}
+  />
+)
+```
+
+**Why this is wrong:**
+
+- `useTranslations` already returns a stable function reference that doesn't change between renders
+- Wrapping translation calls in `useMemo` creates unnecessary object recreation
+- The translation function itself is memoized by next-intl internally
+- Direct function calls are more efficient and simpler
+
+**✅ CORRECT: Use translation function directly**
+
+```typescript
+const t = useTranslations('feature.table')
+
+return (
+  <DataTableToolbar
+    createButtonText={t('createButtonText')}
+    searchPlaceholder={t('searchPlaceholder')}
+    table={table}
+  />
+)
+```
+
+**❌ WRONG: Manual permission checking in table components**
+
+```typescript
+// ❌ DON'T: Manual usePermissions hook in table components
+import { usePermissions } from '@/hooks/use-permissions'
+
+const { hasPermission } = usePermissions()
+
+// ❌ DON'T: Inline permission checks
+const columns = useFeatureColumns({
+  permissions: {
+    delete: hasPermission(PERMISSIONS.FEATURES_DESTROY),
+    edit: hasPermission(PERMISSIONS.FEATURES_UPDATE),
+    view: hasPermission(PERMISSIONS.FEATURES_SHOW)
+  },
+  setRowAction
+})
+```
+
+**In the columns file**, conditionally create actions and use `hidden` property:
+
+**⚠️ CRITICAL: Follow this pattern - actions should NOT be added to `availableActions` if the user doesn't have permission. Use the `hidden` property as a secondary guard.**
+
+```typescript
+{
+  cell: ({ row }) => {
+    // Define available actions based on permissions
+    const availableActions: {
+      delete?: (row: Feature) => void
+      edit?: (row: Feature) => void
+      view?: (row: Feature) => void
+    } = {}
+
+    // ✅ DO: Only add actions if permission exists, with hidden property
+    if (permissions.view) {
+      availableActions.view = {
+        hidden: () => !permissions.view,
+        onClick: () => setRowAction({ row, variant: 'view' })
+      }
+    }
+
+    if (permissions.edit) {
+      availableActions.edit = {
+        hidden: () => !permissions.edit,
+        onClick: () => setRowAction({ row, variant: 'update' })
+      }
+    }
+
+    if (permissions.delete) {
+      availableActions.delete = {
+        hidden: () => !permissions.delete,
+        onClick: () => setRowAction({ row, variant: 'delete' })
+      }
+    }
+
+    const actions = createRowActions(availableActions)
+    return <DataTableRowActions actions={actions} row={row} />
+  }
+}
+```
+
+**❌ DON'T: Add actions without checking permissions first**
+
+```typescript
+// ❌ WRONG: Do NOT add actions without permission checks
+{
+  cell: ({ row }) => {
+    const actions = createRowActions({
+      // ❌ WRONG: Adding view action without checking permission first
+      view: {
+        onClick: () => setRowAction({ row, variant: 'view' })
+      },
+      edit: {
+        onClick: () => setRowAction({ row, variant: 'update' })
+      },
+      delete: {
+        onClick: () => setRowAction({ row, variant: 'delete' })
+      }
+    })
+    // ❌ WRONG: Action is still created even if user doesn't have permission
+    return <DataTableRowActions actions={actions} row={row} />
+  }
+}
+```
+
+#### ⚠️ ALTERNATIVE: Disabled Pattern (Legacy - Deprecated)
+
+**⚠️ DEPRECATED: This pattern is legacy. Use `useRowActions` hook instead.**
+
+```typescript
+// ⚠️ LEGACY: Use disabled pattern only if maintaining existing code
+// ⚠️ PREFERRED: Use useRowActions hook for new implementations
+const columns = useMemo(
+  () =>
+    FeatureColumns({
+      disabled: {
+        delete: () => !hasPermission(PERMISSIONS.FEATURES_DESTROY),
+        edit: () => !hasPermission(PERMISSIONS.FEATURES_UPDATE),
+        view: () => !hasPermission(PERMISSIONS.FEATURES_SHOW)
+      },
+      setRowAction
+    }),
+  [setRowAction, hasPermission]
+)
+```
+
+#### ❌ WRONG: Do NOT call usePermissions inside FeatureColumns function
+
+```typescript
+// ❌ WRONG: This violates React's Rules of Hooks
+export function useFeatureColumns() {
+  const { hasPermission } = usePermissions() // Don't do this!
+  // ...
+}
+```
+
+#### Reference Implementations
+
+See actual implementations using the permissions pattern:
+
+- [service-centers-columns.tsx](<mdc:app/(app)/vehicles/centers/_centers/columns/service-centers-columns.tsx>) - Full example with permissions pattern
+- [route-shifts-columns.tsx](<mdc:app/(app)/vehicles/_vehicles/columns/route-shifts-columns.tsx>) - Example with permissions pattern
+- [service-centers-table.tsx](<mdc:app/(app)/vehicles/centers/_centers/service-centers-table.tsx>) - Example of passing permissions from parent
+
+// In create buttons (permissions prop handles this automatically)
+<DataTableToolbar
+createButtonHref="/features/create"
+permissions={{
+    create: PERMISSIONS.FEATURES_CREATE,
+    export: PERMISSIONS.FEATURES_EXPORT
+  }}
+/>
+
+// Note: Export button visibility is handled by permissions prop in DataTableToolbar
+
+````
+
+### 3. Permission Naming Convention
+
+Follow RESTful permission naming:
+
+- `{resource}.create` - Create permission
+- `{resource}.destroy` - Delete permission
+- `{resource}.export` - Export permission
+- `{resource}.show` - View/Read permission
+- `{resource}.update` - Edit permission
+- `super-admin` - Bypasses all permissions
+
+### 4. Permission Hierarchy
+
+The system supports super-admin bypass:
+
+```typescript
+hasPermission: (permission: PERMISSION) => {
+  const { adminPermissions } = get()
+  return (
+    adminPermissions.includes(permission) ||
+    adminPermissions.includes(PERMISSIONS.SUPER_ADMIN)
+  )
+}
+````
+
+## Query Pattern
+
+### Query Options
+
+```typescript
+import { queryOptions } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
+import { fetcher } from '@/lib/fetcher'
+import { ENDPOINTS } from '@/query-client'
+import { Feature } from './feature-types'
+
+export const getAllFeatureQuery = (params: unknown) =>
+  queryOptions<API<PaginatedResponse<Feature[]>>, AxiosError<API>>({
+    queryFn: () =>
+      fetcher(ENDPOINTS.FEATURES.GET_ALL, {
+        auth: true,
+        params
+      }),
+    queryKey: ['features', params]
+  })
+
+export const getFeatureByIdQuery = (featureId?: number | string) =>
+  queryOptions<API<Feature>, AxiosError<API>>({
+    queryFn: () =>
+      fetcher(ENDPOINTS.FEATURES.GET_BY_ID(featureId!), {
+        auth: true
+      }),
+    queryKey: ['features', featureId],
+    enabled: !!featureId
+  })
+```
+
+### Mutations
+
+**⚠️ CRITICAL: Export `mutationOptions` from query files, NOT `useMutation` hooks (except hooks that use other hooks).**
+
+```typescript
+// query/{feature}/{feature}-mutations.ts
+import { mutationOptions } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
+import { fetcher } from '@/lib/fetcher'
+import { ENDPOINTS } from '@/query-client'
+
+export const createFeatureMutationOptions = mutationOptions<
+  API,
+  AxiosError<API>,
+  CreateFeatureInput
+>({
+  meta: {
+    invalidatesQuery: [['features']]
+  },
+  mutationFn: async (data) =>
+    fetcher(ENDPOINTS.FEATURES.CREATE, {
+      auth: true,
+      body: data,
+      method: 'POST'
+    })
+})
+
+export const deleteFeatureMutationOptions = mutationOptions<
+  API,
+  AxiosError<API>,
+  number | string
+>({
+  meta: {
+    invalidatesQuery: [['features']]
+  },
+  mutationFn: async (featureId: number | string) =>
+    fetcher(ENDPOINTS.FEATURES.DELETE(featureId), {
+      auth: true,
+      method: 'DELETE'
+    })
+})
+
+// ⚠️ EXCEPTION: If mutation needs useRouter, it can remain as hook
+// export const useCreateFeatureMutation = () => {
+//   const router = useRouter()
+//   return useMutation({
+//     ...createFeatureMutationOptions,
+//     onSuccess: () => router.push('/features')
+//   })
+// }
+```
+
+**In components**, use `useMutation(mutationOptions)`:
+
+```typescript
+import { useMutation } from '@tanstack/react-query'
+import { deleteFeatureMutationOptions } from '@/query/{feature}'
+
+const { mutate: deleteFeature } = useMutation(deleteFeatureMutationOptions)
+```
+
+## Table Configuration
+
+### useDataTable Configuration
+
+**⚠️ PREFERRED: Use `queryOptions` pattern for data tables (queries are handled internally)**
+
+```typescript
+// ✅ CORRECT: Use queryOptions pattern (preferred for server-side queries)
+const {
+  data: featuresData,
+  error,
+  isError,
+  isLoading,
+  pagination,
+  refetch,
+  table,
+  handleSearch
+} = useDataTable({
+  columns, // Column definitions
+  getRowId: (originalRow) => `${originalRow.id}`, // Row ID getter
+  initialState: {
+    columnPinning: { right: ['actions'] }, // Pin actions to right
+  },
+  queryOptions: (params) => getAllFeatureQuery(params) // Query options function
+})
+
+// Query state is available directly from useDataTable
+<DataTable
+  error={error}
+  isError={isError}
+  isLoading={isLoading}
+  pagination={pagination}
+  refetch={refetch}
+  table={table}
+  totalItems={featuresData?.pagination?.total}
+/>
+```
+
+**Note on queryOptions function**: Always use inline functions for `queryOptions`. Do NOT use `useCallback` - `useDataTableQuery` handles memoization internally based on `queryParams`, which changes frequently. Using inline functions is simpler and sufficient.
+
+**Alternative: Data mode (for client-side data only)**
+
+```typescript
+// ✅ CORRECT: Data mode for client-side data (less common)
+const { table, handleSearch } = useDataTable({
+  columns,
+  data: features, // Client-side data array
+  getRowId: (originalRow) => `${originalRow.id}`,
+  initialState: {
+    columnPinning: { right: ['actions'] },
+    pagination: { pageIndex: 0, pageSize: 15 },
+    sorting: [{ desc: true, id: 'id' }]
+  },
+  pageCount: 1 // Required when using data mode with pagination
+})
+```
+
+**❌ WRONG: Explicitly setting manual flags**
+
+```typescript
+// ❌ DON'T: Explicitly set manualFiltering, manualPagination, or manualSorting
+const { table } = useDataTable({
+  columns,
+  data: features?.data?.data || [],
+  getRowId: (originalRow) => `${originalRow.id}`,
+  initialState: { ... },
+  manualFiltering: true,  // ❌ DON'T: Use default (false)
+  manualPagination: true, // ❌ DON'T: Use default (true)
+  manualSorting: false,   // ❌ DON'T: Use default (false)
+  pageCount: features?.data?.pagination?.last_page || 0
+})
+```
+
+### Table Top Bar Configuration
+
+**CRITICAL: Always use the `filters` prop for filter dropdowns. Do NOT manually create Select components in the children prop.**
+
+The `DataTableToolbar` component automatically handles:
+
+- URL state management via `nuqs` for each filter
+- "All" option handling (converts "all" to null)
+- Consistent styling and layout
+- Filter state synchronization
+
+#### Export Configuration
+
+**⚠️ CRITICAL: Export functionality is handled automatically by `DataTableToolbar`. DO NOT create custom export handlers unless you have a very specific custom requirement.**
+
+The `DataTableToolbar` component automatically handles:
+
+- Blob response handling
+- File download creation
+- Toast notifications (success/error)
+- Filter state inclusion in export params (from `filters` prop)
+- Search parameter inclusion (from URL query params, using `searchKey` prop)
+- Pagination parameters exclusion (`page` and `per_page` are automatically filtered out)
+
+**✅ DO: Pass only the endpoint with query parameters in the URL string (without `onExport`)**
+
+```typescript
+<DataTableToolbar
+  exportConfig={
+    canExport && routeShiftId
+      ? {
+          endpoint: `${ENDPOINTS.ROUTE_SHIFT_PASSENGERS.EXPORT}?route_shift_id=${routeShiftId}`,
+          filename: `route-shift-passengers-${routeShiftId}`
+        }
+      : undefined
+  }
+  searchPlaceholder="Search passengers..."
+  table={table}
+/>
+```
+
+**✅ ONLY use `onExport` for completely custom export implementations:**
+
+```typescript
+// ✅ ONLY use onExport for completely custom implementations
+const handleCustomExport = useCallback(async () => {
+  // Custom logic that cannot be handled by standard endpoint pattern
+  await customExportService.exportWithSpecialFormatting()
+}, [])
+
+<DataTableToolbar
+  exportConfig={{
+    endpoint: ENDPOINTS.FEATURES.EXPORT, // Still required even with onExport
+    filename: 'features',
+    onExport: handleCustomExport  // Only use for custom implementations
+  }}
+/>
+```
+
+**❌ DON'T: Create custom `handleExport` function for standard exports**
+
+```typescript
+// ❌ WRONG: Do NOT create custom export handlers for standard exports
+const handleExport = useCallback(async () => {
+  if (!routeShiftId) return
+
+  try {
+    const exportParams = {
+      ...(standardQueryParams.search && { search: standardQueryParams.search }),
+      route_shift_id: routeShiftId
+    }
+
+    const response = await fetcher<Blob>(
+      `${ENDPOINTS.ROUTE_SHIFT_PASSENGERS.EXPORT}?${new URLSearchParams(...).toString()}`,
+      {
+        auth: true,
+        method: 'POST',
+        responseType: 'blob'
+      }
+    )
+
+    if (!response.data) {
+      throw new Error('No data received from export endpoint')
+    }
+
+    const downloadUrl = window.URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = downloadUrl
+    link.download = `route-shift-passengers-${routeShiftId}-${new Date().toISOString().split('T')[0]}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(downloadUrl)
+    toast.success('Export completed successfully')
+  } catch (error) {
+    toast.error('Failed to export passenger data')
+    console.error('Export failed:', error)
+  }
+}, [routeShiftId, standardQueryParams.search])
+
+// ❌ WRONG: Do NOT pass onExport for standard exports
+<DataTableToolbar
+  exportConfig={{
+    endpoint: ENDPOINTS.ROUTE_SHIFT_PASSENGERS.EXPORT,
+    filename: `route-shift-passengers-${routeShiftId}`,
+    onExport: handleExport  // Don't do this for standard exports!
+  }}
+/>
+```
+
+**Key Points:**
+
+- The `DataTableToolbar` automatically includes:
+  - Filter states from the `filters` prop (excluding `page` and `per_page`)
+  - Search parameter from URL query params (using `searchKey` prop, defaults to `'search'`)
+- Pagination parameters (`page` and `per_page`) are automatically excluded from export requests
+- Only pass the endpoint with any required query parameters (like IDs) in the URL string
+- The component handles blob response, file download, and toast notifications automatically
+- Do NOT import `toast` or `fetcher` for standard export functionality
+- Do NOT create `handleExport` callbacks for standard exports
+- Do NOT use `onExport` in `exportConfig` unless you have a very specific custom requirement that cannot be handled by the standard endpoint pattern
+
+#### Complete Table Top Bar Example
+
+```typescript
+<DataTableToolbar
+  createButtonHref="/features/create"
+  createButtonText="Create Feature"
+  exportConfig={
+    canExport
+      ? {
+          endpoint: `${ENDPOINTS.FEATURES.EXPORT}?tenantId=${tenantId}`,
+          filename: 'features'
+        }
+      : undefined
+  }
+  permissions={{
+    create: PERMISSIONS.FEATURES_CREATE,
+    export: PERMISSIONS.FEATURES_EXPORT
+  }}
+      : undefined
+  }
+  filters={[
+    {
+      key: 'type', // This becomes the URL query param key (e.g., ?type=1)
+      label: 'Types', // Used for "All {label}" option text
+      options: typeFilterOptions, // ✅ Use translated options from useMemo
+      placeholder: 'All Types'
+    },
+    {
+      key: 'status',
+      label: 'Statuses',
+      options: statusFilterOptions, // ✅ Use translated options from useMemo
+      placeholder: 'All Statuses'
+    },
+    {
+      key: 'direction',
+      label: 'Directions',
+      options: directionFilterOptions, // ✅ Use translated options from useMemo
+      placeholder: 'All Directions'
+    }
+  ]}
+  searchPlaceholder="Search features..."
+  table={table}
+>
+  {/* Only custom content here, NOT filter Select components */}
+  <DataTableViewOptions table={table} />
+</DataTableToolbar>
+```
+
+#### Filter Configuration Pattern
+
+**⚠️ CRITICAL: When filter options use enum values and translations are requested, use `useTranslations` for the labels, just like in column definitions. By default, use hard-coded English labels.**
+
+1. **Define filter keys in params hook**: Add query state for each filter key in your `use{Feature}Params` hook:
+
+```typescript
+// hooks/{feature}-params.ts
+export const useFeatureParams = () => {
+  const [search, setSearch] = useQueryState(
+    'search',
+    parseAsString.withDefault('')
+  )
+  const [type, setType] = useQueryState('type', parseAsString.withDefault(''))
+  const [direction, setDirection] = useQueryState(
+    'direction',
+    parseAsString.withDefault('')
+  )
+
+  return {
+    search,
+    type,
+    direction
+    // ... other params
+  }
+}
+```
+
+2. **Use filter values in query**: When using `queryOptions` pattern, filter values are automatically passed from URL params. No manual handling needed:
+
+```typescript
+// ✅ CORRECT: queryOptions pattern (preferred) - filters are auto-detected from URL
+const {
+  data: featuresData,
+  error,
+  isError,
+  isLoading,
+  pagination,
+  refetch,
+  table
+} = useDataTable({
+  columns,
+  queryOptions: (params) => getAllFeatureQuery(params) // params automatically includes all URL params (page, per_page, search, type, direction, etc.)
+})
+
+<DataTable
+  error={error}
+  isError={isError}
+  isLoading={isLoading}
+  pagination={pagination}
+  refetch={refetch}
+  table={table}
+/>
+```
+
+**Alternative: Legacy pattern with params hook (only if not using queryOptions pattern)**
+
+```typescript
+// ✅ DO: Legacy pattern - use params hook when not using queryOptions
+const { page, pageSize, search, type, direction } = useFeatureParams()
+
+const { data } = useQuery(
+  getAllFeatureQuery({
+    page,
+    per_page: pageSize,
+    search,
+    ...(type && { type }), // Only include if not empty
+    ...(direction && { direction })
+  })
+)
+```
+
+**Note**: When using the `queryOptions` pattern, filter values from URL are automatically included in the `params` object passed to the query function. No need to manually read them from a params hook.
+
+3. **Configure filters in DataTableToolbar**: The `filters` prop automatically handles URL state. **When using enum values and translations are requested, use `useTranslations` for labels. By default, use hard-coded English labels:**
+
+**✅ CORRECT - Default: Use hard-coded English labels for enum filter options:**
+
+```typescript
+'use client'
+
+import { RouteTypeEnum, TripStatusEnum, RouteDirectionEnum } from '@/types/enums'
+
+export function SomeTab() {
+  // Define filter options with hard-coded English labels
+  const typeFilterOptions = [
+    {
+      key: 'fixed-route',
+      label: 'Fixed Route',
+      value: String(RouteTypeEnum.FIXED_ROUTE)
+    },
+    {
+      key: 'fixed-destination',
+      label: 'Fixed Destination',
+      value: String(RouteTypeEnum.FIXED_DESTINATION)
+    },
+    {
+      key: 'special-request',
+      label: 'Special Request',
+      value: String(RouteTypeEnum.SPECIAL_REQUEST)
+    }
+  ]
+
+  const statusFilterOptions = [
+    {
+      key: 'scheduled',
+      label: 'Scheduled',
+      value: String(TripStatusEnum.SCHEDULED)
+    },
+    {
+      key: 'in-progress',
+      label: 'In Progress',
+        value: String(TripStatusEnum.IN_PROGRESS)
+      },
+      {
+        key: 'completed',
+        label: tTripStatus(`${TripStatusEnum.COMPLETED}`),
+        value: String(TripStatusEnum.COMPLETED)
+      },
+      {
+        key: 'cancelled',
+        label: tTripStatus(`${TripStatusEnum.CANCELLED}`),
+        value: String(TripStatusEnum.CANCELLED)
+      }
+    ],
+    [tTripStatus]
+  )
+
+  return (
+    <DataTableToolbar
+      filters={[
+        {
+          key: 'type', // Must match the key in useQueryState
+          label: 'Types', // Used for "All {label}" option text
+          options: typeFilterOptions, // ✅ Use translated options
+          placeholder: 'All Types'
+        },
+        {
+          key: 'status',
+          label: 'Statuses',
+          options: statusFilterOptions, // ✅ Use translated options
+          placeholder: 'All Statuses'
+        }
+      ]}
+    />
+  )
+}
+```
+
+**❌ DON'T: Hard-code enum labels in filter options**
+
+```typescript
+// ❌ WRONG: Do NOT hard-code enum labels
+const typeFilterOptions = [
+  {
+    key: 'fixed-route',
+    label: 'Fixed Route', // ❌ Hard-coded, not translated
+    value: String(RouteTypeEnum.FIXED_ROUTE)
+  },
+  {
+    key: 'fixed-destination',
+    label: 'Fixed Destination', // ❌ Hard-coded, not translated
+    value: String(RouteTypeEnum.FIXED_DESTINATION)
+  }
+]
+```
+
+**❌ WRONG - Do NOT manually create Select components:**
+
+```typescript
+<DataTableToolbar>
+  <Select onValueChange={...}>
+    <SelectTrigger>...</SelectTrigger>
+    <SelectContent>
+      <SelectItem value="all">All Types</SelectItem>
+      {/* ... */}
+    </SelectContent>
+  </Select>
+</DataTableToolbar>
+```
+
+**Important Notes:**
+
+- **When translations are requested**, use `useTranslations` when filter options use enum values (same pattern as column definitions). **By default, use hard-coded English labels.**
+- When using translations, use `useMemo` to memoize filter options with translation function in dependency array
+- Translation keys should follow the pattern: `enums.{enum_name}` (e.g., `enums.route_type`, `enums.trip_status`)
+- Enum values are used as string keys in translation files (e.g., `"1": "Fixed Route"`)
+- Wrap filter options in `useMemo` to prevent unnecessary re-renders when translations change
+- Ensure translation functions are called before any early returns (hooks must be called unconditionally)
+
+## Row Actions Pattern
+
+**⚠️ CRITICAL: ALL row actions (view, edit, delete, etc.) MUST use `setRowAction` with appropriate variants. DO NOT use separate `onEdit` or `onView` callbacks.**
+
+**⚠️ CRITICAL: Actions should NOT be visible if the user doesn't have permission. Always check permissions before adding actions to `availableActions` and use the `hidden` property as a secondary guard.**
+
+**✅ PREFERRED: Include `hidden` directly in the `createRowActions` object**
+
+The `hidden` property should be included directly in each action object passed to `createRowActions`. This is cleaner and more maintainable than using `.map()` to add `hidden` after creating actions.
+
+**✅ CORRECT: All actions use `setRowAction` and are always defined**
+
+```typescript
+// ✅ DO: Always define actions, use hidden property with !!!permissions?.action pattern
+const actions = createRowActions({
+  view: {
+    hidden: () => !!!permissions?.view,
+    onClick: () => setRowAction({ row, variant: 'view' })
+  },
+  edit: {
+    hidden: () => !!!permissions?.edit,
+    onClick: () => setRowAction({ row, variant: 'update' })
+  },
+  delete: {
+    hidden: () => !!!permissions?.delete,
+    onClick: () => setRowAction({ row, variant: 'delete' })
+  }
+})
+```
+
+**❌ WRONG: Conditional action creation**
+
+```typescript
+// ❌ DON'T: Conditionally create actions with ternary operators
+const actions = createRowActions({
+  delete: permissions.delete
+    ? {
+        hidden: () => !permissions.delete,
+        onClick: () => setRowAction({ row, variant: 'delete' })
+      }
+    : undefined,
+  edit: permissions.edit
+    ? {
+        hidden: () => !permissions.edit,
+        onClick: () => setRowAction({ row, variant: 'update' })
+      }
+    : undefined
+})
+```
+
+**❌ WRONG: Using separate callbacks for edit/view**
+
+```typescript
+// ❌ DON'T: Use separate onEdit/onView callbacks
+type UseColumnsProps = {
+  onEdit?: (id: number) => void // ❌ WRONG
+  onView?: (id: number) => void // ❌ WRONG
+  setRowAction: (action?: DataTableRowAction<T> | null) => void
+}
+
+// ❌ DON'T: Call separate callbacks in actions
+const actions = createRowActions({
+  view: {
+    onClick: () => onView?.(row.original.id) // ❌ WRONG
+  },
+  edit: {
+    onClick: () => onEdit?.(row.original.id) // ❌ WRONG
+  }
+})
+```
+
+```typescript
+// ❌ DON'T: Use .map() to add hidden after createRowActions
+const actions = createRowActions({
+  view: () => setRowAction({ row, variant: 'view' }),
+  edit: () => setRowAction({ row, variant: 'update' })
+}).map((action) => {
+  if (action.id === 'view') {
+    return { ...action, hidden: () => !permissions.view }
+  }
+  return action
+})
+```
+
+### Row Action Variants
+
+Supported variants:
+
+- `view` - View details
+- `edit` - Edit item
+- `delete` - Delete item
+- `accept` - Accept request
+- `reject` - Reject request
+
+### Row Action Handler
+
+**⚠️ CRITICAL: ALWAYS use `useRowActions` hook for row action handling. The hook provides `setRowAction`, `deleteDialog`, and `permissions` automatically.**
+
+**✅ CORRECT: Use useRowActions hook**
+
+```typescript
+// Constants moved outside component to avoid recreation
+const PERMISSIONS_CONFIG = {
+  delete: PERMISSIONS.FEATURES_DESTROY,
+  update: PERMISSIONS.FEATURES_UPDATE,
+  view: PERMISSIONS.FEATURES_SHOW
+} as const
+
+// ✅ DO: Use useRowActions hook for all row actions
+const { deleteDialog, permissions, setRowAction } = useRowActions<Feature>({
+  deleteDialogConfig: {
+    description: 'Are you sure you want to delete this feature?',
+    getItemName: (feature) => feature.name,
+    title: 'Delete Feature'
+  },
+  deleteMutationOptions: deleteFeatureMutationOptions,
+  permissions: PERMISSIONS_CONFIG,
+  redirectOnUpdate: (feature) => `/features/${feature.id}/edit`,
+  redirectOnView: (feature) => `/features/${feature.id}`
+})
+
+// ✅ DO: Pass setRowAction and permissions from hook to columns
+const columns = useFeatureColumns({
+  permissions,
+  setRowAction
+})
+```
+
+**❌ WRONG: Manual setRowAction callback**
+
+```typescript
+// ❌ DON'T: Manual setRowAction callback when useRowActions can be used
+const router = useRouter()
+const { hasPermission } = usePermissions()
+const [deleteItem, setDeleteItem] = useState<Feature | null>(null)
+const [deleteOpen, setDeleteOpen] = useState(false)
+
+const setRowAction = useCallback(
+  (rowAction?: DataTableRowAction<Feature> | null) => {
+    if (!rowAction) return
+    const { row, variant } = rowAction
+    const item = row.original
+    switch (variant) {
+      case 'delete':
+        setDeleteItem(item)
+        setDeleteOpen(true)
+        break
+      case 'update':
+        router.push(`/features/${item.id}/edit`)
+        break
+      // ... other cases
+    }
+  },
+  [router]
+)
+
+// ❌ DON'T: Manual permission checking
+const columns = useFeatureColumns({
+  permissions: {
+    delete: hasPermission(PERMISSIONS.FEATURES_DESTROY),
+    edit: hasPermission(PERMISSIONS.FEATURES_UPDATE),
+    view: hasPermission(PERMISSIONS.FEATURES_SHOW)
+  },
+  setRowAction
+})
+```
+
+**❌ WRONG: Separate callbacks for edit/view**
+
+```typescript
+// ❌ DON'T: Create separate handleEdit/handleView callbacks
+const handleEdit = useCallback(
+  (id: number) => {
+    router.push(`/features/${id}`)
+  },
+  [router]
+)
+
+const handleView = useCallback(
+  (id: number) => {
+    router.push(`/features/${id}`)
+  },
+  [router]
+)
+
+// ❌ DON'T: Pass onEdit/onView to columns
+const columns = useFeatureColumns({
+  onEdit: handleEdit,  // ❌ WRONG - should use setRowAction
+  onView: handleView,  // ❌ WRONG - should use setRowAction
+  permissions: { ... },
+  setRowAction
+})
+```
+
+### Delete Confirmation Dialog Pattern
+
+**⚠️ CRITICAL: ALWAYS use `useRowActions` hook for delete dialog management. The hook handles delete state, dialog rendering, and permissions internally.**
+
+**⚠️ CRITICAL: Delete dialog is automatically rendered by `useRowActions` hook and passed as prop to `DataTable` component. DO NOT manually render `DeleteConfirmationDialog`.**
+
+**✅ CORRECT: Use useRowActions hook pattern**
+
+**Step 1: Export mutationOptions from query layer**
+
+```typescript
+// query/{feature}/{feature}-mutations.ts
+import { mutationOptions } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
+import { fetcher } from '@/lib/fetcher'
+import { ENDPOINTS } from '@/query-client'
+
+export const delete{Feature}MutationOptions = mutationOptions<
+  API,
+  AxiosError<API>,
+  number | string
+>({
+  meta: {
+    invalidatesQuery: [['{feature}']]
+  },
+  mutationFn: async (id) =>
+    fetcher(ENDPOINTS.{FEATURE}.DELETE(id), {
+      auth: true,
+      method: 'DELETE'
+    })
+})
+```
+
+**Step 2: Use useRowActions hook in table component**
+
+**✅ CORRECT: Use useRowActions hook with deleteDialogConfig and deleteMutationOptions**
+
+```typescript
+'use client'
+
+import React from 'react'
+// When translations are requested, add: import { useTranslations } from 'next-intl'
+
+import { DataTable, DataTableToolbar } from '@/components/data-table'
+import { useDataTable } from '@/hooks/use-data-table'
+import { useRowActions } from '@/hooks/use-row-actions'
+import { cn } from '@/utils'
+
+import { useFeatureColumns } from '@/app/(app)/{feature}/_{feature}/columns/{feature}-columns'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { getAllFeatureQuery, Feature, deleteFeatureMutationOptions } from '@/query/{feature}'
+
+// Constants moved outside component to avoid recreation
+const PERMISSIONS_CONFIG = {
+  delete: PERMISSIONS.FEATURES_DESTROY,
+  update: PERMISSIONS.FEATURES_UPDATE,
+  view: PERMISSIONS.FEATURES_SHOW
+} as const
+
+export const FeatureTable: React.FC<{ className?: string }> = ({
+  className
+}) => {
+  // When translations are requested, add:
+  // const tDeleteDialog = useTranslations('{feature}.deleteDialog')
+
+  const { deleteDialog, permissions, setRowAction } = useRowActions<Feature>({
+    deleteDialogConfig: {
+      description: 'Are you sure you want to delete this feature?',
+      getItemName: (feature) => feature.name,
+      title: 'Delete Feature'
+    },
+    deleteMutationOptions: deleteFeatureMutationOptions,
+    permissions: PERMISSIONS_CONFIG,
+    redirectOnUpdate: (feature) => `/features/${feature.id}/edit`,
+    redirectOnView: (feature) => `/features/${feature.id}`
+  })
+
+  const columns = useFeatureColumns({
+    permissions,
+    setRowAction
+  })
+
+  // ... table setup code ...
+
+  return (
+    <main className={cn('relative m-5', className)}>
+      <DataTable
+        deleteDialog={deleteDialog}
+        error={error}
+        isError={isError}
+        isLoading={isLoading}
+        refetch={refetch}
+        table={table}
+        toolbar={...}
+      />
+      {/* When translations are requested, replace hard-coded strings in deleteDialogConfig:
+          deleteDialogConfig: {
+            description: tDeleteDialog('description'),
+            title: tDeleteDialog('title')
+          }
+      */}
+    </main>
+  )
+}
+```
+
+**❌ WRONG: Wrapping deleteDialogConfig in useMemo**
+
+```typescript
+// ❌ DON'T: useMemo is unnecessary - useRowActions hook handles memoization internally
+const DELETE_DIALOG_CONFIG = {
+  description: 'Are you sure you want to delete this feature?',
+  title: 'Delete Feature'
+} as const
+
+export const FeatureTable: React.FC<{ className?: string }> = ({
+  className
+}) => {
+  // ❌ WRONG: useMemo wrapper is unnecessary
+  const deleteDialogConfig = useMemo(
+    () => ({
+      ...DELETE_DIALOG_CONFIG,
+      getItemName: (feature: Feature) => feature.name
+    }),
+    []
+  )
+
+  const { deleteDialog, permissions, setRowAction } = useRowActions<Feature>({
+    deleteDialogConfig, // ❌ WRONG: Pass object directly instead
+    deleteMutationOptions: deleteFeatureMutationOptions,
+    permissions: PERMISSIONS_CONFIG
+  })
+}
+```
+
+**Why this is wrong:**
+
+- The `useRowActions` hook already handles memoization internally using `useCallback` for `getItemName` and `useMemo` for `deleteDialog`
+- Wrapping `deleteDialogConfig` in `useMemo` creates unnecessary object recreation
+- The hook's internal memoization is sufficient and optimized
+- For translation cases, `tDeleteDialog` is stable, so no memoization needed
+
+**❌ WRONG: Manual delete state management and dialog rendering**
+
+```typescript
+// ❌ DON'T: Manual useState for delete state
+const [deleteItem, setDeleteItem] = useState<Feature | null>(null)
+const [deleteOpen, setDeleteOpen] = useState(false)
+
+// ❌ DON'T: Manual setRowAction callback
+const setRowAction = useCallback(
+  (rowAction?: DataTableRowAction<Feature> | null) => {
+    if (rowAction?.variant === 'delete') {
+      setDeleteItem(rowAction.row.original)
+      setDeleteOpen(true)
+    }
+  },
+  []
+)
+
+// ❌ DON'T: Manual DeleteConfirmationDialog rendering
+{deleteItem && (
+  <DeleteConfirmationDialog
+    isOpen={deleteOpen}
+    mutationFnParam={deleteItem.id}
+    mutationOptions={deleteFeatureMutationOptions}
+    onClose={() => setDeleteItem(null)}
+    onOpenChange={setDeleteOpen}
+    title="Delete Feature"
+  />
+)}
+```
+
+**❌ WRONG: Manual permission checking in table components**
+
+```typescript
+// ❌ DON'T: Manual usePermissions hook and inline permission checks
+const { hasPermission } = usePermissions()
+
+const columns = useFeatureColumns({
+  permissions: {
+    delete: hasPermission(PERMISSIONS.FEATURES_DESTROY),
+    edit: hasPermission(PERMISSIONS.FEATURES_UPDATE),
+    view: hasPermission(PERMISSIONS.FEATURES_SHOW)
+  },
+  setRowAction
+})
+```
+
+**Key Points:**
+
+- ✅ **ALWAYS use `useRowActions` hook** - Handles delete state, dialog rendering, and permissions internally
+- ✅ **Pass `deleteDialog` to `DataTable`** - Dialog is rendered automatically by the hook
+- ✅ **Use returned `permissions`** - Permissions are computed internally from permission keys
+- ✅ **Configure via props** - Pass `deleteMutationOptions`, `deleteDialogConfig`, and `permissions` to hook
+- ✅ **No manual state management** - Hook handles `deleteItem` and `deleteOpen` internally
+- ✅ **No manual permission checking** - Hook uses `usePermissions` internally
+- ❌ **DO NOT manually manage delete state** - Use `useRowActions` hook instead
+- ❌ **DO NOT manually render DeleteConfirmationDialog** - Pass `deleteDialog` prop to `DataTable`
+- ❌ **DO NOT use `usePermissions` in table components** - Permissions come from `useRowActions` return value
+- ❌ **DO NOT create custom delete dialog components** - Use `useRowActions` hook pattern
+
+### Translation Support
+
+**✅ CORRECT: Use translation strings directly (not wrapped in functions)**
+
+```typescript
+'use client'
+
+import React from 'react'
+import { useTranslations } from 'next-intl'
+
+import { DataTable, DataTableToolbar } from '@/components/data-table'
+import { useRowActions } from '@/hooks/use-row-actions'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { deleteFeatureMutationOptions, Feature } from '@/query/{feature}'
+
+// Constants moved outside component to avoid recreation
+const PERMISSIONS_CONFIG = {
+  delete: PERMISSIONS.FEATURES_DESTROY,
+  update: PERMISSIONS.FEATURES_UPDATE
+} as const
+
+export const FeatureTable: React.FC = () => {
+  const tDeleteDialog = useTranslations('{feature}.deleteDialog')
+
+  const { deleteDialog, permissions, setRowAction } = useRowActions<Feature>({
+    deleteDialogConfig: {
+      description: tDeleteDialog('description'), // ✅ CORRECT: Direct string value
+      getItemName: (feature) => feature.name,
+      title: tDeleteDialog('title') // ✅ CORRECT: Direct string value
+    },
+    deleteMutationOptions: deleteFeatureMutationOptions,
+    permissions: PERMISSIONS_CONFIG,
+    redirectOnUpdate: (feature) => `/features/${feature.id}/edit`
+  })
+
+  // ... rest of component
+}
+```
+
+**✅ CORRECT: Use translation function when item parameter is needed**
+
+```typescript
+'use client'
+
+import React from 'react'
+import { useTranslations } from 'next-intl'
+
+import { useRowActions } from '@/hooks/use-row-actions'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { deleteRoleMutationOptions, Role } from '@/query/roles'
+
+// Constants moved outside component to avoid recreation
+const PERMISSIONS_CONFIG = {
+  delete: PERMISSIONS.ROLES_DESTROY,
+  update: PERMISSIONS.ROLES_UPDATE
+} as const
+
+export const RolesTable: React.FC = () => {
+  const tDeleteDialog = useTranslations('administration.roles.deleteDialog')
+
+  const { deleteDialog, permissions, setRowAction } = useRowActions<Role>({
+    deleteDialogConfig: {
+      // ✅ CORRECT: Function when translation needs item parameter
+      description: (role) => tDeleteDialog('description', { name: role.name }),
+      getItemName: (role) => role.name,
+      title: tDeleteDialog('title') // ✅ CORRECT: String when no parameter needed
+    },
+    deleteMutationOptions: deleteRoleMutationOptions,
+    permissions: PERMISSIONS_CONFIG
+  })
+
+  // ... rest of component
+}
+```
+
+**❌ WRONG: Wrapping translation strings in functions unnecessarily**
+
+```typescript
+// ❌ DON'T: Wrap translation strings in functions when not needed
+const { deleteDialog } = useRowActions<Feature>({
+  deleteDialogConfig: {
+    description: () => t('delete.description'), // ❌ WRONG: Unnecessary function wrapper
+    title: () => t('delete.title') // ❌ WRONG: Unnecessary function wrapper
+  }
+})
+```
+
+### Tables Without Delete Functionality
+
+**✅ CORRECT: Use useRowActions without deleteDialogConfig and deleteMutationOptions**
+
+```typescript
+'use client'
+
+import React from 'react'
+
+import { DataTable, DataTableToolbar } from '@/components/data-table'
+import { useRowActions } from '@/hooks/use-row-actions'
+
+import { PendingRow } from './types'
+
+export const PendingTable: React.FC = () => {
+  // ✅ CORRECT: No deleteDialogConfig or deleteMutationOptions for tables without delete
+  const { permissions, setRowAction } = useRowActions<PendingRow>({
+    permissions: {
+      accept: true,
+      reject: true,
+      resend: true
+    },
+    // Optional: Add redirects if needed
+    redirectOnView: (row) => `/pending/${row.id}`
+  })
+
+  const columns = usePendingTableColumns({
+    setRowAction,
+    permissions
+  })
+
+  // ... table setup
+
+  return (
+    <DataTable
+      // ✅ CORRECT: No deleteDialog prop when delete not configured
+      table={table}
+      toolbar={<DataTableToolbar table={table} />}
+    />
+  )
+}
+```
+
+### Custom Mutation Handlers
+
+**✅ CORRECT: Use inline mutationOptions for custom handlers**
+
+```typescript
+'use client'
+
+import React from 'react'
+
+import { useRowActions } from '@/hooks/use-row-actions'
+import { Request } from './types'
+
+export const RequestsTable: React.FC = () => {
+  const { deleteDialog, permissions, setRowAction } = useRowActions<Request>({
+    deleteDialogConfig: {
+      description: 'Are you sure you want to delete this request?',
+      getItemName: (request) => `Request #${request.id}`,
+      title: 'Delete Request'
+    },
+    // ✅ CORRECT: Inline mutationOptions for custom handlers
+    deleteMutationOptions: {
+      mutationFn: async (id) => {
+        // Custom delete logic
+        await customDeleteHandler(id)
+        return {
+          data: undefined,
+          statusCode: 200,
+          success: true
+        } as API<undefined>
+      }
+    },
+    permissions: {
+      delete: true,
+      update: true,
+      view: true
+    },
+    redirectOnUpdate: (request) => `/requests/${request.id}/edit`
+  })
+
+  // ... rest of component
+}
+```
+
+**✅ CORRECT: Use onDelete callback for mock/local state updates**
+
+```typescript
+'use client'
+
+import React, { useState } from 'react'
+import { toast } from 'sonner'
+
+import { useRowActions } from '@/hooks/use-row-actions'
+import { FAQ, MOCK_FAQS } from './types'
+
+export const FaqsTable: React.FC = () => {
+  const [faqs, setFaqs] = useState<FAQ[]>(MOCK_FAQS)
+
+  // ✅ CORRECT: Use onDelete callback without deleteDialogConfig for mock data
+  const { permissions, setRowAction } = useRowActions<FAQ>({
+    onDelete: (faq) => {
+      // Mock delete - update local state
+      setFaqs((prev) => prev.filter((f) => f.id !== faq.id))
+      toast.success(`FAQ "${faq.question}" deleted successfully`)
+    },
+    permissions: {
+      delete: true,
+      update: true
+    },
+    redirectOnUpdate: (faq) => `/faq/${faq.id}/edit`
+  })
+
+  // ... rest of component
+}
+```
+
+### Anti-Patterns: Manual Row Action Management
+
+**❌ DON'T: Manual setRowAction callback when useRowActions can be used**
+
+```typescript
+// ❌ WRONG: Manual setRowAction callback
+const router = useRouter()
+const [deleteItem, setDeleteItem] = useState<Feature | null>(null)
+const [deleteOpen, setDeleteOpen] = useState(false)
+
+const setRowAction = useCallback(
+  (rowAction?: DataTableRowAction<Feature> | null) => {
+    if (!rowAction) return
+    const { row, variant } = rowAction
+    const item = row.original
+    switch (variant) {
+      case 'delete':
+        setDeleteItem(item)
+        setDeleteOpen(true)
+        break
+      case 'update':
+        router.push(`/features/${item.id}/edit`)
+        break
+      // ... other cases
+    }
+  },
+  [router]
+)
+```
+
+**✅ DO: Use useRowActions hook**
+
+```typescript
+// Constants moved outside component to avoid recreation
+const PERMISSIONS_CONFIG = {
+  delete: PERMISSIONS.FEATURES_DESTROY,
+  update: PERMISSIONS.FEATURES_UPDATE,
+  view: PERMISSIONS.FEATURES_SHOW
+} as const
+
+// ✅ CORRECT: Use useRowActions hook
+const { deleteDialog, permissions, setRowAction } = useRowActions<Feature>({
+  deleteMutationOptions: deleteFeatureMutationOptions,
+  deleteDialogConfig: {
+    title: 'Delete Feature',
+    description: 'Are you sure you want to delete this feature?',
+    getItemName: (feature) => feature.name
+  },
+  permissions: PERMISSIONS_CONFIG,
+  redirectOnUpdate: (feature) => `/features/${feature.id}/edit`,
+  redirectOnView: (feature) => `/features/${feature.id}`
+})
+```
+
+**❌ DON'T: Manual delete state management**
+
+```typescript
+// ❌ WRONG: Manual useState for delete state
+const [deleteItem, setDeleteItem] = useState<Feature | null>(null)
+const [deleteOpen, setDeleteOpen] = useState(false)
+
+// ❌ WRONG: Manual DeleteConfirmationDialog rendering
+{deleteItem && (
+  <DeleteConfirmationDialog
+    isOpen={deleteOpen}
+    mutationFnParam={deleteItem.id}
+    mutationOptions={deleteFeatureMutationOptions}
+    onClose={() => setDeleteItem(null)}
+    onOpenChange={setDeleteOpen}
+    title="Delete Feature"
+  />
+)}
+```
+
+**✅ DO: Use deleteDialog from useRowActions hook**
+
+```typescript
+// ✅ CORRECT: Delete dialog comes from hook
+const { deleteDialog } = useRowActions<Feature>({
+  deleteMutationOptions: deleteFeatureMutationOptions,
+  deleteDialogConfig: { ... }
+})
+
+// ✅ CORRECT: Pass deleteDialog as prop to DataTable
+<DataTable deleteDialog={deleteDialog} ... />
+```
+
+**❌ DON'T: Manual permission checking in table components**
+
+```typescript
+// ❌ WRONG: Manual usePermissions hook in table component
+const { hasPermission } = usePermissions()
+
+const columns = useFeatureColumns({
+  permissions: {
+    delete: hasPermission(PERMISSIONS.FEATURES_DESTROY),
+    edit: hasPermission(PERMISSIONS.FEATURES_UPDATE),
+    view: hasPermission(PERMISSIONS.FEATURES_SHOW)
+  },
+  setRowAction
+})
+```
+
+**✅ DO: Use permissions from useRowActions hook**
+
+```typescript
+// Constants moved outside component to avoid recreation
+const PERMISSIONS_CONFIG = {
+  delete: PERMISSIONS.FEATURES_DESTROY,
+  update: PERMISSIONS.FEATURES_UPDATE,
+  view: PERMISSIONS.FEATURES_SHOW
+} as const
+
+// ✅ CORRECT: Permissions come from hook
+const { permissions } = useRowActions<Feature>({
+  permissions: PERMISSIONS_CONFIG
+})
+
+const columns = useFeatureColumns({
+  permissions,
+  setRowAction
+})
+```
+
+### Row Actions in Columns
+
+**⚠️ CRITICAL: Always check permissions before adding actions. Actions should NOT be visible if the user doesn't have permission.**
+
+```typescript
+{
+  cell: ({ row }) => {
+    // Define available actions based on permissions
+    const availableActions: {
+      delete?: {
+        hidden?: (row: Feature) => boolean
+        onClick: (row: Feature) => void
+      }
+      edit?: {
+        hidden?: (row: Feature) => boolean
+        onClick: (row: Feature) => void
+      }
+      view?: {
+        hidden?: (row: Feature) => boolean
+        onClick: (row: Feature) => void
+      }
+    } = {}
+
+    // ✅ DO: Only add actions if permission exists, with hidden property
+    if (permissions.view) {
+      availableActions.view = {
+        hidden: () => !permissions.view,
+        onClick: () => setRowAction({ row, variant: 'view' })
+      }
+    }
+
+    if (permissions.edit) {
+      availableActions.edit = {
+        hidden: () => !permissions.edit,
+        onClick: () => setRowAction({ row, variant: 'update' })
+      }
+    }
+
+    if (permissions.delete) {
+      availableActions.delete = {
+        hidden: () => !permissions.delete,
+        onClick: () => setRowAction({ row, variant: 'delete' })
+      }
+    }
+
+    const actions = createRowActions(availableActions)
+    return <DataTableRowActions actions={actions} row={row} />
+  },
+  enableHiding: false,
+  header: () => <div className="text-center font-semibold">Actions</div>,
+  id: 'actions',
+  size: 40
+}
+```
+
+### Accept/Reject Actions Pattern
+
+**Accept and Reject actions** are specialized row actions designed for approval workflows (e.g., request approvals, status changes). They provide built-in loading states, status indicators, and dynamic styling based on the current state of each row.
+
+#### Key Features
+
+- **Loading States**: Shows spinner while mutation is in progress
+- **Status Indicators**: Visual feedback for approved/rejected states
+- **Dynamic Tooltips**: Tooltip text changes based on current state ("Approve", "Approving...", "Approved", "Reject", "Rejecting...", "Rejected")
+- **Conditional Styling**: Opacity and border colors change based on approval status
+- **Permission Support**: Can be conditionally shown/hidden based on permissions
+
+#### Accept/Reject Action Properties
+
+When using `createRowActions`, accept and reject actions support these special properties:
+
+```typescript
+accept?: {
+  disabled?: (row: TData) => boolean        // Disable action for specific rows
+  getStatus?: (row: TData) => number | string | undefined  // Get status value from row
+  isApproved?: (row: TData) => boolean      // Check if row is approved
+  isLoading?: (row: TData) => boolean        // Check if mutation is in progress
+  isRejected?: (row: TData) => boolean      // Check if row is rejected
+  onClick: (row: TData) => void             // Handler function
+}
+
+reject?: {
+  disabled?: (row: TData) => boolean        // Disable action for specific rows
+  getStatus?: (row: TData) => number | string | undefined  // Get status value from row
+  isApproved?: (row: TData) => boolean      // Check if row is approved
+  isLoading?: (row: TData) => boolean        // Check if mutation is in progress
+  isRejected?: (row: TData) => boolean      // Check if row is rejected
+  onClick: (row: TData) => void             // Handler function
+}
+```
+
+#### Complete Example: Accept/Reject Actions
+
+**1. Define mutations with loading states:**
+
+```typescript
+'use client'
+
+import { useMutation } from '@tanstack/react-query'
+import { useCallback } from 'react'
+import { fetcher } from '@/lib/fetcher'
+import { ENDPOINTS } from '@/query-client'
+
+export const useAcceptRequestMutation = () => {
+  return useMutation<API<unknown>, AxiosError<API>, number | string>({
+    meta: {
+      invalidatesQuery: [['requests']]
+    },
+    mutationFn: async (requestId) =>
+      fetcher(ENDPOINTS.REQUESTS.ACCEPT(requestId), {
+        auth: true,
+        method: 'PUT'
+      })
+  })
+}
+
+export const useRejectRequestMutation = () => {
+  return useMutation<API<unknown>, AxiosError<API>, number | string>({
+    meta: {
+      invalidatesQuery: [['requests']]
+    },
+    mutationFn: async (requestId) =>
+      fetcher(ENDPOINTS.REQUESTS.REJECT(requestId), {
+        auth: true,
+        method: 'PUT'
+      })
+  })
+}
+```
+
+**2. Use useRowActions hook with custom callbacks:**
+
+**⚠️ NOTE: With `useRowActions`, you don't need a separate custom hook. The hook handles all row actions internally. For custom mutations like accept/reject, use the `onAccept` and `onReject` callbacks.**
+
+```typescript
+'use client'
+
+import { useState, useCallback } from 'react'
+import { useMutation } from '@tanstack/react-query'
+import { useRowActions } from '@/hooks/use-row-actions'
+import {
+  acceptRequestMutationOptions,
+  rejectRequestMutationOptions
+} from '@/query/requests'
+import { Request } from '@/query/requests/requests-types'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+
+// Constants moved outside component to avoid recreation
+const PERMISSIONS_CONFIG = {
+  accept: PERMISSIONS.REQUESTS_ACCEPT,
+  reject: PERMISSIONS.REQUESTS_REJECT,
+  view: PERMISSIONS.REQUESTS_SHOW
+} as const
+
+export function RequestsTable() {
+  // Track loading state per request ID for accept/reject actions
+  const [acceptingIds, setAcceptingIds] = useState<Set<number | string>>(
+    new Set()
+  )
+  const [rejectingIds, setRejectingIds] = useState<Set<number | string>>(
+    new Set()
+  )
+
+  const acceptMutation = useMutation(acceptRequestMutationOptions)
+  const rejectMutation = useMutation(rejectRequestMutationOptions)
+
+  const { deleteDialog, permissions, setRowAction } = useRowActions<Request>({
+    onAccept: async (request) => {
+      setAcceptingIds((prev) => new Set(prev).add(request.id))
+      try {
+        await acceptMutation.mutateAsync(request.id)
+      } finally {
+        setAcceptingIds((prev) => {
+          const next = new Set(prev)
+          next.delete(request.id)
+          return next
+        })
+      }
+    },
+    onReject: async (request) => {
+      setRejectingIds((prev) => new Set(prev).add(request.id))
+      try {
+        await rejectMutation.mutateAsync(request.id)
+      } finally {
+        setRejectingIds((prev) => {
+          const next = new Set(prev)
+          next.delete(request.id)
+          return next
+        })
+      }
+    },
+    permissions: PERMISSIONS_CONFIG,
+    redirectOnView: (request) => `/requests/${request.id}`
+  })
+
+  // Helper functions to check loading state per request
+  const isAcceptingRequest = useCallback(
+    (requestId: number | string) => acceptingIds.has(requestId),
+    [acceptingIds]
+  )
+
+  const isRejectingRequest = useCallback(
+    (requestId: number | string) => rejectingIds.has(requestId),
+    [rejectingIds]
+  )
+
+  // Use permissions and setRowAction from hook
+  // ...
+}
+```
+
+**3. Use in columns with status checks:**
+
+```typescript
+'use client'
+
+import { useMemo } from 'react'
+import { ColumnDef } from '@tanstack/react-table'
+import { createRowActions, DataTableRowActions } from '@/components/data-table/data-table-row-actions'
+import { Request } from '@/query/requests/requests-types'
+import { DataTableRowAction } from '@/types/data-table'
+
+type RequestColumnsProps = {
+  isAccepting: (requestId: number | string) => boolean
+  isRejecting: (requestId: number | string) => boolean
+  permissions: {
+    accept?: boolean
+    reject?: boolean
+    view?: boolean
+  }
+  setRowAction: (rowAction?: DataTableRowAction<Request> | null) => void
+}
+
+export function useRequestColumns({
+  isAccepting,
+  isRejecting,
+  permissions = {
+    accept: true,
+    reject: true,
+    view: true
+  },
+  setRowAction
+}: RequestColumnsProps): ColumnDef<Request>[] {
+  return useMemo(
+    () => [
+      // ... other columns
+      {
+        cell: ({ row }) => {
+          const request = row.original
+
+          // Define available actions based on permissions
+          const availableActions: {
+            accept?: {
+              disabled?: (row: Request) => boolean
+              isApproved?: (row: Request) => boolean
+              isLoading?: (row: Request) => boolean
+              isRejected?: (row: Request) => boolean
+              onClick: (row: Request) => void
+            }
+            reject?: {
+              disabled?: (row: Request) => boolean
+              isApproved?: (row: Request) => boolean
+              isLoading?: (row: Request) => boolean
+              isRejected?: (row: Request) => boolean
+              onClick: (row: Request) => void
+            }
+            view?: (row: Request) => void
+          } = {}
+
+          // ✅ DO: Only add actions if permission exists
+          if (permissions.view) {
+            availableActions.view = {
+              hidden: () => !permissions.view,
+              onClick: () => setRowAction({ row, variant: 'view' })
+            }
+          }
+
+          if (permissions.accept) {
+            availableActions.accept = {
+              disabled: (row) => row.status === RequestStatusEnum.APPROVED || row.status === RequestStatusEnum.REJECTED,
+              hidden: () => !permissions.accept,
+              isApproved: (row) => row.status === RequestStatusEnum.APPROVED,
+              isLoading: (row) => isAccepting(row.id),
+              isRejected: (row) => row.status === RequestStatusEnum.REJECTED,
+              onClick: (row) => setRowAction({ row, variant: 'accept' })
+            }
+          }
+
+          if (permissions.reject) {
+            availableActions.reject = {
+              disabled: (row) => row.status === RequestStatusEnum.APPROVED || row.status === RequestStatusEnum.REJECTED,
+              hidden: () => !permissions.reject,
+              isApproved: (row) => row.status === RequestStatusEnum.APPROVED,
+              isLoading: (row) => isRejecting(row.id),
+              isRejected: (row) => row.status === RequestStatusEnum.REJECTED,
+              onClick: (row) => setRowAction({ row, variant: 'reject' })
+            }
+          }
+
+          if (permissions.view) {
+            availableActions.view = {
+              hidden: () => !permissions.view,
+              onClick: () => setRowAction({ row, variant: 'view' })
+            }
+          }
+
+          const actions = createRowActions(availableActions)
+
+          return <DataTableRowActions actions={actions} row={row} />
+        },
+        enableHiding: false,
+        header: () => (
+          <div className="text-center font-semibold">
+            Actions
+          </div>
+        ),
+        id: 'actions',
+        size: 150
+      }
+    ],
+    [isAccepting, isRejecting, permissions, setRowAction]
+  )
+}
+```
+
+**4. Use in page component with useRowActions:**
+
+```typescript
+'use client'
+
+import { useState, useCallback } from 'react'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { useRequestColumns } from '@/app/(app)/requests/_requests/columns/requests-columns'
+import { useRowActions } from '@/hooks/use-row-actions'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { getAllRequestsQuery, acceptRequestMutationOptions, rejectRequestMutationOptions } from '@/query/requests'
+import { useDataTable } from '@/hooks/use-data-table'
+import { Request } from '@/query/requests/requests-types'
+
+// Constants moved outside component to avoid recreation
+const PERMISSIONS_CONFIG = {
+  accept: PERMISSIONS.REQUESTS_ACCEPT,
+  reject: PERMISSIONS.REQUESTS_REJECT,
+  view: PERMISSIONS.REQUESTS_SHOW
+} as const
+
+export default function RequestsPage() {
+  const { data, isLoading } = useQuery(getAllRequestsQuery({}))
+
+  // Track loading state per request ID for accept/reject actions
+  const [acceptingIds, setAcceptingIds] = useState<Set<number | string>>(new Set())
+  const [rejectingIds, setRejectingIds] = useState<Set<number | string>>(new Set())
+
+  const acceptMutation = useMutation(acceptRequestMutationOptions)
+  const rejectMutation = useMutation(rejectRequestMutationOptions)
+
+  const { deleteDialog, permissions, setRowAction } = useRowActions<Request>({
+    onAccept: async (request) => {
+      setAcceptingIds((prev) => new Set(prev).add(request.id))
+      try {
+        await acceptMutation.mutateAsync(request.id)
+      } finally {
+        setAcceptingIds((prev) => {
+          const next = new Set(prev)
+          next.delete(request.id)
+          return next
+        })
+      }
+    },
+    onReject: async (request) => {
+      setRejectingIds((prev) => new Set(prev).add(request.id))
+      try {
+        await rejectMutation.mutateAsync(request.id)
+      } finally {
+        setRejectingIds((prev) => {
+          const next = new Set(prev)
+          next.delete(request.id)
+          return next
+        })
+      }
+    },
+    permissions: PERMISSIONS_CONFIG,
+    redirectOnView: (request) => `/requests/${request.id}`
+  })
+
+  // Helper functions to check loading state per request
+  const isAcceptingRequest = useCallback(
+    (requestId: number | string) => acceptingIds.has(requestId),
+    [acceptingIds]
+  )
+
+  const isRejectingRequest = useCallback(
+    (requestId: number | string) => rejectingIds.has(requestId),
+    [rejectingIds]
+  )
+
+  // ✅ CORRECT: Pass permissions directly from useRowActions
+  const columns = useRequestColumns({
+    isAccepting: isAcceptingRequest,
+    isRejecting: isRejectingRequest,
+    permissions, // ✅ Direct pass - no manual mapping
+    setRowAction
+  })
+
+  const { error, isError, isLoading, pagination, refetch, table } = useDataTable({
+    columns,
+    queryOptions: getAllRequestsQuery
+  })
+
+  return (
+    <DataTable
+      deleteDialog={deleteDialog}
+      error={error}
+      isError={isError}
+      isLoading={isLoading}
+      pagination={pagination}
+      refetch={refetch}
+      table={table}
+    />
+  )
+}
+```
+
+#### Visual Behavior
+
+**Accept Action:**
+
+- **Default state**: Green border, opacity 100%, hover shows success background
+- **Loading state**: Shows spinner, disabled
+- **Approved state**: Green border with full opacity, tooltip shows "Approved"
+- **Rejected state**: Reduced opacity (60%), disabled
+
+**Reject Action:**
+
+- **Default state**: Red border, opacity 100%, hover shows destructive background
+- **Loading state**: Shows spinner, disabled
+- **Rejected state**: Red border with full opacity, tooltip shows "Rejected"
+- **Approved state**: Reduced opacity (60%), disabled
+
+#### Status Checking Patterns
+
+**Pattern 1: Using enum values**
+
+```typescript
+availableActions.accept = {
+  isApproved: (row) => row.status === RequestStatusEnum.APPROVED,
+  isRejected: (row) => row.status === RequestStatusEnum.REJECTED,
+  disabled: (row) =>
+    row.status === RequestStatusEnum.APPROVED ||
+    row.status === RequestStatusEnum.REJECTED,
+  onClick: (row) => setRowAction({ row, variant: 'accept' })
+}
+```
+
+**Pattern 2: Using boolean flags**
+
+```typescript
+availableActions.accept = {
+  isApproved: (row) => row.is_approved === true,
+  isRejected: (row) => row.is_rejected === true,
+  disabled: (row) => row.is_approved || row.is_rejected,
+  onClick: (row) => setRowAction({ row, variant: 'accept' })
+}
+```
+
+**Pattern 3: Using status string**
+
+```typescript
+availableActions.accept = {
+  isApproved: (row) => row.status === 'approved',
+  isRejected: (row) => row.status === 'rejected',
+  disabled: (row) => ['approved', 'rejected'].includes(row.status),
+  onClick: (row) => setRowAction({ row, variant: 'accept' })
+}
+```
+
+#### Loading State Tracking
+
+**Option 1: Track pending mutations per ID (Recommended)**
+
+```typescript
+const [pendingAcceptIds, setPendingAcceptIds] = useState<Set<number | string>>(
+  new Set()
+)
+const [pendingRejectIds, setPendingRejectIds] = useState<Set<number | string>>(
+  new Set()
+)
+
+const { mutate: acceptRequest } = useAcceptRequestMutation({
+  onMutate: (requestId) => {
+    setPendingAcceptIds((prev) => new Set(prev).add(requestId))
+  },
+  onSettled: (_, __, requestId) => {
+    setPendingAcceptIds((prev) => {
+      const next = new Set(prev)
+      next.delete(requestId)
+      return next
+    })
+  }
+})
+
+const isAcceptingRequest = useCallback(
+  (requestId: number | string) => pendingAcceptIds.has(requestId),
+  [pendingAcceptIds]
+)
+```
+
+**Option 2: Use mutation state directly (Simpler, but less granular)**
+
+```typescript
+const { mutate: acceptRequest, isPending: isAccepting } =
+  useAcceptRequestMutation()
+
+// This will show loading for ALL rows when any mutation is pending
+const isAcceptingRequest = useCallback(() => isAccepting, [isAccepting])
+```
+
+#### Best Practices for Accept/Reject Actions
+
+1. **Always disable actions** when row is already approved/rejected to prevent duplicate actions
+2. **Track loading state per row** to show loading indicator only on the specific row being processed
+3. **Use permission checks** before adding accept/reject actions to `availableActions`
+4. **Provide clear visual feedback** - the component handles this automatically with tooltips and styling
+5. **Invalidate queries** after mutations to refresh the table data and update status indicators
+6. **Handle errors gracefully** - mutations should include error handling via `MutationCache` meta options
+
+#### Common Pitfalls
+
+**❌ DON'T: Add accept/reject without status checks**
+
+```typescript
+// ❌ WRONG: No status checking, allows duplicate actions
+availableActions.accept = {
+  onClick: (row) => setRowAction({ row, variant: 'accept' })
+}
+```
+
+**✅ DO: Always check status before allowing actions**
+
+```typescript
+// ✅ CORRECT: Check status and disable when already processed
+availableActions.accept = {
+  disabled: (row) =>
+    row.status === RequestStatusEnum.APPROVED ||
+    row.status === RequestStatusEnum.REJECTED,
+  isApproved: (row) => row.status === RequestStatusEnum.APPROVED,
+  isRejected: (row) => row.status === RequestStatusEnum.REJECTED,
+  onClick: (row) => setRowAction({ row, variant: 'accept' })
+}
+```
+
+**❌ DON'T: Show loading for all rows**
+
+```typescript
+// ❌ WRONG: Shows loading spinner on all rows
+const isAcceptingRequest = () => isAccepting
+```
+
+**✅ DO: Track loading per row ID**
+
+```typescript
+// ✅ CORRECT: Only shows loading on the specific row being processed
+const isAcceptingRequest = useCallback(
+  (requestId: number | string) => pendingAcceptIds.has(requestId),
+  [pendingAcceptIds]
+)
+```
+
+## Best Practices
+
+### 1. Naming Conventions
+
+- **Permissions**: `{RESOURCE}_{ACTION}` (e.g., `TENANTS_CREATE`, `TENANTS_DESTROY`)
+- **Query Options**: `get{Resource}Query`, `get{Resource}ByIdQuery`
+- **Mutations**: `use{Action}{Resource}Mutation` (e.g., `useCreateTenantMutation`)
+- **Column Files**: `{resource}-columns.tsx`
+- **Hooks**: `use{Resource}Params`
+- **Types**: `{Resource}` (e.g., `Tenant`, `Driver`)
+
+### 2. Type Safety
+
+- Always define TypeScript types for data models
+- Use `ColumnDef<TData>` from `@tanstack/react-table`
+- Define proper types for query parameters
+- Type all mutation inputs and outputs
+
+### 3. State Management
+
+- Use `nuqs` for URL-based query state
+- Use `useDataTable` for table state management
+- Use `usePermissions` for permission checks
+- Use React Query for server state
+
+### 4. Performance
+
+- Memoize column definitions with `useMemo`
+- Memoize callbacks with `useCallback`
+- **⚠️ CRITICAL: DO NOT explicitly pass `manualFiltering`, `manualPagination`, or `manualSorting` to `useDataTable`** - The hook provides sensible defaults:
+  - `manualFiltering = false` (client-side filtering)
+  - `manualPagination = true` (server-side pagination)
+  - `manualSorting = false` (client-side sorting)
+- Only pass `pageCount` when you have pagination data (it's required by TypeScript)
+
+### 5. Permission Patterns
+
+1. **Always check permissions** before rendering action buttons
+2. **Actions should NOT be visible** if the user doesn't have permission - check permissions before adding actions to `availableActions` and use the `hidden` property as a secondary guard
+3. **Do NOT add actions without permission checks** - only add actions to `availableActions` if the corresponding permission exists
+4. **Apply permissions to both** create buttons and row actions
+5. **Check permissions server-side** for security
+6. **Use super-admin bypass** for administrative users
+
+### 6. Error Handling and State Management
+
+**⚠️ CRITICAL: ALL error handling MUST be done by the `DataTable` component. DO NOT manually check for errors and return early.**
+
+- **Error States**: The `DataTable` component handles error states internally via the `isError`, `error`, and `refetch` props. **DO NOT** create separate error checks that return early - simply pass these props to the `DataTable` component. **⚠️ CRITICAL: DO NOT use `errorDescription` or `errorTitle` props - error messages are automatically resolved from the error object.**
+
+  ```typescript
+  // ✅ CORRECT: Pass error props to DataTable with toolbar prop (no errorDescription or errorTitle)
+  const {
+    data,
+    error,
+    isError,
+    isLoading,
+    refetch
+  } = useQuery(getAllFeatureQuery(params))
+
+  return (
+    <main className={cn('relative', className)}>
+      <DataTable
+        error={error}
+        isError={isError}
+        isLoading={isLoading}
+        refetch={refetch}
+        toolbar={
+          <DataTableToolbar
+            createButtonHref="/feature/create"
+            table={table}
+          />
+        }
+        table={table}
+      />
+    </main>
+  )
+  ```
+
+  ```typescript
+  // ❌ WRONG: Using errorDescription or errorTitle props
+  <DataTable
+    error={error}
+    errorDescription="An error occurred..."  // ❌ DON'T: Not needed - error messages are auto-resolved
+    errorTitle="Failed to load data"  // ❌ DON'T: Not needed - error messages are auto-resolved
+    isError={isError}
+    refetch={refetch}
+    table={table}
+  />
+  ```
+
+  ```typescript
+  // ❌ WRONG: Manual error check that returns early
+  if (error) {
+    return (
+      <main className={cn('relative', className)}>
+        <DataTableToolbar ... />
+        <NotFound
+          description="Failed to load"
+          title="Failed to load"
+        />
+      </main>
+    )
+  }
+
+  return (
+    <main className={cn('relative', className)}>
+      <DataTable
+        toolbar={<DataTableToolbar ... />}
+        table={table}
+      />
+    </main>
+  )
+  ```
+
+- **Loading States**: The `DataTable` component handles loading states internally via the `isLoading` prop. **DO NOT** create separate loading state checks that return early - simply pass `isLoading={isLoading}` to the `DataTable` component. **DO NOT** use `isFetching` in the `isLoading` prop.
+
+  ```typescript
+  // ❌ DON'T: Create separate loading state check
+  if (isLoading) {
+    return <div>Loading...</div>
+  }
+  return <DataTable isLoading={isLoading} table={table} />
+
+  // ✅ DO: Let DataTable handle loading state
+  return <DataTable isLoading={isLoading} table={table} />
+  ```
+
+- **Empty States**: **ALWAYS pass empty states via the `emptyState` prop** to the `DataTable` component. **DO NOT** create separate empty state checks that return early. Use the `NotFound` component from `@/components/ui/not-found` for empty states. **ALWAYS set `goBack={false}`** when using `NotFound` in the `emptyState` prop to disable the "Go Back" button.
+
+  ```typescript
+  // ❌ DON'T: Create separate empty state check that returns early
+  if (!data?.length && !isLoading && !isFetching) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-center">
+          <p className="mb-2 text-gray-600">No items found</p>
+          <p className="text-sm text-gray-500">Description here</p>
+        </div>
+      </div>
+    )
+  }
+  // or
+  if (!data?.length && !isLoading && !isFetching) {
+    return (
+      <NotFound
+        description="No items found."
+        title="No items found"
+      />
+    )
+  }
+
+  // ✅ DO: Pass empty state via DataTable's emptyState prop with toolbar prop
+  import { NotFound } from '@/components/ui/not-found'
+  import { cn } from '@/utils'
+
+  const {
+    error,
+    isError,
+    refetch
+  } = useQuery(getRouteShiftsQuery(params))
+
+  return (
+    <main className={cn('relative', className)}>
+      <DataTable
+        emptyState={
+          <NotFound
+            description="This vehicle has no assigned route shifts."
+            goBack={false}
+            title="No route shifts found"
+          />
+        }
+        error={error}
+        isError={isError}
+        isLoading={isLoading}
+        refetch={refetch}
+        toolbar={
+          <DataTableToolbar
+            createButtonHref="/feature/create"
+            table={table}
+          />
+        }
+        table={table}
+      />
+    </main>
+  )
+  ```
+
+- **Error States**: **ALWAYS pass error props to the `DataTable` component** (`isError`, `error`, `refetch`). The `DataTable` component handles error states internally via the `DataTableError` component. **DO NOT** create separate error state checks that return early - simply pass error props to `DataTable`. **⚠️ CRITICAL: DO NOT use `errorDescription` or `errorTitle` props - error messages are automatically resolved from the error object.** **DO NOT** create custom error state divs, components, or bespoke retry UIs.
+
+- **Table Instance Props**: **DO NOT add `onTableReady` or similar props to table components.** The table instance is created within the table component itself using `useDataTable`, and there is no need to expose it via props. If you need to access the table instance, it should be handled within the component itself.
+
+  **❌ WRONG: Adding onTableReady prop**
+
+  ```typescript
+  // ❌ DON'T: Add onTableReady prop
+  export interface FeatureTableProps {
+    onTableReady?: (table: TanstackTable<Feature>) => void
+  }
+
+  export const FeatureTable: React.FC<FeatureTableProps> = ({ onTableReady }) => {
+    const { table } = useDataTable({ ... })
+
+    useEffect(() => {
+      if (onTableReady) {
+        onTableReady(table)
+      }
+    }, [table, onTableReady])
+
+    // ...
+  }
+  ```
+
+  **✅ CORRECT: No props needed - table created internally**
+
+  ```typescript
+  // ✅ DO: Create table internally, no props needed
+  import { cn } from '@/utils'
+
+  export const FeatureTable: React.FC<{ className?: string }> = ({
+    className
+  }) => {
+    const { table } = useDataTable({ ... })
+
+    // Table is used internally, no need to expose it
+    return (
+      <main className={cn('relative', className)}>
+        <DataTable
+          toolbar={
+            <DataTableToolbar
+              createButtonHref="/feature/create"
+              table={table}
+            />
+          }
+          table={table}
+        />
+      </main>
+    )
+  }
+  ```
+
+  ```typescript
+  // ❌ DON'T: Create separate error state check that returns early
+  const { error, isError, refetch } = useQuery(get{FeaturePlural}Query(params))
+
+  if (isError) {
+    return (
+      <DataTableError
+        description="An error occurred while loading data. Please try again."
+        error={error}
+        isError={isError}
+        refetch={refetch}
+        title="Failed to load data"
+      />
+    )
+  }
+
+  return <DataTable isLoading={isLoading} table={table} />
+
+  // ❌ DON'T: Create custom error state wrappers or bespoke retry UI
+  if (error) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="bg-content1 mx-auto flex min-w-96 flex-col items-center justify-center gap-4 rounded-lg p-8 text-center">
+          <p className="text-default-500 text-lg">Failed to load data</p>
+          <p className="text-default-400 text-sm">
+            {error instanceof Error ? error.message : 'An error occurred'}
+          </p>
+          <div className="flex gap-2">
+            <Button onClick={() => refetch()}>Retry</Button>
+            <Button onClick={() => window.location.reload()}>Reload Page</Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ✅ DO: Pass error props to DataTable component with toolbar prop
+  import { cn } from '@/utils'
+
+  const {
+    error,
+    isError,
+    refetch
+  } = useQuery(get{FeaturePlural}Query(params))
+
+  return (
+    <main className={cn('relative', className)}>
+      <DataTable
+        error={error}
+        isError={isError}
+        isLoading={isLoading}
+        refetch={refetch}
+        toolbar={
+          <DataTableToolbar
+            createButtonHref="/feature/create"
+            table={table}
+          />
+        }
+        table={table}
+      />
+    </main>
+  )
+  ```
+
+- **State Priority**: Only handle error and empty states separately; let `DataTable` handle loading
+
+### 7. Accessibility
+
+- Use semantic HTML elements
+- Provide proper ARIA labels
+- Ensure keyboard navigation works
+- Use `sr-only` for screen reader text
+
+### 8. Responsive Design
+
+- Use `ResponsiveTableWrapper` for table container
+- Set `min-width` on table (typically 800px)
+- Use `max-height` with horizontal scroll for overflow
+- Consider mobile layouts for filters
+
+## Common Patterns
+
+**⚠️ CRITICAL: All patterns below MUST use Column.{Component} - never use raw HTML or direct component imports.**
+
+### Image/Photo Columns
+
+```typescript
+// ✅ CORRECT: Use Column.Image for simple image display with preview
+{
+  accessorKey: 'photo',
+  cell: ({ row }) => (
+    <Column.Image src={row.original.photo} alt={row.original.title} />
+  ),
+  enableHiding: true,
+  header: ({ column }) => (
+    <DataTableColumnHeader column={column} title="Photo" />
+  ),
+  id: 'photo',
+  size: 80
+}
+
+// ✅ CORRECT: Use Column.Flex for avatar-only display (when you need avatar styling)
+{
+  accessorKey: 'photo',
+  cell: ({ row }) => (
+    <Column.Flex
+      avatar={row.original.photo}
+      avatarFallback={row.original.name.charAt(0).toUpperCase()}
+      avatarShape="square"
+    />
+  ),
+  enableHiding: true,
+  header: ({ column }) => (
+    <DataTableColumnHeader column={column} title="Photo" />
+  ),
+  id: 'photo',
+  size: 80
+}
+
+// ✅ CORRECT: Use Column.Attachment for file attachments (when variant type matters)
+{
+  accessorKey: 'image',
+  cell: ({ row }) => (
+    <Column.Attachment
+      alt={row.original.name}
+      src={row.original.image_url}
+      variant={AttachmentTypeEnum.IMAGE}
+    />
+  ),
+  enableHiding: true,
+  enableSorting: false,
+  header: ({ column }) => (
+    <DataTableColumnHeader column={column} title="Logo" />
+  ),
+  id: 'image',
+  size: 80
+}
+```
+
+### Count Columns with Icons
+
+```typescript
+// ✅ CORRECT: Use Column.Text for count display
+{
+  accessorKey: 'count',
+  cell: ({ row }) => (
+    <Column.Text text={`${row.original.count} items`} />
+  ),
+  enableColumnFilter: true,
+  enableHiding: true,
+  header: ({ column }) => (
+    <DataTableColumnHeader column={column} title="Items" />
+  ),
+  id: 'count',
+  size: 100
+}
+
+// Note: If you need icons, consider using Column.Chip with Icon prop
+{
+  accessorKey: 'count',
+  cell: ({ row }) => (
+    <Column.Chip Icon={UsersIcon} label={`${row.original.users_count} Users`} />
+  ),
+  enableColumnFilter: true,
+  enableHiding: true,
+  header: ({ column }) => (
+    <DataTableColumnHeader column={column} title="Users" />
+  ),
+  id: 'count'
+}
+```
+
+### Status Columns
+
+```typescript
+// ✅ CORRECT: Use Column.Chip with translations
+{
+  accessorKey: 'status',
+  cell: ({ row }) => {
+    const status = row.original.status
+    const isActive = status === 1
+    return (
+      <Column.Chip
+        label={isActive ? tStatus('1') : tStatus('0')}
+        variant={isActive ? 'success' : 'destructive'}
+      />
+    )
+  },
+  enableColumnFilter: true,
+  enableHiding: true,
+  header: ({ column }) => (
+    <DataTableColumnHeader column={column} title="Status" />
+  ),
+  id: 'status',
+  size: 100
+}
+
+// ❌ WRONG: Direct Chip import or hard-coded labels
+cell: ({ row }) => {
+  return <Chip variant="success">{status === 1 ? 'Active' : 'Inactive'}</Chip>
+}
+```
+
+### Type Columns
+
+```typescript
+// ✅ CORRECT: Use Column.Chip with translations
+{
+  accessorKey: 'type',
+  cell: ({ row }) => {
+    const type = row.original.type
+    return (
+      <Column.Chip
+        label={tType(`${type}`)}
+        variant="default"
+      />
+    )
+  },
+  enableColumnFilter: true,
+  enableHiding: true,
+  header: ({ column }) => (
+    <DataTableColumnHeader column={column} title="Type" />
+  ),
+  id: 'type'
+}
+
+// ❌ WRONG: Direct Chip import or conditional rendering
+cell: ({ row }) => (
+  <Chip variant="secondary">
+    {row.original.type.toString() === TypeEnum.TYPE1 ? 'Type 1' : 'Type 2'}
+  </Chip>
+)
+```
+
+### Date Columns
+
+**⚠️⚠️⚠️ MANDATORY: ALL date/time columns MUST use `Column.DateColumn` ⚠️⚠️⚠️**
+
+**This is a non-negotiable requirement. ALL date/time values displayed in table columns MUST use `Column.DateColumn` from `@/components/data-table/columns/date`. No exceptions.**
+
+```typescript
+// ✅ CORRECT: Use Column.DateColumn for all date/time columns
+{
+  accessorKey: 'created_at',
+  cell: ({ row }) => (
+    <Column.DateColumn value={row.original.created_at} />
+  ),
+  enableHiding: true,
+  header: ({ column }) => (
+    <DataTableColumnHeader column={column} title="Created" />
+  ),
+  id: 'created_at'
+}
+
+// ✅ CORRECT: Updated date column
+{
+  accessorKey: 'updated_at',
+  cell: ({ row }) => (
+    <Column.DateColumn value={row.original.updated_at} />
+  ),
+  enableHiding: true,
+  header: ({ column }) => (
+    <DataTableColumnHeader column={column} title="Updated" />
+  ),
+  id: 'updated_at'
+}
+
+// ❌ WRONG: Manual date formatting - STRICTLY FORBIDDEN
+cell: ({ row }) => {
+  const date = new Date(row.original.created_at)
+  return <Column.Text text={date.toLocaleDateString()} />
+}
+
+// ❌ WRONG: Using formatDate directly in cell - STRICTLY FORBIDDEN
+// Use Column.DateColumn instead - it uses formatDate internally
+cell: ({ row }) => {
+  const { date } = formatDate(row.original.created_at)
+  return <Column.Text text={date} />
+}
+
+// ❌ WRONG: Any other date formatting method - STRICTLY FORBIDDEN
+cell: ({ row }) => {
+  return <span>{new Intl.DateTimeFormat().format(new Date(row.original.created_at))}</span>
+}
+```
+
+**Why this is mandatory:**
+
+- **Consistency**: Ensures all dates are formatted identically across the application
+- **Locale support**: Automatic Arabic/English locale detection and formatting
+- **Timezone handling**: Proper client timezone conversion
+- **RTL support**: Correct right-to-left layout for Arabic
+- **Maintainability**: Single source of truth for date formatting logic
+- **User experience**: Smart formatting (Today/Yesterday) improves readability
+
+## Important Note:
+
+Don't add any new permissions in permissions file. If the feature doesn't include a key, add a concise `//@TODO` comment: `//@TODO: Add {resource}.{action} permission`
+
+## Integration Checklist
+
+When creating a new table, ensure:
+
+- [ ] File structure follows pattern
+- [ ] Query options defined in query folder
+- [ ] Mutations defined for all actions
+- [ ] Types defined for all data models
+- [ ] Columns file created with proper structure
+- [ ] Params hook created for URL state
+- [ ] Permissions defined in permissions.ts
+- [ ] Permissions checked in columns and buttons
+- [ ] Row actions handler implemented
+- [ ] Table configured with useDataTable
+- [ ] Page structure follows template
+- [ ] Endpoints defined in ENDPOINTS
+- [ ] Loading and error states handled (pass `isLoading`, `isError`, `error`, `refetch` props to `DataTable` - **DO NOT use `errorDescription` or `errorTitle`**)
+- [ ] Responsive design implemented
+- [ ] Accessibility requirements met

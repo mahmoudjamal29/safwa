@@ -21,5 +21,17 @@
   "loading": "جاري التحميل...",
   "customPeriod": "تخصيص",
   "to": "إلى",
-  "limit": "الحد"
+  "limit": "الحد",
+  "noInvoices": "لا توجد فواتير",
+  "columns": {
+    "product": "المنتج",
+    "unit": "الوحدة",
+    "qty": "الكمية",
+    "minQty": "الحد الأدنى",
+    "invoiceNumber": "رقم الفاتورة",
+    "customer": "العميل",
+    "date": "التاريخ",
+    "status": "الحالة",
+    "total": "الإجمالي"
+  }
 }

@@ -2,15 +2,18 @@
 
 import * as React from 'react'
 
+import { useForm } from '@tanstack/react-form'
+import { useTranslations } from 'next-intl'
+
 import type { Invoice } from '@/query/invoices'
 import { useRecordPayment } from '@/query/payments'
 
 import { fmtCurrency } from '@/utils/formatters'
 
+import { FieldWrapper } from '@/components/form/field-wrapper'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -26,83 +29,110 @@ interface PaymentDialogProps {
 }
 
 export function PaymentDialog({ invoice, onOpenChange, open }: PaymentDialogProps) {
+  const t = useTranslations('invoices')
   const recordPayment = useRecordPayment()
-  const [amount, setAmount] = React.useState('')
-  const [method, setMethod] = React.useState('نقدي')
-  const [note, setNote] = React.useState('')
 
   const remaining = invoice.total - invoice.paid_amount
 
-  React.useEffect(() => {
-    if (!open) {
-      setAmount('')
-      setMethod('نقدي')
-      setNote('')
-    }
-  }, [open])
+  const form = useForm({
+    defaultValues: {
+      amount: '',
+      method: 'نقدي',
+      note: '',
+    },
+    onSubmit: async ({ value }) => {
+      await recordPayment.mutateAsync({
+        amount: parseFloat(value.amount) || 0,
+        customer_id: invoice.customer_id,
+        customer_name: invoice.customer_name,
+        invoice_id: invoice.id,
+        method: value.method,
+        note: value.note || null,
+      })
+      onOpenChange(false)
+    },
+  })
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    await recordPayment.mutateAsync({
-      amount: parseFloat(amount) || 0,
-      customer_id: invoice.customer_id,
-      customer_name: invoice.customer_name,
-      invoice_id: invoice.id,
-      method,
-      note: note || null,
-    })
-    onOpenChange(false)
-  }
+  React.useEffect(() => {
+    if (!open) form.reset()
+  }, [open])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>تسجيل دفعة — فاتورة {invoice.invoice_number}</DialogTitle>
+          <DialogTitle>{t('payment.title')} — {invoice.invoice_number}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            form.handleSubmit()
+          }}
+          className="flex flex-col gap-4"
+        >
           <div className="rounded-lg bg-muted p-3 text-sm flex justify-between">
-            <span className="text-muted-foreground">المتبقي:</span>
+            <span className="text-muted-foreground">{t('payment.remaining')}:</span>
             <span className="font-bold text-red-600">{fmtCurrency(remaining)}</span>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label>المبلغ *</Label>
-            <Input
-              type="number"
-              step="0.01"
-              min="0.01"
-              max={remaining}
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              required
-            />
-          </div>
+          <form.Field name="amount">
+            {(field) => (
+              <FieldWrapper field={field} label={t('payment.amount')} required>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={remaining}
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                  required
+                />
+              </FieldWrapper>
+            )}
+          </form.Field>
 
-          <div className="flex flex-col gap-1.5">
-            <Label>طريقة الدفع</Label>
-            <Select value={method} onValueChange={setMethod}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="نقدي">نقدي</SelectItem>
-                <SelectItem value="تحويل">تحويل</SelectItem>
-                <SelectItem value="شيك">شيك</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <form.Field name="method">
+            {(field) => (
+              <FieldWrapper field={field} label={t('payment.method')}>
+                <Select value={field.state.value} onValueChange={(v) => field.handleChange(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="نقدي">{t('payment.cash')}</SelectItem>
+                    <SelectItem value="تحويل">{t('payment.transfer')}</SelectItem>
+                    <SelectItem value="شيك">{t('payment.check')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldWrapper>
+            )}
+          </form.Field>
 
-          <div className="flex flex-col gap-1.5">
-            <Label>ملاحظة</Label>
-            <Input value={note} onChange={e => setNote(e.target.value)} placeholder="اختياري" />
-          </div>
+          <form.Field name="note">
+            {(field) => (
+              <FieldWrapper field={field} label={t('payment.note')}>
+                <Input
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                  placeholder={t('payment.optional')}
+                />
+              </FieldWrapper>
+            )}
+          </form.Field>
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
-            <Button type="submit" disabled={recordPayment.isPending}>
-              {recordPayment.isPending ? 'جاري التسجيل...' : 'تسجيل الدفعة'}
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {t('payment.cancel')}
             </Button>
+            <form.Subscribe selector={(s) => s.isSubmitting}>
+              {(isSubmitting) => (
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? t('payment.saving') : t('payment.save')}
+                </Button>
+              )}
+            </form.Subscribe>
           </div>
         </form>
       </DialogContent>

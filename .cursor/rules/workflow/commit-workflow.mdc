@@ -1,0 +1,174 @@
+---
+alwaysApply: false
+description: 'Comprehensive workflow for analyzing, planning, and executing git commits with proper categorization, logical grouping, and mandatory user approval before execution.'
+---
+
+# Commit Workflow Process
+
+## Quick Reference
+
+When creating commits, follow this process:
+
+### Step 1: Analyze Changes
+
+```bash
+# Check what files have been modified
+git status
+git diff --name-only
+```
+
+### Step 2: Deep Analysis
+
+Use `@change-analysis.mdc` to:
+
+- ✅ **Categorize changes** by type and scope
+- ✅ **Group related files** together
+- ✅ **Identify dependencies** between changes
+- ✅ **Assess impact** and breaking changes
+
+### Step 3: Plan Commits
+
+Create logical commit groups following `@conventional-commits.mdc`:
+
+- 🚀 **Features** - Group by complete functionality. Use **specific scopes** that reflect the exact feature path (e.g., `feat(routes/shift/history)` not `feat(routes)`)
+- ✨ **Enhancements** - Improvements to existing features, component renames/refactors, or additions that enhance current functionality
+- 🐛 **Bug fixes** - Include all related fixes and tests
+- ♻️ **Refactoring** - Keep structure changes together
+- 🎨 **Styling** - Group visual and UI changes
+- 🔧 **Chores** - Bundle maintenance tasks
+
+**Scope Precision Guidelines:**
+
+- Use **specific, hierarchical scopes** that match the file structure
+- Example: `feat(routes/shift/history)` for route shift history feature
+- Example: `enhance(components/status)` for status component improvements
+- Avoid generic scopes like `feat(routes)` when the change is specific to a sub-feature
+- Match the scope to the actual code location and feature boundary
+
+### Step 4: Review Proposal
+
+**ALWAYS** present commit plan to user:
+
+```
+## Proposed Commits Analysis
+
+### Modified Files Summary
+- **Total Files**: X files
+- **Primary Areas**: [auth, inventory, components, etc.]
+- **Change Types**: [Feature, Fix, Refactor, Style, Chore]
+
+### Recommended Commit Structure
+
+**Commit 1: 🚀 feat(auth/oauth): add OAuth2 integration**
+Files:
+- src/auth/oauth-provider.tsx
+- src/auth/oauth-config.ts
+- src/types/auth.ts
+
+**Commit 2: ✨ enhance(components/status): rename StatusBadge to StatusChip and add label prop**
+Files:
+- components/custom/status-chip.tsx (new)
+- components/custom/status-badge.tsx (updated)
+
+**Commit 3: ✨ enhance(data-table): add permission checks to export functionality**
+Files:
+- components/data-table/data-table-topbar.tsx
+
+### Analysis Reasoning
+- [Explain why files are grouped this way]
+- [Note any dependencies or special considerations]
+- [Highlight any potential concerns]
+- [Verify scope specificity matches actual feature boundaries]
+- [Confirm commit type accuracy (feat vs enhance vs fix)]
+
+**Important Commit Message Guidelines:**
+- **Use specific scopes**: Match the actual feature path (e.g., `routes/shift/history` not just `routes`)
+- **Categorize accurately**:
+  - `feat` = New complete functionality
+  - `enhance` = Improvements, renames, or additions to existing features
+  - `fix` = Bug fixes
+  - `refactor` = Code restructuring without behavior change
+- **Be precise in descriptions**: Focus on what the commit actually does, not what it might enable
+
+**Please review and approve before proceeding.**
+```
+
+### Step 5: Execute After Approval
+
+Only proceed with commits after explicit user approval.
+
+## Common Patterns
+
+### Single Feature Development
+
+```
+🚀 feat(feature/sub-feature): implement complete feature
+├── components/
+├── hooks/
+├── types/
+└── tests/
+
+Example: feat(routes/shift/history): add trip history tab for route shifts
+```
+
+### Bug Fix with Tests
+
+```
+🐛 fix(module): resolve specific issue
+├── buggy-file.tsx
+├── related-utility.ts
+└── test-file.test.ts
+```
+
+### Refactoring Session
+
+```
+♻️ refactor(components): extract reusable components
+├── old-component.tsx (modified)
+├── new-shared-component.tsx (new)
+└── updated-imports.tsx (modified)
+```
+
+### Styling Updates
+
+```
+🎨 style(ui): modernize component appearance
+├── component.tsx
+├── styles.css
+└── theme-config.ts
+```
+
+## Quality Checklist
+
+Before any commit:
+
+- [ ] Files are logically grouped
+- [ ] Commit message follows convention
+- [ ] **Scope is specific and matches feature path** (e.g., `routes/shift/history` not `routes`)
+- [ ] **Commit type is accurate** (feat vs enhance vs fix vs refactor)
+- [ ] **Description precisely describes what the commit does**
+- [ ] Code will build after commit
+- [ ] No unrelated changes mixed
+- [ ] User has approved the plan
+
+## Emergency Procedures
+
+### Quick Bug Fix
+
+```
+🐛 fix(critical): resolve production issue
+- Include minimal necessary changes
+- Add comment explaining urgency
+- Follow up with proper testing
+```
+
+### Work in Progress
+
+```
+🚧 wip(feature): checkpoint development
+- Use sparingly, only for backup
+- Plan to squash before final commit
+- Include detailed description
+```
+
+Remember: **Never commit without user review and approval!**

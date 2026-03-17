@@ -1,0 +1,982 @@
+---
+description: Comprehensive API integration workflow for extracting backend types and generating frontend query files
+globs: query/**/*.ts, backend/Modules/**/*.php
+alwaysApply: false
+---
+
+# API Integration Cursor Rule
+
+## Overview
+
+This rule provides a systematic workflow for integrating backend API endpoints with the frontend, ensuring type safety, consistency, and compliance with all related cursor rules ([react-query.mdc](mdc:.cursor/rules/data-layer/react-query.mdc), [tanstack-form.mdc](mdc:.cursor/rules/ui-components/tanstack-form.mdc), [data-table.mdc](mdc:.cursor/rules/ui-components/data-table.mdc)).
+
+See [code-comments.mdc](mdc:.cursor/rules/_common/code-comments.mdc) for code commenting standards.
+
+## Workflow Steps
+
+### Step 1: Identify Backend Module
+
+**⚠️ CRITICAL: Always use `find backend` command to locate backend files. Do NOT use glob patterns or file search tools that may fail.**
+
+**Location**: `backend/Modules/{ModuleName}/`
+
+**Finding Backend Files - Command Pattern**:
+
+```bash
+# Find controllers (check both Api and Admin directories)
+find backend -type f -name "*{Resource}*Controller.php" 2>/dev/null | head -10
+
+# Find models
+find backend -type f -name "{Resource}.php" -path "*/Models/*" 2>/dev/null | head -10
+
+# Find request classes
+find backend -type f -name "*{Resource}Request.php" 2>/dev/null | head -10
+
+# Find resources
+find backend -type f -name "*{Resource}*Resource.php" 2>/dev/null | head -10
+
+# Find collections
+find backend -type f -name "*{Resource}*Collection.php" 2>/dev/null | head -10
+
+# Find enums
+find backend -type f -name "*{Resource}*Enum.php" 2>/dev/null | head -10
+```
+
+**Examples**:
+
+```bash
+# Find User controller
+find backend -type f -name "*User*Controller.php" 2>/dev/null | head -10
+# Returns:
+# - backend/Modules/User/App/Http/Controllers/Admin/UserController.php
+# - backend/Modules/User/App/Http/Controllers/Api/UserController.php
+
+# Find User model
+find backend -type f -name "User.php" -path "*/Models/*" 2>/dev/null | head -10
+# Returns: backend/Modules/User/App/Models/User.php
+
+# Find User resources
+find backend -type f -name "*User*Resource.php" 2>/dev/null | head -10
+# Returns:
+# - backend/Modules/User/App/resources/Admin/User/UserResource.php
+# - backend/Modules/User/App/resources/Admin/User/BaseUserResource.php
+```
+
+**Required Files to Locate**:
+
+- `App/Http/Controllers/Admin/{Resource}Controller.php` - Controller with endpoint methods
+- `App/Models/{Resource}.php` - Model with fillable/casts/relationships
+- `App/Http/Requests/Admin/{Resource}/Store{Resource}Request.php` - Create validation
+- `App/Http/Requests/Admin/{Resource}/Update{Resource}Request.php` - Update validation
+- `App/resources/Admin/{Resource}/{Resource}Resource.php` - Single resource response
+- `App/resources/Admin/{Resource}/{Resource}Collection.php` - List resource response
+- `App/Enums/*.php` - Enum definitions
+
+**Module Detection Pattern**:
+
+- Check `backend/Modules/` directory structure
+- Identify module name from folder structure
+- Map to frontend feature name (e.g., `Center` → `centers`, `UserGroup` → `user-groups`)
+
+**Why use `find backend`**:
+
+- ✅ **Reliable**: Works even when backend folder structure is complex
+- ✅ **Fast**: Directly searches the backend directory
+- ✅ **Flexible**: Supports wildcards and multiple patterns
+- ✅ **Error handling**: `2>/dev/null` suppresses permission errors
+- ✅ **Limited results**: `| head -10` prevents overwhelming output
+
+**❌ DON'T use**:
+
+- ❌ `glob_file_search` with `backend/**/*.php` patterns (may fail)
+- ❌ `codebase_search` for file paths (slower, less reliable)
+- ❌ Manual path guessing (error-prone)
+
+### Step 2: Extract Endpoint Information
+
+**From Controller** (`{Resource}Controller.php`):
+
+- Extract all public methods (index, show, store, update, destroy, etc.)
+- Identify HTTP methods and route patterns
+- Extract query parameters from `request()->all()` or `$filters`
+- Map to ENDPOINTS structure
+
+**Endpoint Mapping**:
+
+```typescript
+// Controller method → ENDPOINT key
+index() → GET_ALL
+show($id) → GET_BY_ID
+store() → CREATE
+update($id) → UPDATE
+destroy($id) → DELETE
+toggleStatus($id) → PUT_TOGGLE_STATUS
+export() → EXPORT
+```
+
+**Check Existing Endpoints**:
+
+- **MUST** check `query-client/endpoints.ts` before adding new endpoints
+- If endpoint exists in correct location, reuse it
+- If endpoint exists but in wrong location, move it (with user approval)
+- Only add new endpoints if they don't exist
+
+### Step 3: Extract Types from Backend
+
+#### 3.1 Response Types (from Model + Resource)
+
+**From Model** (`{Resource}.php`):
+
+- Extract `$fillable` array → base fields
+- Extract `$casts` array → type mappings
+- Extract `$appends` array → computed fields
+- Extract relationships → nested types
+- Extract `$translatedAttributes` → translation structure
+
+**From Resource** (`{Resource}Resource.php`):
+
+- Extract `toArray()` return structure
+- Identify conditional fields (`whenLoaded`)
+- Map to TypeScript interface structure
+
+**Type Generation Pattern**:
+
+```typescript
+// Base type (list response)
+export type {Resource} = {
+  id: number
+  // From $fillable + $casts
+  status: ZeroOrOneEnum  // If enum with 0/1 values
+  created_at: string | null
+  updated_at: string | null
+  // From $appends
+  image_url: string | null
+  // From relationships (flattened for list)
+  country?: { id: number; name: string }
+}
+
+// Detail type (show response)
+export type {Resource}ById = {Resource} & {
+  translations?: {
+    id: number
+    locale: 'ar' | 'en'
+    name: string
+    // ... other translatable fields
+  }[]
+  // Additional nested relationships
+  images?: Array<{ id: number; image_url: string }>
+}
+```
+
+#### 3.2 Input Types (from Request Classes)
+
+**⚠️ CRITICAL: Validation Rules Extraction**
+
+**MUST extract validation rules from Request classes and use them EXACTLY as defined in backend.**
+
+**From StoreRequest** (`Store{Resource}Request.php`):
+
+- Extract `rules()` array - **MUST extract ALL validation rules**
+- Map validation rules to TypeScript types
+- **MUST mark required fields** (no `?` for required fields)
+- **MUST mark optional fields** (use `?` for nullable/optional fields)
+- Handle translatable fields (ar/en structure)
+- Handle file uploads (`File | null`)
+- Handle enums (map to TypeScript enum or ZeroOrOneEnum)
+
+**Validation Rule Mapping**:
+
+| PHP Validation Rule   | TypeScript Type     | Required?   |
+| --------------------- | ------------------- | ----------- |
+| `'required'`          | `T` (no `?`)        | ✅ Required |
+| `'nullable'`          | `T \| null` or `T?` | ❌ Optional |
+| `'sometimes'`         | `T?`                | ❌ Optional |
+| `'required\|string'`  | `string` (no `?`)   | ✅ Required |
+| `'nullable\|string'`  | `string \| null`    | ❌ Optional |
+| `'required\|integer'` | `number` (no `?`)   | ✅ Required |
+| `'nullable\|integer'` | `number \| null`    | ❌ Optional |
+| `'required\|array'`   | `T[]` (no `?`)      | ✅ Required |
+| `'nullable\|array'`   | `T[] \| null`       | ❌ Optional |
+| `'required\|image'`   | `File` (no `?`)     | ✅ Required |
+| `'nullable\|image'`   | `File \| null`      | ❌ Optional |
+
+**From UpdateRequest** (`Update{Resource}Request.php`):
+
+- Extract `rules()` array - **MUST extract ALL validation rules**
+- Compare with StoreRequest to identify which fields are optional in update
+- Create `Partial<Create{Resource}Input>` type for fields that can be omitted
+- **MUST keep required fields** that are still required in update
+- Handle optional fields
+
+**Input Type Generation Pattern**:
+
+```typescript
+// ✅ CORRECT: Required fields have no `?`, optional fields have `?`
+export type Create{Resource}Input = {
+  // Translatable fields (required)
+  ar: {
+    name: string  // ✅ Required (no ?)
+    description?: string  // ❌ Optional (nullable in backend)
+  }
+  en: {
+    name: string  // ✅ Required (no ?)
+    description?: string  // ❌ Optional (nullable in backend)
+  }
+  // Non-translatable fields
+  phone: string  // ✅ Required (no ?)
+  status: ZeroOrOneEnum  // ✅ Required (no ?)
+  country_id: number  // ✅ Required (no ?)
+  state_id: number  // ✅ Required (no ?)
+  city_id: number  // ✅ Required (no ?)
+  latitude: number  // ✅ Required (no ?)
+  longitude: number  // ✅ Required (no ?)
+  // File uploads
+  image?: File | null  // ❌ Optional (nullable in backend)
+  images?: File[]  // ❌ Optional (nullable in backend)
+}
+
+// Update type - fields that are optional in UpdateRequest become optional
+export type Update{Resource}Input = Partial<Create{Resource}Input> & {
+  id?: number | string  // ID is optional in update (can be in URL)
+}
+```
+
+**⚠️ CRITICAL: Required Field Detection**
+
+**MUST check validation rules to determine if field is required:**
+
+```php
+// PHP Validation Rules
+$rules['phone'] = ['required', 'string', 'max:20'];  // ✅ REQUIRED
+$rules['description'] = ['nullable', 'string', 'max:5000'];  // ❌ OPTIONAL
+$rules['image'] = ['nullable', 'image', 'mimes:jpeg,png,jpg'];  // ❌ OPTIONAL
+```
+
+**TypeScript Type Mapping**:
+
+```typescript
+// ✅ CORRECT: phone is required (no ?)
+phone: string
+
+// ✅ CORRECT: description is optional (has ?)
+description?: string
+
+// ✅ CORRECT: image is optional (has ?)
+image?: File | null
+```
+
+**❌ WRONG: Don't make assumptions about required fields**
+
+```typescript
+// ❌ WRONG: phone should be required (no ?)
+phone?: string
+
+// ❌ WRONG: description should be optional (has ?)
+description: string
+```
+
+#### 3.3 Query Parameters (from Controller methods)
+
+**From Controller** (`index()` method):
+
+- Extract `request()->all()` or `$filters`
+- Extract pagination params (`per_page`, `page`)
+- Extract search params (`search`)
+- Extract filter params (status, type, etc.)
+
+**Params Type Generation Pattern**:
+
+```typescript
+export type {Resource}ListParams = {
+  page?: number
+  per_page?: number
+  search?: string
+  status?: string | number
+  type?: string | number
+  // ... other filter params
+}
+```
+
+#### 3.4 Enum Extraction
+
+**From Enums** (`App/Enums/*.php`):
+
+- Extract enum cases and values
+- Check if enum uses 0/1 values → use `ZeroOrOneEnum`
+- Otherwise, create new enum in `types/enums.ts`
+
+**Enum Detection Pattern**:
+
+```php
+// PHP Enum
+enum CenterStatusEnum: int {
+    case ACTIVE = 1;
+    case INACTIVE = 0;
+}
+```
+
+**TypeScript Enum Generation**:
+
+```typescript
+// If 0/1 values → use ZeroOrOneEnum
+status: ZeroOrOneEnum
+
+// If other values → create new enum in types/enums.ts
+export enum {Resource}StatusEnum {
+  ACTIVE = 1,
+  INACTIVE = 0,
+  PENDING = 2
+}
+```
+
+**Enum Storage Rules**:
+
+- **MUST** check `types/enums.ts` before creating new enum
+- **MUST** use `ZeroOrOneEnum` for any enum with only 0/1 values
+- **MUST** add new enums to `types/enums.ts` if they don't exist
+- **MUST** follow existing enum naming convention (`{Resource}{Field}Enum`)
+
+### Step 4: Generate Query Files
+
+#### 4.1 Types File (`{feature}-types.ts`)
+
+**Location**: `query/{feature}/{feature}-types.ts`
+
+**Structure**:
+
+```typescript
+import type { ZeroOrOneEnum } from '@/types/enums'
+// Import other enums if needed
+import type { {OtherEnum} } from '@/types/enums'
+
+// Base type (list response)
+export type {Resource} = {
+  // ... extracted from Model + Resource
+}
+
+// Detail type (show response)
+export type {Resource}ById = {Resource} & {
+  // ... additional fields from Resource
+}
+
+// Create input type
+export type Create{Resource}Input = {
+  // ... extracted from StoreRequest
+}
+
+// Update input type
+export type Update{Resource}Input = Partial<Create{Resource}Input> & {
+  id?: number | string
+}
+```
+
+**Requirements**:
+
+- **MUST** use `ZeroOrOneEnum` for 0/1 status fields
+- **MUST** use `string | null` for nullable string fields
+- **MUST** use `number` for IDs and numeric fields
+- **MUST** use `File | null` for optional file uploads
+- **MUST** use `File[]` for array file uploads
+- **MUST** follow exact field names from backend (snake_case)
+- **⚠️ CRITICAL: Required Fields** - **MUST NOT** use `?` for required fields (extract from `rules()` array in Request classes)
+- **⚠️ CRITICAL: Optional Fields** - **MUST** use `?` for optional/nullable fields (extract from `rules()` array in Request classes)
+- **⚠️ CRITICAL: Validation Rules** - **MUST** extract validation rules from Request classes and use them to determine required/optional status
+
+#### 4.2 Query File (`{feature}-query.ts`)
+
+**Location**: `query/{feature}/{feature}-query.ts`
+
+**Structure** (following [react-query.mdc](mdc:.cursor/rules/data-layer/react-query.mdc)):
+
+```typescript
+import { queryOptions } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
+import { fetcher } from '@/lib/fetcher'
+import { paginationFallback } from '@/lib/fetcher/utils'
+import { ENDPOINTS } from '@/query-client'
+import { {Resource}, {Resource}ById } from './{feature}-types'
+
+// List query params
+export type {Resource}ListParams = {
+  page?: number
+  per_page?: number
+  search?: string
+  // ... other filter params
+}
+
+// List query
+export const getAll{Resource}Query = (params?: {Resource}ListParams) =>
+  queryOptions<
+    API<PaginatedResponse<{Resource}[]>>,
+    AxiosError<API>,
+    PaginatedResponse<{Resource}[]>
+  >({
+    queryFn: () =>
+      fetcher(ENDPOINTS.{FEATURE}.GET_ALL, {
+        auth: true,
+        params
+      }),
+    queryKey: ['{resource}', params],
+    select: (data) => data.data ?? { data: [], pagination: paginationFallback }
+  })
+
+// Detail query
+export const get{Resource}ByIdQuery = (id?: number | string) =>
+  queryOptions<API<{Resource}ById>, AxiosError<API>, {Resource}ById | undefined>({
+    enabled: !!id,
+    queryFn: () =>
+      fetcher(ENDPOINTS.{FEATURE}.GET_BY_ID(id!), {
+        auth: true
+      }),
+    queryKey: ['{resource}', id],
+    select: (data) => data.data ?? undefined
+  })
+```
+
+**Requirements** (from [react-query.mdc](mdc:.cursor/rules/data-layer/react-query.mdc)):
+
+- **MUST** use `queryOptions` for all queries
+- **MUST** use `select` to transform `API<T>` to `T`
+- **MUST** use `paginationFallback` for paginated queries
+- **MUST** use `enabled` for conditional queries
+- **MUST** include params in `queryKey` array
+- **MUST** use `ENDPOINTS` constant (never string literals)
+
+#### 4.3 Mutations File (`{feature}-mutations.ts`)
+
+**Location**: `query/{feature}/{feature}-mutations.ts`
+
+**Structure** (following [react-query.mdc](mdc:.cursor/rules/data-layer/react-query.mdc)):
+
+```typescript
+import { mutationOptions } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
+import { fetcher } from '@/lib/fetcher'
+import { ENDPOINTS } from '@/query-client'
+import { Create{Resource}Input, Update{Resource}Input } from './{feature}-types'
+
+export const create{Resource}MutationOptions = mutationOptions<
+  API,
+  AxiosError<API>,
+  Create{Resource}Input
+>({
+  meta: {
+    invalidatesQuery: [['{resource}']]
+    // ⚠️ DO NOT add successMessage/errorMessage - messages are handled by backend
+  },
+  mutationFn: async (data) =>
+    fetcher(ENDPOINTS.{FEATURE}.CREATE, {
+      auth: true,
+      body: data,
+      method: 'POST'
+    })
+})
+
+export const update{Resource}MutationOptions = mutationOptions<
+  API,
+  AxiosError<API>,
+  Update{Resource}Input & { id?: number | string }
+>({
+  meta: {
+    invalidatesQuery: [['{resource}']]
+  },
+  mutationFn: async (data) =>
+    fetcher(ENDPOINTS.{FEATURE}.UPDATE(data.id!), {
+      auth: true,
+      body: data,
+      method: 'PUT'
+    })
+})
+
+export const delete{Resource}MutationOptions = mutationOptions<
+  API,
+  AxiosError<API>,
+  number | string
+>({
+  meta: {
+    invalidatesQuery: [['{resource}']]
+  },
+  mutationFn: async (id) =>
+    fetcher(ENDPOINTS.{FEATURE}.DELETE(id), {
+      auth: true,
+      method: 'DELETE'
+    })
+})
+```
+
+**Requirements** (from [react-query.mdc](mdc:.cursor/rules/data-layer/react-query.mdc)):
+
+- **MUST** export `mutationOptions`, NOT `useMutation` hooks
+- **MUST** include `meta.invalidatesQuery` for cache invalidation
+- **MUST NOT** add `successMessage`/`errorMessage` in meta
+- **MUST** use `ENDPOINTS` constant
+- **MUST** use proper HTTP methods (POST, PUT, DELETE)
+
+#### 4.4 Index File (`index.ts`)
+
+**Location**: `query/{feature}/index.ts`
+
+**Structure**:
+
+```typescript
+export * from './{feature}-types'
+export * from './{feature}-query'
+export * from './{feature}-mutations'
+```
+
+### Step 5: Register Query Keys
+
+**Location**: `query-client/query.d.ts`
+
+**Action**: Add new query key to `QueryKey` type union:
+
+```typescript
+export type QueryKey = [
+  (
+    | 'existing-keys'
+    | '{resource}' // Add new key here
+    | (string & {})
+  ),
+  ...ReadonlyArray<unknown>
+]
+```
+
+**Requirements**:
+
+- **MUST** use kebab-case for query keys
+- **MUST** match the resource name used in query files
+- **MUST** add to existing union type (don't replace)
+
+### Step 6: Verify Endpoints
+
+**Location**: `query-client/endpoints.ts`
+
+**Action**:
+
+- Check if endpoints exist for the feature
+- If missing, add following the existing pattern:
+
+```typescript
+{FEATURE}: {
+  GET_ALL: '/{resource}',
+  GET_BY_ID: (id: number | string) => `/{resource}/${id}`,
+  CREATE: '/{resource}',
+  UPDATE: (id: number | string) => `/{resource}/${id}`,
+  DELETE: (id: number | string) => `/{resource}/${id}`,
+  // Additional endpoints (toggle, export, etc.)
+}
+```
+
+**Requirements**:
+
+- **MUST** check existing endpoints before adding
+- **MUST** use consistent naming (GET_ALL, GET_BY_ID, CREATE, UPDATE, DELETE)
+- **MUST** use function syntax for dynamic endpoints
+- **MUST** accept `number | string` for IDs
+
+## Type Extraction Rules
+
+### PHP to TypeScript Type Mapping
+
+| PHP Type       | TypeScript Type     | Notes                       |
+| -------------- | ------------------- | --------------------------- |
+| `int`          | `number`            | IDs, counts, numeric fields |
+| `string`       | `string`            | Text fields                 |
+| `?string`      | `string \| null`    | Nullable strings            |
+| `bool`         | `boolean`           | Boolean fields              |
+| `array`        | `Array<T>` or `T[]` | Arrays                      |
+| `enum` (0/1)   | `ZeroOrOneEnum`     | Status enums with 0/1       |
+| `enum` (other) | `{Resource}Enum`    | Other enums                 |
+| `UploadedFile` | `File \| null`      | File uploads                |
+| `Carbon`       | `string \| null`    | Dates (ISO strings)         |
+
+### Enum Detection Logic
+
+1. **Check enum values**:
+
+- If only `0` and `1` → use `ZeroOrOneEnum`
+- Otherwise → create new enum in `types/enums.ts`
+
+2. **Enum naming**:
+
+- Pattern: `{Resource}{Field}Enum`
+- Example: `CenterStatusEnum`, `UserTypeEnum`
+
+3. **Enum storage**:
+
+- **MUST** add to `types/enums.ts`
+- **MUST** follow existing enum structure
+- **MUST** export from `types/enums.ts`
+
+### Validation Rule Extraction Workflow
+
+**⚠️ CRITICAL: This is a mandatory step that MUST be performed for all Request classes.**
+
+#### Step 1: Extract Rules from StoreRequest
+
+**Example PHP Request**:
+
+```php
+public function rules(): array
+{
+    $rules = [];
+
+    // Translatable fields
+    foreach ($supportedLocales as $locale) {
+        $rules[$locale.'.name'] = ['required', 'string', 'max:255'];
+        $rules[$locale.'.description'] = ['nullable', 'string', 'max:5000'];
+    }
+
+    // Non-translatable fields
+    $rules['phone'] = ['required', 'string', 'max:20', 'regex:/^\+\d{10,15}$/'];
+    $rules['status'] = ['required', 'integer', Rule::in(CenterStatusEnum::getValues())];
+    $rules['country_id'] = ['required', 'integer', 'exists:countries,id'];
+    $rules['image'] = ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:10240'];
+
+    return $rules;
+}
+```
+
+#### Step 2: Map Rules to TypeScript Types
+
+**Required Field Detection**:
+
+- If rule contains `'required'` → field is **REQUIRED** (no `?` in TypeScript)
+- If rule contains `'nullable'` or `'sometimes'` → field is **OPTIONAL** (use `?` in TypeScript)
+
+**TypeScript Type Generation**:
+
+```typescript
+export type CreateCenterInput = {
+  // Translatable fields
+  ar: {
+    name: string // ✅ REQUIRED (no ?) - rule: ['required', 'string', 'max:255']
+    description?: string // ❌ OPTIONAL (has ?) - rule: ['nullable', 'string', 'max:5000']
+  }
+  en: {
+    name: string // ✅ REQUIRED (no ?)
+    description?: string // ❌ OPTIONAL (has ?)
+  }
+  // Non-translatable fields
+  phone: string // ✅ REQUIRED (no ?) - rule: ['required', 'string', 'max:20', 'regex:...']
+  status: ZeroOrOneEnum // ✅ REQUIRED (no ?) - rule: ['required', 'integer', Rule::in(...)]
+  country_id: number // ✅ REQUIRED (no ?) - rule: ['required', 'integer', 'exists:...']
+  image?: File | null // ❌ OPTIONAL (has ?) - rule: ['nullable', 'image', ...]
+}
+```
+
+#### Step 3: Map Rules to Zod Schema
+
+**Zod Schema Generation**:
+
+```typescript
+export const createCenterSchema = () =>
+  z.object({
+    // Translatable fields
+    ar: z.object({
+      name: z
+        .string()
+        .min(1, { message: 'Name (Arabic) is required' }) // ✅ REQUIRED - from 'required'
+        .max(255), // ✅ MAX LENGTH - from 'max:255'
+      description: z
+        .string()
+        .max(5000) // ✅ MAX LENGTH - from 'max:5000'
+        .optional() // ❌ OPTIONAL - from 'nullable'
+    }),
+    en: z.object({
+      name: z
+        .string()
+        .min(1, { message: 'Name (English) is required' }) // ✅ REQUIRED
+        .max(255), // ✅ MAX LENGTH
+      description: z
+        .string()
+        .max(5000) // ✅ MAX LENGTH
+        .optional() // ❌ OPTIONAL
+    }),
+    // Non-translatable fields
+    phone: z
+      .string()
+      .min(1, { message: 'Phone is required' }) // ✅ REQUIRED - from 'required'
+      .max(20) // ✅ MAX LENGTH - from 'max:20'
+      .regex(/^\+\d{10,15}$/, { message: 'Invalid phone format' }), // ✅ REGEX - from 'regex:/^\+\d{10,15}$/'
+    status: z.nativeEnum(ZeroOrOneEnum, {
+      required_error: 'Status is required' // ✅ REQUIRED - from 'required'
+    }), // ✅ ENUM - from 'Rule::in(CenterStatusEnum::getValues())'
+    country_id: z.number({
+      required_error: 'Country is required' // ✅ REQUIRED - from 'required'
+    }), // ✅ INTEGER - from 'integer', exists validation is backend-only
+    image: z
+      .instanceof(File)
+      .optional() // ❌ OPTIONAL - from 'nullable'
+      .nullable() // ✅ NULLABLE - from 'nullable'
+  })
+```
+
+#### Step 4: Validation Rule Mapping Table
+
+**Complete Mapping Reference**:
+
+| PHP Rule                | TypeScript Type     | Zod Schema                    | Required?             |
+| ----------------------- | ------------------- | ----------------------------- | --------------------- |
+| `'required'`            | `T` (no `?`)        | `.min(1)` or no `.optional()` | ✅ Yes                |
+| `'nullable'`            | `T?` or `T \| null` | `.optional().nullable()`      | ❌ No                 |
+| `'sometimes'`           | `T?`                | `.optional()`                 | ❌ No                 |
+| `'required\|string'`    | `string` (no `?`)   | `z.string().min(1)`           | ✅ Yes                |
+| `'nullable\|string'`    | `string?`           | `z.string().optional()`       | ❌ No                 |
+| `'required\|integer'`   | `number` (no `?`)   | `z.number()`                  | ✅ Yes                |
+| `'nullable\|integer'`   | `number?`           | `z.number().optional()`       | ❌ No                 |
+| `'max:255'`             | N/A                 | `.max(255)`                   | N/A                   |
+| `'min:1'`               | N/A                 | `.min(1)`                     | N/A                   |
+| `'regex:/pattern/'`     | N/A                 | `.regex(/pattern/)`           | N/A                   |
+| `'email'`               | N/A                 | `.email()`                    | N/A                   |
+| `Rule::in([...])`       | Enum type           | `.nativeEnum(Enum)`           | Depends on 'required' |
+| `'exists:table,column'` | N/A                 | No frontend validation        | Backend only          |
+| `'image'`               | `File`              | `z.instanceof(File)`          | Depends on 'required' |
+| `'array'`               | `T[]`               | `z.array()`                   | Depends on 'required' |
+| `'array.*'`             | `T[]`               | `z.array(z.string())`         | Array item validation |
+
+#### Step 5: UpdateRequest Handling
+
+**UpdateRequest typically makes fields optional**:
+
+```php
+// UpdateRequest rules() - fields are often optional
+$rules['name'] = ['sometimes', 'string', 'max:255'];  // Optional in update
+$rules['phone'] = ['sometimes', 'string', 'max:20'];  // Optional in update
+```
+
+**TypeScript Type**:
+
+```typescript
+// Update type - all fields become optional
+export type UpdateCenterInput = Partial<CreateCenterInput> & {
+  id?: number | string
+}
+```
+
+**Zod Schema**:
+
+```typescript
+// Update schema - all fields optional
+export const updateCenterSchema = () =>
+  z.object({
+    ar: z
+      .object({
+        name: z.string().max(255).optional(), // Optional in update
+        description: z.string().max(5000).optional()
+      })
+      .optional(),
+    phone: z
+      .string()
+      .max(20)
+      .regex(/^\+\d{10,15}$/)
+      .optional() // Optional in update
+    // ... other fields optional
+  })
+```
+
+### Translatable Fields Pattern
+
+**Backend Structure** (Laravel Translatable):
+
+```php
+$translatedAttributes = ['name', 'description', 'slug'];
+```
+
+**TypeScript Structure** (with validation rules applied):
+
+```typescript
+// In Create/Update input (with required/optional from validation rules)
+ar: {
+  name: string  // ✅ REQUIRED - rule: ['required', 'string', 'max:255']
+  description?: string  // ❌ OPTIONAL - rule: ['nullable', 'string', 'max:5000']
+  slug?: string  // ❌ OPTIONAL - rule: ['nullable', 'string']
+}
+en: {
+  name: string  // ✅ REQUIRED
+  description?: string  // ❌ OPTIONAL
+  slug?: string  // ❌ OPTIONAL
+}
+
+// In response type
+translations?: {
+  id: number
+  locale: 'ar' | 'en'
+  name: string
+  description?: string
+  slug?: string
+}[]
+```
+
+## Compliance with Related Rules
+
+### react-query.mdc Compliance
+
+- ✅ Use `queryOptions` for all queries
+- ✅ Use `select` to transform responses
+- ✅ Use `paginationFallback` for paginated queries
+- ✅ Export `mutationOptions`, not hooks
+- ✅ Include `meta.invalidatesQuery`
+- ✅ Register query keys in `query.d.ts`
+- ✅ Use `ENDPOINTS` constant
+
+### tanstack-form.mdc Compliance
+
+- ✅ Use `ZeroOrOneEnum` for status fields in forms
+- ✅ Map numeric status (0/1) to boolean in form options
+- ✅ Handle file uploads as `File | null`
+- ✅ Handle translatable fields (ar/en structure)
+- **⚠️ CRITICAL: Form Validation Schemas** - **MUST** extract validation rules from Request classes and create Zod schemas that match backend validation exactly
+- **⚠️ CRITICAL: Required Fields in Schemas** - **MUST** use `.min(1)` or appropriate validators for required fields (extract from `rules()` array)
+- **⚠️ CRITICAL: Optional Fields in Schemas** - **MUST** use `.optional()` or `.nullable()` for optional fields (extract from `rules()` array)
+
+**Form Schema Generation Pattern**:
+
+```typescript
+// Extract from StoreRequest rules()
+// PHP: 'name' => ['required', 'string', 'max:255']
+// PHP: 'description' => ['nullable', 'string', 'max:5000']
+// PHP: 'phone' => ['required', 'string', 'regex:/^\+\d{10,15}$/']
+
+export const create{Resource}Schema = () =>
+  z.object({
+    // ✅ CORRECT: Required field (no .optional())
+    name: z.string().min(1, { message: 'Name is required' }).max(255),
+
+    // ✅ CORRECT: Optional field (has .optional())
+    description: z.string().max(5000).optional(),
+
+    // ✅ CORRECT: Required field with regex validation
+    phone: z.string()
+      .min(1, { message: 'Phone is required' })
+      .regex(/^\+\d{10,15}$/, { message: 'Invalid phone format' }),
+
+    // ✅ CORRECT: Required enum field
+    status: z.nativeEnum(ZeroOrOneEnum, {
+      required_error: 'Status is required'
+    }),
+
+    // ✅ CORRECT: Optional file upload
+    image: z.instanceof(File).optional().nullable(),
+  })
+```
+
+**⚠️ CRITICAL: Validation Rule Extraction for Forms**
+
+**MUST extract and map ALL validation rules from Request classes:**
+
+| PHP Validation Rule     | Zod Schema                    | Notes                 |
+| ----------------------- | ----------------------------- | --------------------- |
+| `'required'`            | `.min(1)` or no `.optional()` | Required field        |
+| `'nullable'`            | `.optional().nullable()`      | Optional field        |
+| `'sometimes'`           | `.optional()`                 | Optional field        |
+| `'string'`              | `z.string()`                  | String type           |
+| `'integer'`             | `z.number()`                  | Number type           |
+| `'max:255'`             | `.max(255)`                   | Max length/value      |
+| `'min:1'`               | `.min(1)`                     | Min length/value      |
+| `'email'`               | `.email()`                    | Email validation      |
+| `'regex:/pattern/'`     | `.regex(/pattern/)`           | Regex validation      |
+| `'in:1,2,3'`            | `.enum()` or `.nativeEnum()`  | Enum validation       |
+| `'exists:table,column'` | No frontend validation        | Backend only          |
+| `'image'`               | `z.instanceof(File)`          | File upload           |
+| `'array'`               | `z.array()`                   | Array type            |
+| `'array.*'`             | `z.array(z.string())`         | Array item validation |
+
+### data-table.mdc Compliance
+
+- ✅ Use `ZeroOrOneEnum` for status in table columns
+- ✅ Use `Column.DateColumn` for date fields
+- ✅ Use `Column.Chip` for status badges
+- ✅ Extract filter params for DataTableToolbar
+
+## Manual Review Points
+
+For complex cases, prompt user for review:
+
+1. **Complex Relationships**: When model has many relationships, ask user which to include
+2. **Custom Endpoints**: When controller has non-standard methods, ask user how to map them
+3. **Type Conflicts**: When TypeScript types conflict, show options to user
+4. **Enum Naming**: When enum name is ambiguous, suggest options to user
+5. **Missing Endpoints**: When endpoint doesn't exist in `endpoints.ts`, ask user to confirm addition
+
+## Error Handling
+
+- If backend module not found → show error with suggestions
+- If controller methods unclear → extract what's possible, flag for review
+- If types conflict → show both options, ask user to choose
+- If enum values unclear → default to `ZeroOrOneEnum` if 0/1, otherwise ask user
+
+## Example Workflow
+
+1. User requests: "Integrate API for Centers feature"
+
+2. Rule detects: `backend/Modules/Center/` module
+
+3. Rule extracts:
+
+- Model: `Center.php` → base type
+- Resource: `CenterResource.php` → detail type
+- StoreRequest: `StoreCenterRequest.php` → CreateCenterInput + validation rules
+- UpdateRequest: `UpdateCenterRequest.php` → UpdateCenterInput + validation rules
+- Enum: `CenterStatusEnum.php` → uses ZeroOrOneEnum (0/1 values)
+
+4. Rule analyzes validation rules:
+
+- Extract `rules()` array from StoreRequest
+- Identify required fields (no `?` in TypeScript)
+- Identify optional fields (use `?` in TypeScript)
+- Map validation rules to Zod schema validators
+
+5. Rule generates:
+
+- `query/centers/centers-types.ts` (with required/optional fields correctly marked)
+- `query/centers/centers-query.ts`
+- `query/centers/centers-mutations.ts`
+- `query/centers/index.ts`
+
+6. Rule generates form validation schema (for [tanstack-form.mdc](mdc:.cursor/rules/ui-components/tanstack-form.mdc)):
+
+- Extract validation rules from StoreRequest
+- Create Zod schema matching backend validation exactly
+- Use `.min(1)` for required fields
+- Use `.optional()` for optional fields
+- Map regex patterns, max/min lengths, etc.
+
+7. Rule updates:
+
+- `query-client/query.d.ts` (add 'centers' key)
+- `query-client/endpoints.ts` (verify CENTERS endpoints exist)
+
+8. Rule verifies compliance with all cursor rules:
+
+- ✅ [react-query.mdc](mdc:.cursor/rules/data-layer/react-query.mdc): queryOptions, select, mutationOptions
+- ✅ [tanstack-form.mdc](mdc:.cursor/rules/ui-components/tanstack-form.mdc): validation schemas match backend, required fields marked
+- ✅ [data-table.mdc](mdc:.cursor/rules/ui-components/data-table.mdc): filter params extracted
+
+## File Structure Summary
+
+```
+query/{feature}/
+├── {feature}-types.ts      # Types extracted from backend
+├── {feature}-query.ts      # Query options (following react-query.mdc)
+├── {feature}-mutations.ts  # Mutation options (following react-query.mdc)
+└── index.ts                # Barrel exports
+
+types/
+└── enums.ts                # All enums (including ZeroOrOneEnum)
+
+query-client/
+├── endpoints.ts            # API endpoints (verify before adding)
+└── query.d.ts              # Query key types (register new keys)
+```
+
+## Key Principles
+
+1. **Type Safety First**: Extract exact types from backend, no assumptions
+2. **Rule Compliance**: Follow all related cursor rules strictly
+3. **ZeroOrOneEnum Priority**: Always use for 0/1 enums
+4. **Endpoint Verification**: Never duplicate endpoints, always check first
+5. **Manual Review**: Flag complex cases for user decision
+6. **⚠️ CRITICAL: Validation Rules Match**: **MUST** extract validation rules from Request classes and use them EXACTLY in TypeScript types and Zod schemas
+7. **⚠️ CRITICAL: Required Fields**: **MUST NOT** use `?` for required fields - extract from `rules()` array to determine required/optional status
+8. **⚠️ CRITICAL: Form Validation**: **MUST** create Zod schemas that match backend validation rules exactly (required fields, max/min lengths, regex patterns, etc.)

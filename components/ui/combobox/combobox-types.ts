@@ -1,53 +1,59 @@
-import type { InfiniteQueryOptions, RegularQueryOptions } from '@/types/query'
+import * as React from 'react'
 
-export type ComboboxClassNames = {
-  childrenWrapper?: string
-  content?: string
-  item?: string
-  label?: string
-  trigger?: string
-  wrapper?: string
-}
+import { Popover as PopoverPrimitive } from 'radix-ui'
 
-type ComboboxBaseProps<T extends object> = {
-  classNames?: ComboboxClassNames
+import {
+  DynamicInfiniteQueryOptions,
+  DynamicRegularQueryOptions
+} from '@/types/query'
+
+export type BaseComboboxProps<T extends object> = {
+  classNames?: {
+    childrenWrapper?: string
+    label?: string
+    popoverContent?: string
+    trigger?: string
+    wrapper?: string
+  }
+  closeOnSelect?: boolean
+  customTrigger?: React.ReactNode
   disabled?: boolean
-   
-  getOptionLabel?: (item: T) => string
+  getOptionLabel?: (item: T) => React.ReactNode
   label?: string
   labelKey?: keyof T
   labelKeys?: Array<keyof T>
   onChange?: (value: string | undefined) => void
+  onSearch?: (query: string) => void
+  onSelectItem?: (item: T | undefined) => void
   placeholder?: string
-   
+  popoverContentProps?: React.ComponentProps<typeof PopoverPrimitive.Content>
   renderOption?: (item: T) => React.ReactNode
-   
-  renderSelected?: (item: T) => React.ReactNode
+  renderSelected?: (item: T | undefined) => React.ReactNode
   required?: boolean
   searchDebounceMs?: number
   value?: string
-  valueKey?: keyof T
-}
+  valueKey: keyof T
+} & (
+  | { labelKey: keyof T; labelKeys?: never }
+  | { labelKey?: never; labelKeys: Array<keyof T> }
+)
 
-type ComboboxWithOptions<T extends object> = ComboboxBaseProps<T> & {
-  infinite?: false
-  options: T[]
-  queryOptions?: never
-}
+export type ComboboxProps<T extends object> = BaseComboboxProps<T> &
+  DynamicOption<T>
 
-type ComboboxWithRegularQuery<T extends object> = ComboboxBaseProps<T> & {
-  infinite?: false
-  options?: never
-  queryOptions: RegularQueryOptions<T>
-}
-
-type ComboboxWithInfiniteQuery<T extends object> = ComboboxBaseProps<T> & {
-  infinite: true
-  options?: never
-  queryOptions: InfiniteQueryOptions<T>
-}
-
-export type ComboboxProps<T extends object> =
-  | ComboboxWithOptions<T>
-  | ComboboxWithRegularQuery<T>
-  | ComboboxWithInfiniteQuery<T>
+export type DynamicOption<T extends object> =
+  | {
+      infinite: true
+      options?: never
+      queryOptions: DynamicInfiniteQueryOptions<T>
+    }
+  | {
+      infinite?: false
+      options: T[]
+      queryOptions?: never
+    }
+  | {
+      infinite?: false
+      options?: never
+      queryOptions: DynamicRegularQueryOptions<T>
+    }

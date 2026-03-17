@@ -1,0 +1,1129 @@
+---
+alwaysApply: false
+description: Comprehensive guide for implementing role-based access control (RBAC) permissions system across the application. Provides step-by-step instructions for protecting routes, components, actions, and navigation items with type-safe permission checks. Covers server-side route protection, client-side UI filtering, permission patterns, best practices, and complete implementation examples for new pages.
+---
+
+# Permissions System Implementation Guide
+
+## Overview
+
+This application implements a comprehensive role-based access control (RBAC) system that protects routes at the server level and provides fine-grained permission checks throughout the UI. The system uses TypeScript for type safety and ensures consistent permission handling across all components.
+
+See [code-comments.mdc](mdc:.cursor/rules/_common/code-comments.mdc) for code commenting standards.
+
+**⚠️ MANDATORY:** See [context7-docs.mdc](mdc:.cursor/rules/_common/context7-docs.mdc) for Context7 MCP requirements.
+
+## Architecture Overview
+
+### Core Components
+
+1. **Permission Definitions** (`lib/auth/permissions.ts`)
+   - Centralized permission constants
+   - Type-safe `PERMISSION` type
+   - All permissions follow the pattern: `{resource}.{action}`
+   - Shared `hasPermission(userPermissions, requiredPermission)` helper that also treats `PERMISSIONS.SUPER_ADMIN` as a global override
+
+2. **Permission Utilities** (`lib/auth/permissions-utils.ts`)
+   - `PermissionSchema` Zod enum for validating external permission strings against the canonical permission set
+   - `validatePermissions(permissions)` utility to validate and log invalid permissions from server
+   - `extractUserPermissions(role)` utility to extract permissions from role (handles `permission_type === 'all'` → `[SUPER_ADMIN]`)
+   - `getRequiredPermissionForRoute(pathname)` utility to get the required permission for a route
+   - `isProtectedRoute(pathname)` utility to determine if a route is protected
+
+3. **Route Protection** (`lib/auth/route-permissions.ts`)
+   - Maps route paths to required permissions
+   - Used by `permissions-utils.ts` for route permission checking
+   - Dynamic route pattern matching
+
+4. **Admin Store** (`lib/auth/admin-store.ts`)
+   - Zustand store for client-side admin state
+   - Stores admin data and permissions array
+   - Provides `hasPermission` method for permission checks
+
+5. **Authentication System** (`lib/auth/auth.ts`)
+   - Server-side session management
+   - Route permission checking in middleware
+   - Redirects unauthorized users to `/unauthorized`
+
+6. **Permission Hook** (`hooks/use-permissions.ts`)
+   - React hook for client-side permission checks
+   - Returns `hasPermission` function and loading state
+
+## Permission Flow
+
+### 1. Login Flow
+
+```
+User Login → Server Response → Admin Store Update → Permissions Set
+```
+
+**Implementation:**
+
+```typescript
+// query/auth/auth-mutations.ts
+export function useLoginMutation() {
+  const setAdmin = useAdminStore((state) => state.setAdmin)
+  const setAdminPermissions = useAdminStore(
+    (state) => state.setAdminPermissions
+  )
+
+  return useMutation({
+    mutationFn: async (data) => await signIn(data),
+    onSuccess: (data) => {
+      if (data.success && data.data) {
+        setAdmin(data.data.admin)
+        setAdminPermissions(
+          data.data.admin.role.permission_type === 'all'
+            ? [PERMISSIONS.SUPER_ADMIN]
+            : (data.data.admin.role.permissions ?? [])
+        )
+      }
+    }
+  })
+}
+```
+
+### 2. Route Protection Flow
+
+```
+Request → Middleware → Check Route Permission → Allow/Deny
+```
+
+**Server-side check** (`lib/auth/auth.ts` + `lib/auth/permissions-utils.ts`):
+
+```typescript
+import { hasPermission, PERMISSIONS } from '@/lib/auth/permissions'
+import { isProtectedRoute } from '@/lib/auth/permissions-utils'
+
+// In updateSession function
+const { isProtected, requiredPermission } = isProtectedRoute(
+  !!tab ? `${pathname}?tab=${tab}` : pathname
+)
+
+if (isProtected && requiredPermission) {
+  const userPermissions =
+    sessionData.admin.role.permission_type === 'all'
+      ? [PERMISSIONS.SUPER_ADMIN]
+      : sessionData.admin.role.permissions
+
+  const isAllowed = hasPermission(userPermissions, requiredPermission)
+
+  if (!isAllowed) {
+    // Redirect to /unauthorized
+    return NextResponse.redirect(new URL('/unauthorized', request.url))
+  }
+}
+```
+
+### 3. Client-Side Permission Checks
+
+Components use `usePermissions` hook to conditionally render UI elements:
+
+```typescript
+import { usePermissions } from '@/hooks/use-permissions'
+
+const { hasPermission, isAdminLoading } = usePermissions()
+
+// Check permission before rendering
+if (!hasPermission(PERMISSIONS.ADMINS_SHOW)) {
+  return null
+}
+```
+
+## Implementation Guide for New Pages
+
+### Step 1: Define Required Permissions
+
+Ensure your permission exists in `lib/auth/permissions.ts`:
+
+```typescript
+export const PERMISSIONS = {
+  // ... existing permissions
+  YOUR_RESOURCE_CREATE: 'your-resource.create',
+  YOUR_RESOURCE_SHOW: 'your-resource.show',
+  YOUR_RESOURCE_UPDATE: 'your-resource.update',
+  YOUR_RESOURCE_DESTROY: 'your-resource.destroy'
+} as const
+```
+
+### Step 2: Add Route Protection
+
+Add route-to-permission mapping in `lib/auth/route-permissions.ts`:
+
+```typescript
+export const ROUTE_PERMISSIONS: Record<string, PERMISSION> = {
+  // ... existing routes
+  '/your-resource': PERMISSIONS.YOUR_RESOURCE_SHOW,
+  '/your-resource/create': PERMISSIONS.YOUR_RESOURCE_CREATE,
+  '/your-resource/[id]/edit': PERMISSIONS.YOUR_RESOURCE_UPDATE,
+  '/your-resource/[id]': PERMISSIONS.YOUR_RESOURCE_SHOW
+}
+```
+
+**Important Notes:**
+
+- Use exact path for static routes: `/your-resource`
+- Use `[id]` for dynamic segments: `/your-resource/[id]`
+- Use query params format for tab-based routes: `/administration?tab=admins`
+- The system automatically matches dynamic routes using regex patterns
+
+### Step 3: Protect Navigation Items
+
+Add `requiredPermission` to menu items in `app/(app)/_layout/layout-config.tsx`:
+
+```typescript
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { MenuConfig } from '@/types/sidebar'
+
+export const MENU_SIDEBAR_RESOURCES: MenuConfig = [
+  {
+    children: [
+      {
+        icon: YourIcon,
+        path: '/your-resource',
+        requiredPermission: PERMISSIONS.YOUR_RESOURCE_SHOW,
+        title: 'Your Resource'
+      }
+    ],
+    title: 'CATEGORY'
+  }
+]
+```
+
+**Note:** The sidebar components automatically filter menu items based on permissions.
+
+### Step 4: Protect Page Components
+
+In your page component, check permissions before rendering:
+
+```typescript
+'use client'
+
+import { usePermissions } from '@/hooks/use-permissions'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { NotFound } from '@/components/ui/not-found'
+
+export default function YourResourcePage() {
+  const { hasPermission, isAdminLoading } = usePermissions()
+
+  // Show loading state while permissions are being checked
+  if (isAdminLoading) {
+    return <div>Loading...</div>
+  }
+
+  // Check permission - server will redirect if unauthorized, but double-check client-side
+  if (!hasPermission(PERMISSIONS.YOUR_RESOURCE_SHOW)) {
+    return (
+      <NotFound
+        description="You don't have permission to access this page"
+        title="Unauthorized"
+      />
+    )
+  }
+
+  return (
+    // Your page content
+  )
+}
+```
+
+### Step 5: Protect Table Actions
+
+**⚠️ CRITICAL: ALWAYS use `useRowActions` hook for table permissions and row actions. The hook handles permissions internally and returns computed permission booleans.**
+
+When creating table columns, protect actions based on permissions. **Use the `useRowActions` hook pattern (mandatory)** which centralizes permission checking and row action handling:
+
+#### ✅ MANDATORY: useRowActions Hook Pattern
+
+**Step 1: Use useRowActions hook in table component**
+
+```typescript
+'use client'
+
+import React from 'react'
+
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { useRowActions } from '@/hooks/use-row-actions'
+import { useYourResourceColumns } from './columns/your-resource-columns'
+import { YourResource, deleteYourResourceMutationOptions } from '@/query/your-resource'
+
+export function YourResourceTable() {
+  const { deleteDialog, permissions, setRowAction } = useRowActions<YourResource>({
+    deleteDialogConfig: {
+      description: 'Are you sure you want to delete this resource?',
+      getItemName: (resource) => resource.name,
+      title: 'Delete Resource'
+    },
+    deleteMutationOptions: deleteYourResourceMutationOptions,
+    permissions: {
+      delete: PERMISSIONS.YOUR_RESOURCE_DESTROY,
+      update: PERMISSIONS.YOUR_RESOURCE_UPDATE,
+      view: PERMISSIONS.YOUR_RESOURCE_SHOW
+    },
+    redirectOnUpdate: (resource) => `/your-resource/${resource.id}/edit`,
+    redirectOnView: (resource) => `/your-resource/${resource.id}`
+  })
+
+  // ✅ CORRECT: Pass permissions directly from useRowActions
+  const columns = useYourResourceColumns({
+    permissions,
+    setRowAction
+  })
+
+  // ... rest of component
+
+  return (
+    <DataTable
+      deleteDialog={deleteDialog}
+      table={table}
+      // ... other props
+    />
+  )
+}
+```
+
+**Step 2: Column component accepts permissions directly**
+
+```typescript
+'use client'
+
+import { createRowActions, DataTableRowActions } from '@/components/data-table'
+import { DataTableRowAction } from '@/types/data-table'
+import { ColumnDef } from '@tanstack/react-table'
+
+type YourResourceColumnsProps = {
+  permissions: {
+    delete?: boolean
+    update?: boolean
+    view?: boolean
+  }
+  setRowAction: (rowAction?: DataTableRowAction<YourResource> | null) => void
+}
+
+export function useYourResourceColumns({
+  permissions = {
+    delete: true,
+    update: true,
+    view: true
+  },
+  setRowAction
+}: YourResourceColumnsProps): ColumnDef<YourResource>[] {
+  return [
+    // ... other columns
+    {
+      cell: ({ row }) => (
+        <DataTableRowActions
+          actions={createRowActions({
+            delete: {
+              hidden: () => !permissions.delete,
+              onClick: () => setRowAction({ row, variant: 'delete' })
+            },
+            edit: {
+              hidden: () => !permissions.update, // ✅ Use permissions.update (hook returns 'update', not 'edit')
+              onClick: () => setRowAction({ row, variant: 'update' }) // Action variant is 'update'
+            },
+            view: {
+              hidden: () => !permissions.view,
+              onClick: () => setRowAction({ row, variant: 'view' })
+            }
+          })}
+          row={row}
+        />
+      ),
+      enableHiding: false,
+      header: () => <div className="text-center font-semibold">Actions</div>,
+      id: 'actions',
+      size: 150
+    }
+  ]
+}
+```
+
+**Key Points:**
+
+- ✅ **ALWAYS use `useRowActions` hook** - Handles permissions, delete dialog, and row actions internally
+- ✅ **Pass `permissions` directly** - No manual mapping needed (`permissions` from hook goes directly to columns)
+- ✅ **Use `permissions.update`** - Hook returns `update`, not `edit` (columns should use `update` or map it)
+- ✅ **Pass `deleteDialog` to DataTable** - Dialog is automatically rendered by the hook
+- ✅ **No manual `hasPermission` calls** - Permissions are computed internally by the hook
+- ❌ **DO NOT manually check permissions** - Use `useRowActions` hook instead
+- ❌ **DO NOT map permissions manually** - Pass `permissions` directly from hook
+
+**Note:** When using `useRowActions`, you **do not need to re-check `hasPermission` again inside the `setRowAction` handler**. The hook handles all permission checking internally; backend/API enforcement is relied on for real security.
+
+**See [data-table.mdc](mdc:.cursor/rules/ui-components/data-table.mdc) for complete examples and reference implementations.**
+
+**⚠️ CRITICAL: Column Permission Property Names**
+
+When using `useRowActions`, the hook returns `permissions` with these properties:
+
+- `permissions.delete` - Delete permission
+- `permissions.update` - Update/edit permission (NOT `edit`)
+- `permissions.view` - View permission
+- `permissions.accept` - Accept permission (for pending items)
+- `permissions.reject` - Reject permission (for pending items)
+- `permissions.resend` - Resend permission (for notifications)
+
+**Column components should:**
+
+- ✅ Accept `permissions.update` (not `permissions.edit`) to match hook return value
+- ✅ Use `permissions.update` in hidden checks: `hidden: () => !permissions.update`
+- ✅ Action ID in `createRowActions` is still `edit`, but permission check uses `update`
+- ✅ Use `permissions.delete`, `permissions.view` directly
+
+**Example column type definition:**
+
+```typescript
+type ResourceColumnsProps = {
+  permissions: {
+    delete?: boolean
+    update?: boolean // ✅ Use 'update' to match useRowActions return
+    view?: boolean
+  }
+  setRowAction: (rowAction?: DataTableRowAction<Resource> | null) => void
+}
+
+// In column implementation
+actions={createRowActions({
+  edit: { // ✅ Action ID is 'edit'
+    hidden: () => !permissions.update, // ✅ But check permissions.update
+    onClick: () => setRowAction({ row, variant: 'update' })
+  }
+})}
+```
+
+**Note:** The action ID (`edit`) and the permission property name (`update`) are different. The action ID is the UI identifier, while `permissions.update` matches the hook's return value.
+
+### Step 6: Protect Action Buttons and Tabs
+
+In component files, check permissions before showing action buttons. Shared UI primitives such as [`button.tsx`](mdc:components/ui/button.tsx) and the Tabs UI in [`components/ui/tabs.tsx`](mdc:components/ui/tabs.tsx) support a `permissionKey` prop, which automatically hides the element when the user lacks the required permission:
+
+````typescript
+import { usePermissions } from '@/hooks/use-permissions'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { Button } from '@/components/ui/button'
+
+export function YourResourceHeader() {
+  const { hasPermission } = usePermissions()
+  const router = useRouter()
+
+  return (
+    <div className="flex justify-between items-center">
+      <h1>Your Resource</h1>
+      <Button
+        permissionKey={PERMISSIONS.YOUR_RESOURCE_CREATE}
+        onClick={() => router.push('/your-resource/create')}
+      >
+        Create New
+      </Button>
+    </div>
+  )
+}
+
+### Step 6: Protect Table Header Actions (`DataTableToolbar`)
+
+For list pages using `DataTableToolbar`, pass **permission keys** via the `permissions` prop instead of manually wiring `createButtonDisabled` or `permissionKey` flags:
+
+```typescript
+// Example: Riders index page
+<DataTableToolbar
+  createButtonHref="/riders/create"
+  exportConfig={{
+    endpoint: '/users/export',
+    filename: 'riders'
+  }}
+  filters={/* ... */}
+  permissions={{
+    create: PERMISSIONS.USERS_CREATE,
+    export: PERMISSIONS.USERS_EXPORT
+  }}
+  searchPlaceholder="Search riders..."
+  table={table}
+/>
+````
+
+`DataTableToolbar` forwards these to the underlying `Button` components as `permissionKey`, so the standard button‑level RBAC applies. You should:
+
+- Use `permissions.create` for the main **Create** button.
+- Use `permissions.export` for the **Export** button when the feature has a dedicated `{RESOURCE}_EXPORT` permission.
+- Reserve `createButtonDisabled` for **non-permission conditions only** (e.g. `!shiftId`), not for RBAC checks.
+
+Concrete usages in the app:
+
+- **Requests** tables use:
+  - `permissions={{ create: PERMISSIONS.TRIP_REQUESTS_CREATE, export: PERMISSIONS.TRIP_REQUESTS_EXPORT }}`
+- **Riders** lists use:
+  - `permissions={{ create: PERMISSIONS.USERS_CREATE, export: PERMISSIONS.USERS_EXPORT }}`
+- **Tenant branches / offices / tenant admins / admins / roles / vehicles / drivers / service centers / fuel brands** use:
+  - `permissions={{ create: PERMISSIONS.{FEATURE}_CREATE }}` for their create buttons.
+
+````
+
+For tabbed interfaces, pass the same `permissionKey` to both the trigger and content so the tab stays hidden end-to-end:
+
+```typescript
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+
+export function YourResourceTabs() {
+  return (
+    <Tabs useUrlState>
+      <TabsList>
+        <TabsTrigger
+          permissionKey={PERMISSIONS.YOUR_RESOURCE_SHOW}
+          value="details"
+        >
+          Details
+        </TabsTrigger>
+        <TabsTrigger value="activity">Activity</TabsTrigger>
+      </TabsList>
+      <TabsContent
+        permissionKey={PERMISSIONS.YOUR_RESOURCE_SHOW}
+        value="details"
+      >
+        <DetailsTab />
+      </TabsContent>
+      <TabsContent value="activity">
+        <ActivityTab />
+      </TabsContent>
+    </Tabs>
+  )
+}
+````
+
+### Step 7: Protect Form Submissions
+
+Ensure mutations are protected, but also check permissions client-side:
+
+```typescript
+import { usePermissions } from '@/hooks/use-permissions'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { useCreateYourResourceMutation } from '@/query/your-resource'
+
+export function CreateYourResourceForm() {
+  const { hasPermission } = usePermissions()
+  const { mutate, isPending } = useCreateYourResourceMutation()
+
+  // Check permission before allowing form submission
+  if (!hasPermission(PERMISSIONS.YOUR_RESOURCE_CREATE)) {
+    return (
+      <NotFound
+        description="You don't have permission to create this resource"
+        title="Unauthorized"
+      />
+    )
+  }
+
+  const handleSubmit = (data: YourResourceInput) => {
+    mutate(data)
+  }
+
+  return (
+    // Your form
+  )
+}
+```
+
+## Permission Checking Patterns
+
+### Pattern 1: Conditional Rendering
+
+```typescript
+const { hasPermission } = usePermissions()
+
+return (
+  <>
+    {hasPermission(PERMISSIONS.RESOURCE_SHOW) && (
+      <YourComponent />
+    )}
+  </>
+)
+```
+
+### Pattern 2: Early Return
+
+```typescript
+const { hasPermission, isAdminLoading } = usePermissions()
+
+if (isAdminLoading) return <LoadingSpinner />
+if (!hasPermission(PERMISSIONS.RESOURCE_SHOW)) {
+  return <Unauthorized />
+}
+```
+
+### Pattern 3: Disabled State
+
+```typescript
+const { hasPermission } = usePermissions()
+
+<Button
+  disabled={!hasPermission(PERMISSIONS.RESOURCE_UPDATE)}
+  onClick={handleEdit}
+>
+  Edit
+</Button>
+```
+
+### Pattern 4: Hidden Actions (useRowActions Pattern)
+
+**✅ MANDATORY: Use useRowActions hook for permissions and row actions**
+
+```typescript
+// In table component
+'use client'
+
+import { useRowActions } from '@/hooks/use-row-actions'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { Resource, deleteResourceMutationOptions } from '@/query/resource'
+
+export function ResourceTable() {
+  const { deleteDialog, permissions, setRowAction } = useRowActions<Resource>({
+    deleteDialogConfig: {
+      description: 'Are you sure you want to delete this resource?',
+      getItemName: (resource) => resource.name,
+      title: 'Delete Resource'
+    },
+    deleteMutationOptions: deleteResourceMutationOptions,
+    permissions: {
+      delete: PERMISSIONS.RESOURCE_DESTROY,
+      update: PERMISSIONS.RESOURCE_UPDATE,
+      view: PERMISSIONS.RESOURCE_SHOW
+    },
+    redirectOnUpdate: (resource) => `/resource/${resource.id}/edit`,
+    redirectOnView: (resource) => `/resource/${resource.id}`
+  })
+
+  // ✅ CORRECT: Pass permissions directly from useRowActions
+  const columns = useResourceColumns({
+    permissions, // ✅ Direct pass - no manual mapping
+    setRowAction
+  })
+
+  return (
+    <DataTable
+      deleteDialog={deleteDialog}
+      table={table}
+      // ... other props
+    />
+  )
+}
+
+// In columns file
+type ResourceColumnsProps = {
+  permissions: {
+    delete?: boolean
+    update?: boolean // ✅ Use 'update' (not 'edit') to match useRowActions return
+    view?: boolean
+  }
+  setRowAction: (rowAction?: DataTableRowAction<Resource> | null) => void
+}
+
+export function useResourceColumns({
+  permissions = { delete: true, update: true, view: true },
+  setRowAction
+}: ResourceColumnsProps): ColumnDef<Resource>[] {
+  return [
+    {
+      cell: ({ row }) => (
+        <DataTableRowActions
+          actions={createRowActions({
+            delete: {
+              hidden: () => !permissions.delete,
+              onClick: () => setRowAction({ row, variant: 'delete' })
+            },
+            edit: {
+              hidden: () => !permissions.update, // ✅ Use permissions.update
+              onClick: () => setRowAction({ row, variant: 'update' })
+            },
+            view: {
+              hidden: () => !permissions.view,
+              onClick: () => setRowAction({ row, variant: 'view' })
+            }
+          })}
+          row={row}
+        />
+      )
+    }
+  ]
+}
+```
+
+**❌ WRONG: Manual permission checking (legacy - do not use)**
+
+```typescript
+// ❌ DON'T: Manually check permissions in table components
+const { hasPermission } = usePermissions()
+
+const columns = useResourceColumns({
+  permissions: {
+    delete: hasPermission(PERMISSIONS.RESOURCE_DESTROY),
+    edit: hasPermission(PERMISSIONS.RESOURCE_UPDATE)
+  },
+  setRowAction
+})
+
+// ❌ DON'T: Manual permission checking in row actions
+<DataTableRowActions
+  actions={[
+    {
+      id: 'edit',
+      label: 'Edit',
+      onClick: handleEdit,
+      hidden: () => !hasPermission(PERMISSIONS.RESOURCE_UPDATE)
+    }
+  ]}
+  row={row}
+/>
+```
+
+**✅ CORRECT: Use useRowActions hook**
+
+```typescript
+// ✅ DO: Use useRowActions hook for all permission and action handling
+const { deleteDialog, permissions, setRowAction } = useRowActions<Resource>({
+  deleteDialogConfig: {
+    /* ... */
+  },
+  deleteMutationOptions: deleteResourceMutationOptions,
+  permissions: {
+    delete: PERMISSIONS.RESOURCE_DESTROY,
+    update: PERMISSIONS.RESOURCE_UPDATE,
+    view: PERMISSIONS.RESOURCE_SHOW
+  },
+  redirectOnUpdate: (resource) => `/resource/${resource.id}/edit`
+})
+
+const columns = useResourceColumns({
+  permissions, // ✅ Direct pass from hook
+  setRowAction
+})
+```
+
+## Type Safety
+
+### Permission Type
+
+```typescript
+// All permissions are typed as:
+type PERMISSION = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]
+
+// Example: 'admins.show' | 'admins.create' | 'admins.update' | ...
+```
+
+### Admin Type
+
+```typescript
+// From lib/auth/auth-types.ts
+type Admin = {
+  id: number
+  name: string
+  email: string
+  role: {
+    id: number
+    name: string
+    permission_type: 'all' | 'custom'
+    permissions: null | PERMISSION[]
+  }
+  permissions: PERMISSION[]
+  // ... other fields
+}
+```
+
+## Common Permission Patterns
+
+### CRUD Permissions
+
+For each resource, typically define:
+
+- `{RESOURCE}_SHOW` - View/list resource
+- `{RESOURCE}_CREATE` - Create new resource
+- `{RESOURCE}_UPDATE` - Edit existing resource
+- `{RESOURCE}_DESTROY` - Delete resource
+- `{RESOURCE}_EXPORT` - Export resource data (optional)
+
+### Example: Admins Resource
+
+```typescript
+ADMINS_SHOW: 'admins.show'
+ADMINS_CREATE: 'admins.create'
+ADMINS_UPDATE: 'admins.update'
+ADMINS_DESTROY: 'admins.destroy'
+ADMINS_EXPORT: 'admins.export'
+```
+
+### Route Mapping Example
+
+```typescript
+'/administration/admins': PERMISSIONS.ADMINS_SHOW,
+'/administration/admins/create': PERMISSIONS.ADMINS_CREATE,
+'/administration/admins/[id]': PERMISSIONS.ADMINS_UPDATE,
+```
+
+## Best Practices
+
+### 1. Always Use Permission Constants
+
+❌ **Bad:**
+
+```typescript
+hasPermission('admins.show')
+```
+
+✅ **Good:**
+
+```typescript
+hasPermission(PERMISSIONS.ADMINS_SHOW)
+```
+
+### 2. Check Loading State
+
+Always check `isAdminLoading` before rendering permission-dependent UI:
+
+```typescript
+const { hasPermission, isAdminLoading } = usePermissions()
+
+if (isAdminLoading) {
+  return <LoadingSpinner />
+}
+```
+
+### 3. Server-Side Protection is Primary
+
+Client-side checks are for UX only. Server-side route protection is the security layer:
+
+- Server middleware (`lib/auth/auth.ts`) prevents unauthorized access
+- Client-side checks (`usePermissions`) improve UX by hiding unavailable actions
+
+### 4. Handle Permission Type 'all'
+
+Roles with `permission_type: 'all'` have all permissions. Use the `extractUserPermissions` utility to extract permissions from a role:
+
+```typescript
+import { extractUserPermissions } from '@/lib/auth/permissions-utils'
+
+// ✅ DO: Use extractUserPermissions utility
+const userPermissions = extractUserPermissions(admin.role)
+
+// The utility automatically handles:
+// - permission_type === 'all' → returns [PERMISSIONS.SUPER_ADMIN]
+// - permission_type === 'custom' → returns role.permissions ?? []
+
+// When checking permissions, hasPermission automatically handles SUPER_ADMIN
+const hasAccess = hasPermission(userPermissions, requiredPermission)
+```
+
+**❌ DON'T: Manually extract permissions**
+
+```typescript
+// ❌ WRONG: Don't manually check permission_type
+const userPermissions =
+  admin.role.permission_type === 'all'
+    ? [PERMISSIONS.SUPER_ADMIN]
+    : admin.role.permissions
+```
+
+### 5. Consistent Permission Naming
+
+Follow the pattern: `{resource}.{action}`
+
+Examples:
+
+- `admins.show`
+- `vehicles.create`
+- `tenants.update`
+- `drivers.destroy`
+
+### 6. Protect All Entry Points
+
+- Routes (server-side)
+- Navigation items (client-side)
+- Action buttons (client-side)
+- Table row actions (client-side)
+- Form submissions (client-side + server-side)
+
+### 7. Use TypeScript for Type Safety
+
+Always import `PERMISSION` type and `PERMISSIONS` constants:
+
+```typescript
+import { PERMISSION, PERMISSIONS } from '@/lib/auth/permissions'
+```
+
+## Error Handling
+
+### Unauthorized Access
+
+When a user tries to access a protected route without permission:
+
+1. Server middleware redirects to `/unauthorized?error=access_denied`
+2. Client components can show a custom message:
+
+```typescript
+import { NotFound } from '@/components/ui/not-found'
+
+if (!hasPermission(PERMISSIONS.RESOURCE_SHOW)) {
+  return (
+    <NotFound
+      description="You don't have permission to access this page"
+      title="Unauthorized"
+    />
+  )
+}
+```
+
+## Testing Permissions
+
+### Check Permission in Components
+
+```typescript
+const { hasPermission } = usePermissions()
+const canEdit = hasPermission(PERMISSIONS.RESOURCE_UPDATE)
+```
+
+### Verify Route Protection
+
+Test that routes redirect unauthorized users:
+
+- Navigate to protected route without permission
+- Should redirect to `/unauthorized`
+
+### Verify Menu Filtering
+
+Test that menu items hide when user lacks permission:
+
+- Log in with limited permissions
+- Menu items without required permissions should not appear
+
+## Troubleshooting
+
+### Permission Not Working
+
+1. **Check permission exists** in `lib/auth/permissions.ts`
+2. **Check route mapping** in `lib/auth/route-permissions.ts`
+3. **Check admin permissions** in store: `useAdminStore(state => state.adminPermissions)`
+4. **Check role permission_type**: Should be `'all'` or `'custom'`
+5. **Check server logs** for permission check errors
+
+### Route Not Protected
+
+1. **Verify route pattern** matches exactly in `ROUTE_PERMISSIONS`
+2. **Check dynamic route format**: Use `[id]` for dynamic segments
+3. **Check query params**: Include them in route pattern: `/route?tab=value`
+
+### Client-Side Check Failing
+
+1. **Check loading state**: Wait for `isAdminLoading === false`
+2. **Check permissions array**: Verify permissions are set in store
+3. **Check permission format**: Must match exactly: `'resource.action'`
+
+## File Structure Reference
+
+```
+lib/auth/
+├── permissions.ts              # Permission constants, types, and core logic
+├── permissions-utils.ts        # All permission utilities (validation, role extraction, route protection)
+├── route-permissions.ts        # Route-to-permission mapping
+├── admin-store.ts              # Zustand store for admin state
+├── auth.ts                     # Server-side auth and route protection
+└── auth-types.ts               # TypeScript types
+
+hooks/
+└── use-permissions.ts     # React hook for permission checks
+
+app/(app)/_layout/
+├── layout-config.tsx      # Menu configuration with permissions
+└── components/
+    ├── sidebar-primary-menu.tsx   # Menu filtering logic
+    └── sidebar-resources-menu.tsx  # Menu filtering logic
+```
+
+## Complete Example: New Resource Page with Table
+
+```typescript
+// 1. Add permissions (lib/auth/permissions.ts)
+export const PERMISSIONS = {
+  PRODUCTS_SHOW: 'products.show',
+  PRODUCTS_CREATE: 'products.create',
+  PRODUCTS_UPDATE: 'products.update',
+  PRODUCTS_DESTROY: 'products.destroy',
+} as const
+
+// 2. Add route protection (lib/auth/route-permissions.ts)
+export const ROUTE_PERMISSIONS: Record<string, PERMISSION> = {
+  '/products': PERMISSIONS.PRODUCTS_SHOW,
+  '/products/create': PERMISSIONS.PRODUCTS_CREATE,
+  '/products/[id]/edit': PERMISSIONS.PRODUCTS_UPDATE,
+}
+
+// 3. Add menu item (app/(app)/_layout/layout-config.tsx)
+{
+  icon: PackageIcon,
+  path: '/products',
+  requiredPermission: PERMISSIONS.PRODUCTS_SHOW,
+  title: 'Products'
+}
+
+// 4. Table component with useRowActions (app/(app)/products/page.tsx)
+'use client'
+
+import React from 'react'
+
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { useRowActions } from '@/hooks/use-row-actions'
+import { useDataTable } from '@/hooks/use-data-table'
+import { DataTable, DataTableToolbar } from '@/components/data-table'
+import { Product, deleteProductMutationOptions, getAllProductsQuery } from '@/query/products'
+import { useProductsColumns } from './columns/products-columns'
+
+export default function ProductsPage() {
+  const { deleteDialog, permissions, setRowAction } = useRowActions<Product>({
+    deleteDialogConfig: {
+      description: 'Are you sure you want to delete this product?',
+      getItemName: (product) => product.name,
+      title: 'Delete Product'
+    },
+    deleteMutationOptions: deleteProductMutationOptions,
+    permissions: {
+      delete: PERMISSIONS.PRODUCTS_DESTROY,
+      update: PERMISSIONS.PRODUCTS_UPDATE,
+      view: PERMISSIONS.PRODUCTS_SHOW
+    },
+    redirectOnUpdate: (product) => `/products/${product.id}/edit`,
+    redirectOnView: (product) => `/products/${product.id}`
+  })
+
+  // ✅ CORRECT: Pass permissions directly from useRowActions
+  const columns = useProductsColumns({
+    permissions,
+    setRowAction
+  })
+
+  const { error, isError, isLoading, pagination, refetch, table } = useDataTable({
+    columns,
+    queryOptions: getAllProductsQuery
+  })
+
+  return (
+    <main className="relative m-5">
+      <DataTable
+        deleteDialog={deleteDialog}
+        error={error}
+        isError={isError}
+        isLoading={isLoading}
+        pagination={pagination}
+        refetch={refetch}
+        table={table}
+        toolbar={
+          <DataTableToolbar
+            createButtonHref="/products/create"
+            permissions={{
+              create: PERMISSIONS.PRODUCTS_CREATE
+            }}
+            table={table}
+          />
+        }
+      />
+    </main>
+  )
+}
+
+// 5. Column component (app/(app)/products/columns/products-columns.tsx)
+'use client'
+
+import { createRowActions, DataTableRowActions } from '@/components/data-table'
+import { ColumnDef } from '@tanstack/react-table'
+import { Product } from '@/query/products'
+import { DataTableRowAction } from '@/types/data-table'
+
+type ProductsColumnsProps = {
+  permissions: {
+    delete?: boolean
+    update?: boolean // ✅ Use 'update' to match useRowActions
+    view?: boolean
+  }
+  setRowAction: (rowAction?: DataTableRowAction<Product> | null) => void
+}
+
+export function useProductsColumns({
+  permissions = { delete: true, update: true, view: true },
+  setRowAction
+}: ProductsColumnsProps): ColumnDef<Product>[] {
+  return [
+    // ... other columns
+    {
+      cell: ({ row }) => (
+        <DataTableRowActions
+          actions={createRowActions({
+            delete: {
+              hidden: () => !permissions.delete,
+              onClick: () => setRowAction({ row, variant: 'delete' })
+            },
+            edit: {
+              hidden: () => !permissions.update, // ✅ Use permissions.update
+              onClick: () => setRowAction({ row, variant: 'update' })
+            },
+            view: {
+              hidden: () => !permissions.view,
+              onClick: () => setRowAction({ row, variant: 'view' })
+            }
+          })}
+          row={row}
+        />
+      ),
+      id: 'actions'
+    }
+  ]
+}
+```
+
+## Summary
+
+1. **Define permissions** in `lib/auth/permissions.ts`
+2. **Map routes** in `lib/auth/route-permissions.ts`
+3. **Add menu items** with `requiredPermission` in `layout-config.tsx`
+4. **Protect pages** using `usePermissions` hook
+5. **Protect table actions** using `useRowActions` hook (mandatory for tables)
+6. **Pass permissions directly** from `useRowActions` to columns (no manual mapping)
+7. **Use TypeScript** for type safety throughout
+8. **Follow patterns** consistently across all resources
+
+**⚠️ CRITICAL: For tables, ALWAYS use `useRowActions` hook:**
+
+- ✅ Handles permissions internally
+- ✅ Manages delete dialog automatically
+- ✅ Provides `setRowAction` callback
+- ✅ Returns computed permission booleans
+- ✅ Pass `permissions` directly to columns (no mapping needed)
+
+The system provides both server-side route protection and client-side UI filtering for a comprehensive security model.
+
+## AI Requirements for New Permissions
+
+- **Prefer reusing existing permission keys** in `lib/auth/permissions.ts` whenever they semantically match the feature’s capability.
+- **Only add a new permission key when:**
+  - You have checked the existing `PERMISSIONS` set and there is clearly **no suitable key** for the resource/action.
+  - The new key strictly follows the **existing naming pattern in `lib/auth/permissions.ts`**, i.e. the established `{resource}.{action}` form (and any established resource naming, separators, or prefixes already used there).
+  - The new key is consistent with similar resources (e.g. mirrors how `TENANTS_*`, `ROUTE_SHIFTS_*`, etc. are defined).
+- **When a new permission key is added in `lib/auth/permissions.ts`, it is mandatory to also:**
+  - Append **only that new key** (and, optionally, a one-line description) to `new-permissions.md` so it can be audited and wired into backend/roles.
+- If you are **not fully certain** a new key should be created:
+  - Do **not** add it.
+  - Instead, add a `//@TODO` comment near the usage site describing the needed permission (resource + action) and why it’s required, so a human can confirm and create the final key.
+
+## Inter-Rule References
+
+- Place protected components and pages according to the `feature-structure` rule.
+- For lists and tables, apply checks described in the [data-table](mdc:.cursor/rules/ui-components/data-table.mdc) rule:
+  - **⚠️ MANDATORY**: Use `useRowActions` hook for all table permissions and row actions
+  - **✅ CORRECT**: Pass `permissions` directly from `useRowActions` to columns
+  - **✅ CORRECT**: Use `permissions.update` (not `permissions.edit`) to match hook return value
+  - See [data-table.mdc](mdc:.cursor/rules/ui-components/data-table.mdc) for complete examples and reference implementations
+- For forms, apply checks described in the `tanstack-form` rule to disable submit based on permissions.
+- Mutations triggered from UI should follow `react-query` rule; permission checks complement but do not replace server-side validation.
+
+### Reference Implementations
+
+See actual implementations using the permissions pattern:
+
+- [service-centers-columns.tsx](<mdc:app/(app)/vehicles/centers/_centers/columns/service-centers-columns.tsx>) - Full example with permissions pattern
+- [route-shifts-columns.tsx](<mdc:app/(app)/vehicles/_vehicles/columns/route-shifts-columns.tsx>) - Example with permissions pattern
+- [service-centers-table.tsx](<mdc:app/(app)/vehicles/centers/_centers/service-centers-table.tsx>) - Example of passing permissions from parent

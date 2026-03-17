@@ -1,0 +1,374 @@
+---
+description: Guidelines for continuously improving Cursor rules based on emerging code patterns and best practices. This rule guides AI agents on when and how to update rules to prevent recurring issues and standardize patterns.
+globs: **/*
+alwaysApply: true
+---
+
+# Rule Improvement & Self-Improvement Guide
+
+This rule provides clear guidelines for when and how to improve Cursor rules based on emerging patterns, user feedback, and codebase evolution.
+
+## 🚨 Critical: User Feedback Triggers
+
+**⚠️ HIGHEST PRIORITY: When a user explicitly says "don't do this again", "don't use this pattern again", or similar feedback, you MUST follow this comprehensive workflow:**
+
+### Complete Workflow for Pattern Elimination
+
+**Step 1: Identify the Problematic Pattern**
+
+- Analyze what was incorrectly implemented
+- Extract the exact code pattern, component, or approach that should be avoided
+- Document the correct alternative pattern
+
+**Step 2: Search ALL Cursor Rules for References**
+
+- Use `rg` or `codebase_search` to find ALL occurrences of the wrong pattern across ALL `.cursor/rules/*.mdc` files
+- Search for:
+  - Direct mentions of the pattern
+  - Similar patterns that might encourage the wrong approach
+  - Examples that show the wrong pattern
+  - Instructions that could lead to the wrong pattern
+- List all affected rule files
+
+**Step 3: Update ALL Affected Rules**
+
+- For each affected rule file:
+  - Add explicit "❌ DON'T" section with the wrong pattern
+  - Add explicit "✅ DO" section with the correct pattern
+  - Include code examples from the codebase when possible
+  - Explain why the pattern is wrong
+- Remove or update any existing instructions that promote the wrong pattern
+- Ensure consistency across all rules
+
+**Step 4: Remove Redundant Instructions**
+
+- Review each updated rule file for:
+  - Duplicate instructions about the same pattern
+  - Conflicting guidance
+  - Overlapping sections that say the same thing
+- Consolidate redundant content into a single, clear section
+- Maintain logical flow and organization
+
+**Step 5: Verify Rule Updates**
+
+- Confirm all affected rules have been updated
+- Verify the updated rules would prevent the original issue
+- Check that examples are clear and actionable
+- Ensure no conflicting guidance remains
+
+**Step 6: Search Codebase for Existing Usage**
+
+- Use `grep` or `codebase_search` to find ALL files in the codebase that use the wrong pattern
+- Search for:
+  - Import statements related to the wrong pattern
+  - Component usage of the wrong pattern
+  - Function calls or API usage of the wrong pattern
+  - File names that suggest the wrong pattern
+- Compile a complete list of affected files
+
+**Step 7: Ask User About Implementation Fixes**
+
+- Present the list of affected files to the user
+- Ask: **"Would you like me to fix the current implementation across the app? This will update [X] files to use the correct pattern."**
+- Wait for user's explicit response (yes/no)
+
+**Step 8A: If User Says YES - Fix All Implementations**
+
+- For each affected file:
+  - Read the file to understand context
+  - Replace the wrong pattern with the correct pattern
+  - Ensure the fix maintains functionality
+  - Update related imports/dependencies if needed
+- Test that changes don't break functionality
+- Provide a summary of all changes made
+
+**Step 8B: If User Says NO - Provide File List**
+
+- Provide a complete, organized list of all files that use the wrong pattern
+- Group files by:
+  - Feature/module (if applicable)
+  - File type (components, pages, utils, etc.)
+  - Priority (if some are more critical than others)
+- Include file paths and brief descriptions of what needs to be changed
+- Format the list clearly for easy reference
+
+**Example User Feedback Response:**
+
+```
+User: "Don't create custom delete dialogs, use the shared component"
+
+Your Actions:
+1. Identify: Custom delete dialog components were created instead of using shared DeleteConfirmationDialog
+2. Search Rules:
+   - Found references in data-table.mdc (mentions custom dialogs)
+   - Found references in feature-structure.mdc (component creation patterns)
+   - Found examples in create-new-page.mdc (form patterns)
+3. Update All Rules:
+   - data-table.mdc: Add explicit "❌ DON'T create custom delete dialogs" section
+   - feature-structure.mdc: Update component creation guidelines
+   - create-new-page.mdc: Update form examples to use shared component
+   - Remove redundant "component creation" sections that overlap
+4. Search Codebase:
+   - Found 12 files using custom delete dialogs:
+     - app/(Dashboard)/tenants/_tenants/components/custom-delete-dialog.tsx
+     - app/(Dashboard)/users/_users/components/delete-confirmation.tsx
+     - ... (10 more files)
+5. Ask User: "Would you like me to fix the current implementation across the app? This will update 12 files to use the shared DeleteConfirmationDialog component."
+6. If YES: Fix all 12 files
+   If NO: Provide organized list of all 12 files with descriptions
+```
+
+## When to Improve Rules
+
+### Add New Rules When:
+
+- ✅ **Pattern appears in 3+ files** - A new technology/pattern is used consistently across multiple files
+- ✅ **Common bugs occur** - Repeated bugs that could be prevented with a rule
+- ✅ **Code review feedback repeats** - Same feedback appears in multiple code reviews
+- ✅ **Security/performance patterns emerge** - New security or performance best practices are discovered
+- ✅ **Rule should have applied but didn't** - A task was completed without following a relevant rule
+
+### Modify Existing Rules When:
+
+- ✅ **Better examples exist** - Actual codebase examples are better than current rule examples
+- ✅ **Edge cases discovered** - Additional edge cases or scenarios are found
+- ✅ **Related rules updated** - Dependent rules have been modified
+- ✅ **Implementation changed** - The underlying implementation or library has changed
+- ✅ **Rule didn't trigger** - A rule should have applied to a task but didn't run
+- ✅ **User feedback received** - User explicitly points out rule gaps or issues
+
+## How to Improve Rules
+
+### Step 1: Identify the Pattern
+
+**Look for:**
+
+- Repeated code patterns across multiple files
+- Common error patterns in implementations
+- Inconsistent approaches to the same problem
+- Missing rule coverage for a task
+
+**Analysis Process:**
+
+1. Compare new code with existing rules
+2. Identify patterns that should be standardized
+3. Check for references to external documentation
+4. Review error handling patterns for consistency
+5. Monitor test patterns and coverage
+
+### Step 2: Determine Rule Location
+
+**Choose the appropriate rule file:**
+
+- **Feature-specific patterns** → Feature-specific rule (e.g., `data-table.mdc`, `tanstack-form.mdc`)
+- **General patterns** → General rule (e.g., `feature-structure.mdc`)
+- **New technology** → Create new rule file if no existing rule covers it
+
+**Example Pattern Recognition:**
+
+```typescript
+// If you see repeated patterns like:
+const data = await prisma.user.findMany({
+  select: { id: true, email: true },
+  where: { status: 'ACTIVE' }
+})
+
+// Consider adding to [prisma.mdc](mdc:.cursor/rules/prisma.mdc):
+// - Standard select fields
+// - Common where conditions
+// - Performance optimization patterns
+```
+
+### Step 3: Update the Rule
+
+**Format for adding anti-patterns:**
+
+````markdown
+## Anti-Pattern: [Pattern Name]
+
+**❌ DON'T: [What not to do]**
+
+```typescript
+// Bad example showing the anti-pattern
+const badExample = () => {
+  // Anti-pattern code here
+}
+```
+````
+
+**✅ DO: [What to do instead]**
+
+```typescript
+// Good example showing the correct pattern
+const goodExample = () => {
+  // Correct pattern code here
+}
+```
+
+**Why:** [Explanation of why the pattern is wrong and what problems it causes]
+
+````
+
+**Key Requirements:**
+- **Be explicit** - Clearly state what NOT to do
+- **Show examples** - Include both wrong and right code examples
+- **Explain why** - Document the reasoning behind the pattern
+- **Use actual code** - Examples should come from the codebase when possible
+- **Cross-reference** - Link to related rules and documentation
+
+### Step 4: Verify Rule Quality
+
+**Rule Quality Checklist:**
+- ✅ **Actionable** - Rule provides clear, specific guidance
+- ✅ **Examples from codebase** - Examples come from actual code, not theoretical
+- ✅ **Up-to-date references** - Links and references are current
+- ✅ **Consistently enforceable** - Pattern can be consistently applied
+- ✅ **Well-formatted** - Follows [cursor_rules.mdc](mdc:.cursor/rules/core/cursor_rules.mdc) formatting standards
+
+## Rule Maintenance Workflow
+
+### Continuous Improvement
+
+**Monitor and update rules:**
+1. **Code review comments** - Track recurring feedback in code reviews
+2. **Development questions** - Note common questions that indicate rule gaps
+3. **After refactors** - Update rules when major refactors change patterns
+4. **Documentation links** - Keep external documentation references current
+5. **Cross-references** - Maintain links between related rules
+
+### Rule Deprecation
+
+**When to deprecate:**
+- Pattern is no longer used in the codebase
+- Technology has been replaced
+- Better approach has been established
+
+**How to deprecate:**
+1. **Mark as deprecated** - Add clear deprecation notice in the rule
+2. **Document migration path** - Explain how to migrate from old to new pattern
+3. **Update references** - Update all references to the deprecated rule
+4. **Remove when safe** - Remove deprecated rules after migration period
+
+### Documentation Updates
+
+**Keep documentation current:**
+- ✅ **Synchronize examples** - Update examples when code changes
+- ✅ **Update external docs** - Keep links to external documentation current
+- ✅ **Maintain cross-references** - Ensure links between related rules work
+- ✅ **Document breaking changes** - Note when rule changes break existing patterns
+
+## Rule Formatting Standards
+
+**Follow [cursor_rules.mdc](mdc:.cursor/rules/core/cursor_rules.mdc) for:**
+- File structure and metadata
+- Section organization
+- Code example formatting
+- Cross-reference syntax
+- Markdown conventions
+
+## Quick Reference: Rule Update Checklist
+
+When updating a rule, ensure:
+
+- [ ] Pattern is clearly identified and documented
+- [ ] Anti-pattern examples are included (❌ DON'T)
+- [ ] Correct pattern examples are included (✅ DO)
+- [ ] Reasoning is explained
+- [ ] Examples come from actual codebase
+- [ ] Rule formatting follows standards
+- [ ] Cross-references are updated
+- [ ] Related rules are checked for consistency
+- [ ] Rule would have prevented the original issue
+
+## Tools for Pattern Search & Analysis
+
+### Searching Cursor Rules
+
+**To find pattern references in rules:**
+```bash
+# Search all .mdc files in .cursor/rules/
+grep -r "pattern-name" .cursor/rules/*.mdc
+
+# Search with context (3 lines before/after)
+grep -r -C 3 "pattern-name" .cursor/rules/*.mdc
+
+# Case-insensitive search
+grep -ri "pattern-name" .cursor/rules/*.mdc
+````
+
+**Using codebase_search:**
+
+```typescript
+// Search for pattern in rules directory
+codebase_search({
+  query: 'What rules mention custom delete dialogs?',
+  target_directories: ['.cursor/rules']
+})
+```
+
+### Searching Codebase for Wrong Patterns
+
+**To find files using the wrong pattern:**
+
+```bash
+# Search for component imports
+grep -r "import.*WrongComponent" app/ components/
+
+# Search for function calls
+grep -r "wrongFunctionName" app/ components/ lib/
+
+# Search for file patterns
+find . -name "*wrong-pattern*" -type f
+
+# Search with file type filter
+grep -r "wrongPattern" --include="*.tsx" --include="*.ts" app/
+```
+
+**Using codebase_search:**
+
+```typescript
+// Search for pattern usage across codebase
+codebase_search({
+  query: 'Where is WrongComponent used in the codebase?',
+  target_directories: []
+})
+```
+
+**Using grep tool:**
+
+```typescript
+// Search for specific pattern
+grep({
+  pattern: 'WrongComponent|wrongFunction',
+  path: 'app',
+  output_mode: 'files_with_matches'
+})
+```
+
+### Organizing Results
+
+**When providing file lists to users, organize by:**
+
+1. **Feature/Module** - Group by app route or feature directory
+2. **File Type** - Separate components, pages, utils, queries, etc.
+3. **Priority** - Mark critical vs. non-critical files
+4. **Change Type** - Group by type of change needed (import, usage, etc.)
+
+**Example organized output:**
+
+```
+Files using wrong pattern (12 total):
+
+Components (5):
+- app/(Dashboard)/tenants/_tenants/components/custom-delete-dialog.tsx
+- app/(Dashboard)/users/_users/components/delete-confirmation.tsx
+...
+
+Pages (4):
+- app/(Dashboard)/tenants/[id]/delete/page.tsx
+...
+
+Utils (3):
+- lib/utils/delete-helpers.ts
+...
+```

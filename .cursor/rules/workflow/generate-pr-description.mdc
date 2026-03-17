@@ -1,0 +1,104 @@
+diff --git a//Users/salah/Developer/edge-admin-dashboard/.cursor/rules/workflow/pr-analysis.mdc b//Users/salah/Developer/edge-admin-dashboard/.cursor/rules/workflow/pr-analysis.mdc
+new file mode 100644
+--- /dev/null
++++ b//Users/salah/Developer/edge-admin-dashboard/.cursor/rules/workflow/pr-analysis.mdc
+@@ -0,0 +1,136 @@
++---
++alwaysApply: false
++description: 'PR analysis workflow that excludes merge-from-dev noise and generates concise, copy-ready markdown PR descriptions.'
++---
+
+- +# PR Analysis & Description Generation
+- +## Goal
+- +Analyze only branch-owned changes (excluding merge-from-`dev` noise) and produce a concise, systematic PR description with clear **how** and **why**.
+- +## Non-Negotiables
+- +1. Compare against `dev` by default unless explicitly overridden.
+  +2. Exclude merge commits and merged `dev` history from analysis.
+  +3. Output PR description inside a copy-ready markdown fence: ` ```markdown `.
+  +4. Do not include any testing steps/checklists.
+  +5. Mention changed files only once, in a final `Changed Files Index` section.
+  +6. Keep content concise; omit non-essential narrative.
+- +## Merge-Noise Exclusion Strategy
+- +Use merge-base and cherry-aware commit filtering:
+- +```bash
+  +# Base for branch-owned diff
+  +BASE="$(git merge-base HEAD dev)"
+- +# Unique non-merge commits on current branch (excludes merged dev commits)
+  +git log --cherry-pick --right-only --no-merges --oneline dev...HEAD
+- +# File-level and line-level changes for branch-owned work only
+  +git diff --name-status "$BASE"..HEAD
++git diff --stat "$BASE"..HEAD
+  +```
+- +## Analysis Workflow
+- +### 1) Collect Source Data
+- +`bash
++BASE="$(git merge-base HEAD dev)"
++git branch --show-current
++git log --cherry-pick --right-only --no-merges --oneline dev...HEAD
++git diff --stat "$BASE"..HEAD
++git diff --name-status "$BASE"..HEAD
++`
+- +Optional deep dive:
+- +`bash
++git diff "$BASE"..HEAD -- path/to/file.ts
++`
+- +### 2) Categorize Changes
+- +Use only these sections when relevant:
+- +- `Fixes`
+  +- `Features`
+  +- `Improvements`
+  +- `Breaking Changes` (only if applicable)
+  +- `Chores` (only if meaningful)
+- +Each bullet must explain:
+- +- **What changed** (implementation)
+  +- **Why it changed** (problem/goal)
+- +Do not repeat file paths inside these sections.
+- +### 3) Generate Output
+- +Return exactly one copy-ready block:
+- +``markdown
++`markdown
+  +# <conventional-commit-style title>
+- +## Overview
+  +- <1-2 bullets summarizing scope and intent>
+- +## Changes Summary
+  +- **Total Files Changed**: <number>
+  +- **Lines Added**: +<number>
+  +- **Lines Removed**: -<number>
+  +- **Commits**: <number>
+- +## Fixes
+  +- <what changed + why>
+- +## Features
+  +- <what changed + why>
+- +## Improvements
+  +- <what changed + why>
+- +## Breaking Changes
+  +- <only if applicable; otherwise omit section>
+- +## Chores
+  +- <only if meaningful; otherwise omit section>
+- +## Changed Files Index
+  +- `<path/to/file-a>`
+  +- `<path/to/file-b>`
+  +- `<path/to/file-c>`
+  +```
+  +````
+- +## Quality Bar
+- +1. No testing sections anywhere.
+  +2. No reviewer checklist.
+  +3. No screenshots/demo placeholders unless user explicitly asks.
+  +4. No redundant sections.
+  +5. `Changed Files Index` appears once, at the end only.
+- +## Suggested Commands
+- +`bash
++# Counts for summary
++BASE="$(git merge-base HEAD dev)"
++git diff --shortstat "$BASE"..HEAD
++git diff --name-only "$BASE"..HEAD | wc -l
++git log --cherry-pick --right-only --no-merges --oneline dev...HEAD | wc -l
++`
+- +## Example Command Flow
+- +`bash
++BASE="$(git merge-base HEAD dev)"
++git log --cherry-pick --right-only --no-merges --oneline dev...HEAD
++git diff --stat "$BASE"..HEAD
++git diff --name-status "$BASE"..HEAD
++`

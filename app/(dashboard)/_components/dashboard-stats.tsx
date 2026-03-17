@@ -3,15 +3,13 @@
 import * as React from 'react'
 
 import { useQuery , queryOptions } from '@tanstack/react-query'
-import { useTranslations } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 
 import { createClient } from '@/lib/supabase/client'
 import { FileTextIcon, InvoiceIcon, MoneyIcon, PackageIcon } from '@/lib/icons'
 
-import { fmtCurrency } from '@/utils/formatters'
-
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
 
 import { StatCard } from './stat-card'
 
@@ -89,6 +87,7 @@ function dashboardStatsOptions(period: Period, fromDate: string, toDate: string)
 
 export function DashboardStats() {
   const t = useTranslations('dashboard')
+  const format = useFormatter()
   const [period, setPeriod] = React.useState<Period>('month')
   const [fromDate, setFromDate] = React.useState('')
   const [toDate, setToDate] = React.useState('')
@@ -117,21 +116,14 @@ export function DashboardStats() {
           </Button>
         ))}
         {period === 'custom' && (
-          <div className="flex items-center gap-2">
-            <Input
-              type="date"
-              value={fromDate}
-              onChange={e => setFromDate(e.target.value)}
-              className="h-9 w-36"
-            />
-            <span className="text-muted-foreground text-sm">{t('to')}</span>
-            <Input
-              type="date"
-              value={toDate}
-              onChange={e => setToDate(e.target.value)}
-              className="h-9 w-36"
-            />
-          </div>
+          <DateRangePicker
+            initialDateFrom={fromDate ? new Date(fromDate) : undefined}
+            initialDateTo={toDate ? new Date(toDate) : undefined}
+            onUpdate={({ dateFrom, dateTo }) => {
+              setFromDate(dateFrom ? dateFrom.toISOString().slice(0, 10) : '')
+              setToDate(dateTo ? dateTo.toISOString().slice(0, 10) : '')
+            }}
+          />
         )}
       </div>
 
@@ -139,7 +131,7 @@ export function DashboardStats() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={t('stats.revenue')}
-          value={isLoading ? '...' : fmtCurrency(stats?.revenue ?? 0)}
+          value={isLoading ? '...' : format.number(stats?.revenue ?? 0, { style: 'currency', currency: 'EGP' })}
           icon={<MoneyIcon size={28} />}
           variant="gold"
         />

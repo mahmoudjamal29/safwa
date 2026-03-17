@@ -1,0 +1,12 @@
+---
+description: Shared code commenting standards for all rules
+globs: **/*
+alwaysApply: true
+---
+
+# Code Comments Standards
+
+- **Minimal commenting** - Only add comments for hard parts or complex logic
+- **Concise and clear** - When comments are needed, they must be brief and explain the "why" not the "what"
+- **Self-documenting code** - Prefer clear variable names and structure over comments
+- Avoid obvious comments that just restate what the code does

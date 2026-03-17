@@ -1,0 +1,195 @@
+---
+description: Enforces the standard Shadcn Tabs pattern with data-driven triggers and panels.
+globs: app/**/*.tsx
+alwaysApply: false
+---
+
+# Standard Tabs Component
+
+- **Pattern Summary**
+  - Tabs are client components that wrap Shadcn `Tabs`, `TabsList`, `TabsTrigger`, and `TabsContent`. They can live in feature-private folders (e.g., `_tenants/tabs`) when they contain complex tab logic.
+  - **⚠️ IMPORTANT: Table components belong in `tables/` folder, not `tabs/` folder.** DataTable implementations should be placed in `_{feature}/tables/` (e.g., `_centers/tables/floors-table.tsx`). Tabs components can render Table components from the `tables/` folder.
+  - **⚠️ CRITICAL: Import table components directly in tabs - DO NOT create wrapper files.** Table components should be imported directly from `../tables/` in tab components. Do NOT create intermediate wrapper files like `{feature}-tab.tsx` that only re-export table components. This is an anti-pattern that adds unnecessary indirection.
+  - Permissions can come from `usePermissions()` booleans (`const canViewAdmins = hasPermission(...)`) or the built-in `permissionKey` props on `TabsTrigger`/`TabsContent`, which call `usePermissions()` internally and hide unauthorized UI.
+  - Props are strongly typed using the feature's tab types (see [tabs-types.ts](<mdc:app/(app)/tenants/_tenants/types/tabs-types.ts>)) so every tab receives the context it needs (IDs, names, entity type).
+
+- **Conditional Rendering Rules**
+  - **Keep triggers and panels paired.** Use the same permission guard when rendering `<TabsTrigger value="admins">` and `<TabsContent value="admins">` so invisible triggers never expose content. When using `permissionKey`, pass the same key to both components.
+  - **Avoid orphaned panels.** If a tab is disabled, remove both trigger and content; do not leave a `TabsContent` that lacks a matching trigger.
+  - **Plan for empty states.** If no permissions unlock a tab, return a lightweight fallback (e.g., `<div>No sections available</div>`) instead of rendering an empty `Tabs`.
+
+- **Tabs Configuration**
+  - **⚠️ CRITICAL: ALWAYS include `defaultValue`** - Even when using `useUrlState`, you MUST provide a `defaultValue` prop. The `useUrlState` hook falls back to `defaultValue` when no URL parameter is present, ensuring a tab is always selected on initial load.
+  - Tabs use the `useUrlState` prop to sync the active tab with the query string; the `defaultValue` serves as the fallback when no URL parameter exists.
+  - Set `defaultValue` to the first available tab's value (typically the first tab in the list).
+  - Triggers may be styled with feature-specific variants (plain in tenants, `variant="line"` in driver/route tabs); keep styling co-located with the feature.
+  - When feature requirements demand dynamic tabs (e.g., passing `tabs` props), perform permission filtering before rendering to match this rule's guard expectations.
+
+- **Do / Don’t Examples**
+
+```typescript
+// ✅ DO: Guard triggers and content with the same permission flag.
+// ✅ DO: Always include defaultValue when using useUrlState.
+// ✅ DO: Import table components directly from tables/ folder.
+import { TenantAdminsTable } from '../tables/tenant-admins-table'
+import { RidersTable } from '../tables/riders-table'
+
+const canViewAdmins = hasPermission(PERMISSIONS.TENANT_ADMINS_SHOW)
+return (
+  <Tabs defaultValue="admins" useUrlState>
+    <TabsList>
+      {canViewAdmins && <TabsTrigger value="admins">Admins</TabsTrigger>}
+    </TabsList>
+    {canViewAdmins && (
+      <TabsContent value="admins">
+        <TenantAdminsTable tenantId={tenantId} tenantName={tenantName} tenantType={tenantType} />
+      </TabsContent>
+    )}
+  </Tabs>
+)
+```
+
+```typescript
+// ✅ DO: Use permissionKey for succinct guards.
+// ✅ DO: Always include defaultValue (use first available tab's value).
+return (
+  <Tabs defaultValue="routes" useUrlState>
+    <TabsList>
+      <TabsTrigger permissionKey={PERMISSIONS.USERS_SHOW} value="info">
+        Info
+      </TabsTrigger>
+      <TabsTrigger value="routes">Routes</TabsTrigger>
+      <TabsTrigger permissionKey={PERMISSIONS.USERS_SHOW} value="parent">
+        Parent
+      </TabsTrigger>
+    </TabsList>
+    <TabsContent permissionKey={PERMISSIONS.USERS_SHOW} value="info">
+      <RiderInfoTab riderId={riderId} />
+    </TabsContent>
+    <TabsContent value="routes">
+      <RiderRoutesTab riderId={riderId} />
+    </TabsContent>
+    <TabsContent permissionKey={PERMISSIONS.USERS_SHOW} value="parent">
+      <RiderParentTab riderId={riderId} />
+    </TabsContent>
+  </Tabs>
+)
+```
+
+```typescript
+// ❌ DON'T: Leave content mounted when the trigger is hidden.
+// This exposes panels that cannot be selected and violates the tenants pattern.
+{/* {canViewAdmins && <TabsTrigger value="admins">Admins</TabsTrigger>} */}
+<TabsContent value="admins">
+  <TenantAdminsTable tenantId={tenantId} tenantName={tenantName} tenantType={tenantType} />
+</TabsContent>
+
+// ❌ DON'T: Omit defaultValue when using useUrlState.
+// Without defaultValue, no tab will be selected if URL parameter is missing.
+<Tabs useUrlState>
+  <TabsList>
+    <TabsTrigger value="floors">Floors</TabsTrigger>
+    <TabsTrigger value="garages">Garages</TabsTrigger>
+  </TabsList>
+</Tabs>
+
+// ✅ DO: Always include defaultValue.
+<Tabs defaultValue="floors" useUrlState>
+  <TabsList>
+    <TabsTrigger value="floors">Floors</TabsTrigger>
+    <TabsTrigger value="garages">Garages</TabsTrigger>
+  </TabsList>
+</Tabs>
+```
+
+- **Reference Implementation**
+
+```30:97:app/(app)/tenants/_tenants/tabs/tenant-tabs.tsx
+  const { hasPermission } = usePermissions()
+  const canViewAdmins = hasPermission(PERMISSIONS.TENANT_ADMINS_SHOW)
+  const canViewRiders = hasPermission(PERMISSIONS.USERS_SHOW)
+  const canViewContract = hasPermission(PERMISSIONS.TENANTS_SHOW_CONTRACT)
+  const canViewRoutes = hasPermission(PERMISSIONS.TENANT_ROUTES_SHOW)
+  const canViewTrips = hasPermission(PERMISSIONS.TRIPS_SHOW)
+  return (
+    <Tabs useUrlState>
+      <TabsList>
+        {canViewAdmins && <TabsTrigger value="admins">Admins</TabsTrigger>}
+        {canViewRiders && <TabsTrigger value="riders">Riders</TabsTrigger>}
+        {canViewContract && <TabsTrigger value="contract">Contract</TabsTrigger>}
+        {canViewRoutes && <TabsTrigger value="routes">Routes</TabsTrigger>}
+        {canViewTrips && <TabsTrigger value="trips">Trips</TabsTrigger>}
+      </TabsList>
+      {canViewAdmins && (
+        <TabsContent value="admins">
+          <TenantAdminsTable tenantId={tenantId} tenantName={tenantName} tenantType={tenantType} />
+        </TabsContent>
+      )}
+      {canViewRiders && (
+        <TabsContent value="riders">
+          <RidersTable tenantId={tenantId} tenantName={tenantName} tenantType={tenantType} />
+        </TabsContent>
+      )}
+      {canViewContract && (
+        <TabsContent value="contract">
+          <ContractTab tenantId={tenantId} />
+        </TabsContent>
+      )}
+      {canViewRoutes && (
+        <TabsContent value="routes">
+          <RoutesTab tenantId={tenantId} tenantName={tenantName} tenantType={tenantType} />
+        </TabsContent>
+      )}
+      {canViewTrips && (
+        <TabsContent value="trips">
+          <TripsTab tenantId={tenantId} tenantName={tenantName} tenantType={tenantType} />
+        </TabsContent>
+      )}
+    </Tabs>
+  )
+```
+
+- **Implementation Notes**
+  - Mirror this structure when introducing new tabs: declare a `const canViewX` flag, render trigger and content under the same guard, and inject feature-specific props.
+  - Prefer `permissionKey` for simple one-to-one permission checks; reserve manual boolean guards for composite conditions (e.g., multiple permissions, feature flags).
+  - The same `permissionKey` pattern exists in shared primitives such as [`button.tsx`](mdc:components/ui/button.tsx); use it consistently across UI elements to avoid duplicating permission logic.
+  - If a tab is temporarily disabled (e.g., awaiting backend support), comment out both trigger and panel to prevent desynchronized markup.
+  - **Table components vs Tabs components**: Table components (DataTable implementations) belong in `_{feature}/tables/` folder. Tabs components (wrapping Shadcn Tabs) can live in `_{feature}/tabs/` folder when they contain complex tab logic, but simple tabs that only render tables can be inline in pages. Keep components colocated with their feature so that shared imports remain internal to the feature folder.
+  - **⚠️ CRITICAL: Import tables directly - NO wrapper files**: When tabs render table components, import them directly from `../tables/` folder. Do NOT create intermediate wrapper files like `admins-tab.tsx` that only re-export table components. This adds unnecessary indirection and violates DRY principles.
+  - **⚠️ CRITICAL: Table spacing in tabs**: When rendering table components inside `TabsContent`, **DO NOT pass `className="m-5"`** - tabs handle spacing internally. Only pass `className="m-5"` when tables are direct children of `PageHeader` (no tabs). See [data-table.mdc](mdc:.cursor/rules/ui-components/data-table.mdc) for the complete spacing pattern.
+
+  **❌ DON'T: Create wrapper files for tables**
+
+  ```typescript
+  // ❌ WRONG: Unnecessary wrapper file
+  // tabs/admins-tab.tsx
+  import { AdminsTable as AdminsTableComponent } from '../tables/admins-table'
+  export function AdminsTable() {
+    return <AdminsTableComponent />
+  }
+  ```
+
+  **✅ DO: Import tables directly**
+
+  ```typescript
+  // ✅ CORRECT: Import directly from tables folder
+  // tabs/administration-tabs.tsx
+  import { AdminsTable } from '../tables/admins-table'
+  import { RolesTable } from '../tables/roles-table'
+
+  export function AdministrationTabs() {
+    return (
+      <Tabs defaultValue="admins" useUrlState>
+        <TabsContent value="admins">
+          <AdminsTable />
+        </TabsContent>
+        <TabsContent value="roles">
+          <RolesTable />
+        </TabsContent>
+      </Tabs>
+    )
+  }
+  ```
+
+- **Related Rules**
+  - Pair with [permissions-system.mdc](mdc:.cursor/rules/feature-development/permissions-system.mdc) for RBAC checks and [feature-structure.mdc](mdc:.cursor/rules/feature-development/feature-structure.mdc) to keep tab files inside the feature's private directory.

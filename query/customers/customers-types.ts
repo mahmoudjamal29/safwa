@@ -8,6 +8,10 @@ export interface Customer {
   created_at: string
 }
 
+export interface CustomerWithBalance extends Customer {
+  pending_balance: number
+}
+
 export interface CustomersListParams {
   page?: number
   per_page?: number

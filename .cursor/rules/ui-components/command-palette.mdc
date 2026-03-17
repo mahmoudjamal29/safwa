@@ -1,0 +1,944 @@
+---
+description: Command Palette system for global search and navigation with dynamic query support
+globs: components/command-palette/**/*.{ts,tsx,css}, app/**/header-search.tsx
+alwaysApply: false
+---
+
+# Command Palette System
+
+## Overview
+
+The Command Palette provides a powerful, keyboard-driven interface for global search and navigation across the application. Built on top of `react-cmdk`, it supports:
+
+- **Static navigation items** - Quick access to pages, create forms, and actions
+- **Dynamic search** - Real-time API queries with infinite scroll support
+- **Multi-level navigation** - Search entities → Select entity → Navigate to tabs
+- **Permission-based filtering** - Automatically hides items based on user permissions
+- **Keyboard shortcuts** - `Cmd/Ctrl+K` to open, arrow keys to navigate
+
+## Architecture
+
+### Core Files
+
+```
+components/command-palette/
+├── command-palette.tsx              # Main component with navigation logic
+├── command-palette-config.tsx       # Configuration with all items and search configs
+├── command-palette-types.ts         # TypeScript type definitions
+├── command-palette-context.tsx      # Context for open/close state management
+├── command-palette.css              # Custom styling (uses app color system)
+├── hooks/
+│   └── use-command-palette-query.ts # Hook for dynamic query integration
+```
+
+### Integration Points
+
+- **Layout wrapper**: `app/(Dashboard)/_layout/components/wrapper.tsx` - Wraps entire app with provider and palette
+- **Header search**: `app/(Dashboard)/_layout/components/header-search.tsx` - Search button in header
+- **Query layer**: Uses `useDynamicQuery` hook for all dynamic searches
+
+## Configuration Pattern
+
+### Static Navigation Items
+
+**Structure**: Items are organized into groups with headings. Each item can be:
+
+1. **Simple navigation link** - Direct href navigation
+2. **Action trigger** - onClick handler with optional closeOnSelect
+3. **Search trigger** - Opens searchConfig page for dynamic queries
+
+**Pattern**:
+
+```typescript
+// components/command-palette/command-palette-config.tsx
+export const createCommandPaletteConfig = (t: Translations): JsonStructure => [
+  {
+    heading: t('layout.sidebar.headings.admin'),
+    id: 'admin',
+    items: [
+      // 1. Simple navigation link
+      {
+        children: t('layout.sidebar.menu.dashboard'),
+        href: '/',
+        icon: 'HomeIcon',
+        id: 'dashboard',
+        keywords: ['home', 'main', 'overview', 'stats', 'statistics']
+      },
+
+      // 2. Action with permission check
+      {
+        children: 'Create Admin',
+        href: '/administration/admins/create',
+        icon: 'Plus',
+        id: 'administration-admins-create',
+        keywords: ['new admin', 'add admin', 'create admin'],
+        requiredPermission: PERMISSIONS.ADMINS_CREATE
+      },
+
+      // 3. Search trigger (opens dynamic search page)
+      {
+        children: 'Search Admins...',
+        closeOnSelect: false,
+        icon: 'UserCogIcon',
+        id: 'administration-admins-search',
+        keywords: ['search admins', 'find admin'],
+        requiredPermission: PERMISSIONS.ADMINS_SHOW,
+        searchConfig: {
+          // See "Dynamic Search Configuration" section below
+        }
+      }
+    ]
+  }
+]
+```
+
+### Dynamic Search Configuration
+
+**When to use**: For searching entities (users, admins, centers, etc.) with real-time API queries.
+
+**Pattern**:
+
+```typescript
+{
+  children: 'Search Users...',
+  closeOnSelect: false,
+  icon: 'UsersIcon',
+  id: 'customers-users-search',
+  keywords: ['search users', 'find user', 'user search'],
+  searchConfig: {
+    // Display heading in search page
+    heading: 'Users',
+
+    // Which field to use as label (displayed text)
+    labelKey: 'name',
+
+    // Unique page ID (used for navigation state)
+    pageId: 'users',
+
+    // Placeholder text in search input
+    placeholder: 'Search users...',
+
+    // Query options function - receives search params
+    queryOptions: (params: UsersListParams) =>
+      getAllUsersQuery({ ...params, per_page: 20 }),
+
+    // Custom render for each item (optional)
+    renderItem: (user: User) => (
+      <Flex
+        avatar={user.image_url}
+        subtitle={user.email}
+        title={user.name}
+      />
+    ),
+
+    // Tabs for multi-level navigation (optional)
+    tabs: [
+      {
+        href: (userId: string) => `/customers/user/${userId}`,
+        id: 'info',
+        label: 'Info'
+      },
+      {
+        href: (userId: string) => `/customers/user/${userId}?tab=requests`,
+        id: 'requests',
+        label: 'Requests'
+      }
+    ] as const,
+
+    // Which field to use as unique identifier
+    valueKey: 'id',
+
+    // Enable infinite scroll (optional, default: false)
+    infinite: true
+  }
+}
+```
+
+### Multi-Level Navigation Flow
+
+**Pattern**: Search entity → Select entity → Select tab → Navigate
+
+1. User opens palette (`Cmd+K`)
+2. Types "Search Users"
+3. Selects "Search Users..." item → Opens `users` page
+4. Types user name → API query with search param
+5. Selects a user → Opens `users-{userId}` page with tabs
+6. Selects "Requests" tab → Navigates to `/customers/user/{userId}?tab=requests`
+
+**Implementation**:
+
+```typescript
+// Step 1: User selects search item
+{
+  children: 'Search Users...',
+  searchConfig: {
+    pageId: 'users', // Opens page with ID "users"
+    tabs: [
+      { id: 'info', label: 'Info', href: (id) => `/customers/user/${id}` },
+      { id: 'requests', label: 'Requests', href: (id) => `/customers/user/${id}?tab=requests` }
+    ]
+  }
+}
+
+// Step 2: Palette creates dynamic search page with id="users"
+// Step 3: User selects entity with id=123
+// Step 4: Palette creates tabs page with id="users-123"
+// Step 5: User selects tab → navigates to tab href
+```
+
+### Parent Items with Tabs
+
+**When to use**: When a section has multiple sub-sections, each with their own actions (create, search, etc.). This pattern organizes related items into tabs for better navigation.
+
+**Pattern**: Parent item → Opens tabs page → Each tab contains nested items
+
+**Example Flow**:
+1. User opens palette (`Cmd+K`)
+2. Types "Administration"
+3. Selects "Administration" → Opens tabs page with "Admins" and "Roles" tabs
+4. Selects "Admins" tab → Shows nested items: "Administration - Admins", "Create Admin", "Search Admins..."
+5. Selects an item → Navigates or opens search
+
+**Configuration Pattern**:
+
+```typescript
+{
+  children: t('layout.sidebar.menu.administration'),
+  icon: UserCogIcon,
+  id: 'administration',
+  keywords: ['administration', 'admin', 'admins', 'roles', 'permissions'],
+  parentConfig: {
+    tabs: [
+      {
+        id: 'admins',
+        label: 'Admins',
+        items: [
+          {
+            children: `${t('layout.sidebar.menu.administration')} - Admins`,
+            href: '/administration?tab=admins',
+            icon: UserCogIcon,
+            id: 'administration-admins',
+            requiredPermission: PERMISSIONS.ADMINS_SHOW
+          },
+          {
+            children: 'Create Admin',
+            href: '/administration/admins/create',
+            icon: PlusIcon,
+            id: 'administration-admins-create',
+            requiredPermission: PERMISSIONS.ADMINS_CREATE
+          },
+          {
+            children: 'Search Admins...',
+            closeOnSelect: false,
+            icon: UserCogIcon,
+            id: 'administration-admins-search',
+            searchConfig: {
+              // ... search configuration
+            }
+          }
+        ]
+      },
+      {
+        id: 'roles',
+        label: 'Roles',
+        items: [
+          // Similar structure for roles...
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Key Requirements**:
+
+- ✅ **parentConfig**: Object containing `tabs` array
+- ✅ **tabs**: Array of tab objects, each with `id`, `label`, and `items`
+- ✅ **items**: Array of `CommandPaletteItem` objects (can include href, searchConfig, etc.)
+- ✅ **Keywords**: Include parent keywords plus all tab-related keywords for better search
+- ✅ **Permissions**: Each nested item can have its own `requiredPermission`
+- ✅ **Icons**: Parent item should have an icon; nested items can have their own icons
+
+**When to Apply This Pattern**:
+
+- ✅ Sections with 2+ sub-sections (e.g., Administration with Admins and Roles)
+- ✅ Sub-sections that have their own actions (create, search, etc.)
+- ✅ Related items that logically belong together
+
+**Examples in Codebase**:
+
+- Administration: Admins, Roles
+- Customers: Users, Groups
+- Area: Countries, States, Cities
+- Workflow: Requests, Leads, Offers, Contracts
+- Reservation: Bookings, Invoices
+- Subscription: Packages, Package Subscription, Services
+- Virtual Office: Packages, Offices, Requests
+- Directory: Brokers, Tours
+- Inventory: Vendors, Products, Services, Orders
+- Support: Tickets, FAQ
+- Settings: Space Configurations, Customer Groups, Doors, Product Categories, Service Categories
+
+## Adding New Items
+
+### 1. Simple Navigation Item
+
+**When**: Adding quick access to existing pages.
+
+**Steps**:
+
+1. Open `components/command-palette/command-palette-config.tsx`
+2. Find appropriate group (admin, account, structure, business, config)
+3. Add item:
+
+```typescript
+{
+  children: 'Page Title',
+  href: '/path/to/page',
+  icon: 'IconName', // Optional: Lucide icon name
+  id: 'unique-id',
+  keywords: ['keyword1', 'keyword2'], // For search matching
+  requiredPermission: PERMISSIONS.FEATURE_SHOW // Optional
+}
+```
+
+### 2. Create Form Link
+
+**When**: Adding quick access to create forms.
+
+**Pattern**:
+
+```typescript
+{
+  children: 'Create Feature',
+  href: '/feature/create',
+  icon: 'Plus',
+  id: 'feature-create',
+  keywords: ['new feature', 'add feature', 'create feature'],
+  requiredPermission: PERMISSIONS.FEATURE_CREATE
+}
+```
+
+### 3. Dynamic Search Item
+
+**When**: Adding searchable entity with API queries.
+
+**Steps**:
+
+1. **Verify query exists** in `query/{feature}/{feature}-query.ts`:
+
+```typescript
+// Must have query options function
+export const getAllFeaturesQuery = (params: FeaturesListParams) =>
+  queryOptions<API<PaginatedResponse<Feature[]>>, AxiosError<API>>({
+    queryFn: () =>
+      fetcher(ENDPOINTS.FEATURES.GET_ALL, {
+        auth: true,
+        params
+      }),
+    queryKey: ['features', params]
+  })
+```
+
+2. **Add search item** to config:
+
+```typescript
+import { getAllFeaturesQuery } from '@/query/features'
+import type { Feature, FeaturesListParams } from '@/query/features/features-types'
+
+// In createCommandPaletteConfig():
+{
+  children: 'Search Features...',
+  closeOnSelect: false, // ⚠️ IMPORTANT: Must be false for search items
+  icon: 'IconName',
+  id: 'features-search',
+  keywords: ['search features', 'find feature'],
+  requiredPermission: PERMISSIONS.FEATURES_SHOW, // Optional
+  searchConfig: {
+    heading: 'Features',
+    labelKey: 'name', // Field to display as primary text
+    pageId: 'features', // Must be unique across all search items
+    placeholder: 'Search features...',
+    queryOptions: (params: FeaturesListParams) =>
+      getAllFeaturesQuery({ ...params, per_page: 20 }),
+    renderItem: (feature: Feature) => (
+      <Flex
+        avatar={feature.image_url} // Optional
+        subtitle={feature.description} // Optional
+        title={feature.name}
+        variants={{ // Optional
+          subtitle: {
+            variant: 'phone' // or 'email', etc.
+          }
+        }}
+      />
+    ),
+    tabs: [ // Optional: Omit if no tabs needed
+      {
+        href: (id: string) => `/features/${id}`,
+        id: 'edit',
+        label: 'Edit'
+      }
+    ] as const,
+    valueKey: 'id', // Field to use as unique identifier
+    infinite: true // Optional: Enable infinite scroll
+  }
+}
+```
+
+3. **Import types at top**:
+
+```typescript
+import type {
+  Feature,
+  FeaturesListParams
+} from '@/query/features/features-types'
+```
+
+### 4. Adding Tabs to Search Items
+
+**When**: Entity has multiple views (info, edit, requests, etc.).
+
+**Pattern**:
+
+```typescript
+searchConfig: {
+  // ... other config
+  tabs: [
+    {
+      href: (id: string) => `/features/${id}`,
+      id: 'info',
+      label: 'Info'
+    },
+    {
+      href: (id: string) => `/features/${id}/edit`,
+      id: 'edit',
+      label: 'Edit'
+    },
+    {
+      href: (id: string) => `/features/${id}?tab=details`,
+      id: 'details',
+      label: 'Details'
+    }
+  ] as const // ⚠️ IMPORTANT: Add "as const" for type safety
+}
+```
+
+**Tab Requirements**:
+
+- ✅ **href**: Function that takes entity ID and returns full URL
+- ✅ **id**: Unique identifier for tab (lowercase, hyphenated)
+- ✅ **label**: Display name shown in palette
+- ⚠️ **Type cast**: Always add `as const` after tabs array for type safety
+
+## Type Definitions
+
+### CommandPaletteItem
+
+```typescript
+export type CommandPaletteItem = {
+  children: string // Display text
+  closeOnSelect?: boolean // Whether to close palette on select (default: true)
+  href?: string // Navigation URL (for static links)
+  icon?: string // Icon name (optional)
+  id: string // Unique identifier
+  keywords?: string[] // Search keywords
+  onClick?: () => void // Click handler (for actions)
+  requiredPermission?: PERMISSION // Permission check (optional)
+  searchConfig?: CommandPaletteSearchConfig<any> // Dynamic search config (optional)
+}
+```
+
+### CommandPaletteSearchConfig
+
+```typescript
+export type CommandPaletteSearchConfig<T extends object> = {
+  heading: string // Display heading in search page
+  infinite?: boolean // Enable infinite scroll (default: false)
+  labelKey: keyof T // Field to use as label
+  pageId: string // Unique page ID
+  placeholder?: string // Search input placeholder
+  queryOptions: DynamicQueryOptions<T> // Query options function
+  renderItem?: (item: T) => React.ReactNode // Custom render (optional)
+  tabs?: CommandPaletteTab[] // Tabs for multi-level navigation (optional)
+  valueKey: keyof T // Field to use as unique identifier
+}
+```
+
+### CommandPaletteTab
+
+```typescript
+export type CommandPaletteTab = {
+  href: (entityId: string) => string // URL builder function
+  icon?: string // Icon name (optional)
+  id: string // Unique identifier
+  keywords?: string[] // Search keywords (optional)
+  label: string // Display text
+}
+```
+
+## Query Integration
+
+### How Dynamic Queries Work
+
+1. **User types search term** → Palette updates `search` state
+2. **useCommandPaletteQuery** calls `useDynamicQuery` with:
+   - `queryOptions` function from searchConfig
+   - `search` query string
+   - `enabled` flag (only on search page, not tabs page)
+3. **useDynamicQuery** calls query function with `{ search: 'user input', per_page: 20 }`
+4. **API returns results** → Displayed as list items
+5. **User selects item** → Opens tabs page or navigates directly
+
+### Query Requirements
+
+**⚠️ MANDATORY**: All queries used in command palette MUST:
+
+1. **Accept params object** with `search` field:
+
+```typescript
+// ✅ CORRECT
+export const getAllUsersQuery = (params: UsersListParams) =>
+  queryOptions({
+    queryFn: () => fetcher(ENDPOINTS.USERS.GET_ALL, { auth: true, params }),
+    queryKey: ['users', params]
+  })
+
+// ❌ WRONG: No params
+export const getAllUsersQuery = () => queryOptions({ ... })
+```
+
+2. **Include search in queryKey** for cache separation:
+
+```typescript
+// ✅ CORRECT: params includes search
+queryKey: ['users', params]
+
+// ❌ WRONG: search not in key
+queryKey: ['users']
+```
+
+3. **Use per_page parameter** for limiting results:
+
+```typescript
+// In command palette config:
+queryOptions: (params: UsersListParams) =>
+  getAllUsersQuery({ ...params, per_page: 20 })
+```
+
+### Infinite Scroll Support
+
+**When to use**: Large datasets where pagination is needed (e.g., users, companies).
+
+**Enable in searchConfig**:
+
+```typescript
+searchConfig: {
+  // ... other config
+  infinite: true // Enables infinite scroll
+}
+```
+
+**Query requirements**:
+
+- Query must support pagination via `page` and `per_page` params
+- API must return `PaginatedResponse` with pagination metadata
+- `useDynamicQuery` automatically handles `fetchNextPage` when user scrolls to bottom
+
+## Styling
+
+### CSS Variables
+
+The palette uses app color system from `globals.css`:
+
+- `--popover` - Background color
+- `--popover-foreground` - Text color
+- `--border` - Border color
+- `--accent` - Selected/hover background
+- `--accent-foreground` - Selected/hover text
+- `--muted-foreground` - Placeholder and hint text
+- `--ring` - Focus ring color
+
+### Custom Styles
+
+Located in `components/command-palette/command-palette.css`:
+
+```css
+/* Main container */
+.command-palette {
+  z-index: 9999; /* Above all other elements */
+}
+
+/* Overlay with blur effect */
+.command-palette .fixed.inset-0.bg-gray-900 {
+  background: rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(4px);
+}
+
+/* Selected/hover states */
+.command-palette .command-palette-list-item:hover,
+.command-palette .command-palette-list-item[aria-selected='true'] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+```
+
+**⚠️ IMPORTANT**: Never hard-code colors. Always use CSS variables for theme consistency.
+
+## Context & State Management
+
+### CommandPaletteContext
+
+Provides global open/close state:
+
+```typescript
+// components/command-palette/command-palette-context.tsx
+export function CommandPaletteProvider({ children }) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const close = useCallback(() => setIsOpen(false), [])
+  const open = useCallback(() => setIsOpen(true), [])
+  const toggle = useCallback(() => setIsOpen((prev) => !prev), [])
+
+  return (
+    <CommandPaletteContext.Provider value={{ close, isOpen, open, toggle }}>
+      {children}
+    </CommandPaletteContext.Provider>
+  )
+}
+
+export function useCommandPalette() {
+  const context = useContext(CommandPaletteContext)
+  if (!context) {
+    throw new Error('useCommandPalette must be used within a CommandPaletteProvider')
+  }
+  return context
+}
+```
+
+**Usage**:
+
+```typescript
+// In any component
+const { open, close, toggle, isOpen } = useCommandPalette()
+
+// Open palette
+<Button onClick={open}>Search</Button>
+```
+
+### Internal State
+
+The main component manages:
+
+- `search` - Current search query string
+- `page` - Current page ID (root, search page, tabs page)
+- `filteredConfig` - Permission-filtered configuration
+- `activeSearchConfig` - Currently active search configuration
+
+## Permission Filtering
+
+### How It Works
+
+1. **Configuration** includes `requiredPermission` for restricted items
+2. **filteredConfig** filters out items user doesn't have access to
+3. **Filtering happens** in useMemo for performance
+4. **Empty groups removed** automatically
+
+**Pattern**:
+
+```typescript
+const filteredConfig = useMemo(() => {
+  return config
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        const commandItem = item as CommandPaletteItem
+        // If no permission required, show item
+        if (!commandItem.requiredPermission) return true
+        // Otherwise, check permission
+        return hasPermission(commandItem.requiredPermission)
+      })
+    }))
+    .filter((group) => group.items.length > 0) // Remove empty groups
+}, [config, hasPermission])
+```
+
+## Integration with Layout
+
+### App Wrapper
+
+**Location**: `app/(Dashboard)/_layout/components/wrapper.tsx`
+
+```typescript
+export function Wrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <CommandPaletteProvider>
+      <Header />
+      <AppCommandPalette />
+
+      <div className="flex min-h-screen grow pt-(--header-height-mobile) lg:pt-(--header-height)">
+        <Sidebar className="hidden md:block" />
+        <main className="content-area grow transition-all duration-300" role="main">
+          {children}
+        </main>
+      </div>
+    </CommandPaletteProvider>
+  )
+}
+```
+
+### Header Search Button
+
+**Location**: `app/(Dashboard)/_layout/components/header-search.tsx`
+
+```typescript
+export function HeaderSearch() {
+  const { open } = useCommandPalette()
+
+  return (
+    <div className="flex w-full shrink-0 items-center lg:w-40">
+      <InputWrapper>
+        <button
+          className="flex w-full items-center gap-2 text-left"
+          onClick={open}
+          type="button"
+        >
+          <Search className="text-muted-foreground size-4" />
+          <span className="text-muted-foreground text-sm">Search...</span>
+          <kbd className="bg-muted pointer-events-none ml-auto hidden h-5 items-center gap-1 rounded border px-1.5 font-mono text-[10px] font-medium opacity-100 select-none sm:flex">
+            <span className="text-xs">⌘</span>K
+          </kbd>
+        </button>
+      </InputWrapper>
+    </div>
+  )
+}
+```
+
+## Keyboard Shortcuts
+
+### Built-in Shortcuts
+
+- **`Cmd+K` / `Ctrl+K`** - Open/close palette
+- **`Escape`** - Close palette
+- **`Arrow Up/Down`** - Navigate items
+- **`Enter`** - Select item
+- **`Backspace`** - Go back to previous page (when on search/tabs page)
+
+### Implementation
+
+Uses `react-cmdk`'s `useHandleOpenCommandPalette` hook:
+
+```typescript
+import { useHandleOpenCommandPalette } from 'react-cmdk'
+
+export function AppCommandPalette() {
+  const { open } = useCommandPalette()
+
+  // Registers Cmd+K / Ctrl+K listener
+  useHandleOpenCommandPalette(open)
+
+  // ... rest of component
+}
+```
+
+## Best Practices
+
+### Configuration
+
+1. ✅ **Group related items** - Use headings to organize items logically
+2. ✅ **Add rich keywords** - Include synonyms and common search terms
+3. ✅ **Use clear labels** - Children text should be descriptive
+4. ✅ **Set closeOnSelect** appropriately:
+   - `false` for search items (keeps palette open for navigation)
+   - `true` (default) for direct navigation items
+5. ✅ **Add permissions** - Protect sensitive items with `requiredPermission`
+
+### Search Configuration
+
+1. ✅ **Limit results** - Use `per_page: 20` to prevent overload
+2. ✅ **Add renderItem** - Custom render for rich display (avatars, subtitles)
+3. ✅ **Use infinite scroll** - For large datasets (users, companies)
+4. ✅ **Add tabs** - When entity has multiple views
+5. ✅ **Type cast tabs** - Always add `as const` for type safety
+
+### Performance
+
+1. ✅ **Use useMemo** - Config and filtered items are memoized
+2. ✅ **Lazy queries** - Queries only run when on search page (`enabled` flag)
+3. ✅ **Cache separation** - Search query included in queryKey
+4. ✅ **Permission filtering** - Memoized to prevent unnecessary re-computation
+
+### Type Safety
+
+1. ✅ **Import types** - Always import entity types at top of config
+2. ✅ **Generic types** - Use `CommandPaletteSearchConfig<Feature>` for type safety
+3. ✅ **Type cast tabs** - Add `as const` to tabs array
+4. ✅ **Avoid any** - Use proper types for renderItem functions
+
+## Common Patterns
+
+### Simple Navigation Group
+
+```typescript
+{
+  heading: 'Settings',
+  id: 'settings',
+  items: [
+    {
+      children: 'Profile Settings',
+      href: '/settings/profile',
+      icon: 'User',
+      id: 'settings-profile',
+      keywords: ['profile', 'settings', 'account']
+    },
+    {
+      children: 'Appearance',
+      href: '/settings/appearance',
+      icon: 'Palette',
+      id: 'settings-appearance',
+      keywords: ['theme', 'appearance', 'dark mode']
+    }
+  ]
+}
+```
+
+### Search with Tabs
+
+```typescript
+{
+  children: 'Search Users...',
+  closeOnSelect: false,
+  icon: 'UsersIcon',
+  id: 'users-search',
+  searchConfig: {
+    heading: 'Users',
+    labelKey: 'name',
+    pageId: 'users',
+    placeholder: 'Search users...',
+    queryOptions: (params) => getAllUsersQuery({ ...params, per_page: 20 }),
+    renderItem: (user) => (
+      <Flex avatar={user.image_url} subtitle={user.email} title={user.name} />
+    ),
+    tabs: [
+      { href: (id) => `/users/${id}`, id: 'info', label: 'Info' },
+      { href: (id) => `/users/${id}/edit`, id: 'edit', label: 'Edit' }
+    ] as const,
+    valueKey: 'id'
+  }
+}
+```
+
+### Search without Tabs (Direct Navigation)
+
+```typescript
+{
+  children: 'Search Companies...',
+  closeOnSelect: false,
+  icon: 'BriefcaseBusinessIcon',
+  id: 'companies-search',
+  searchConfig: {
+    heading: 'Companies',
+    labelKey: 'name',
+    pageId: 'companies',
+    placeholder: 'Search companies...',
+    queryOptions: (params) => getAllCompaniesQuery({ ...params, per_page: 20 }),
+    renderItem: (company) => <Flex title={company.name} subtitle={company.phone} />,
+    valueKey: 'id'
+    // No tabs - selecting item closes palette and navigates to default view
+  }
+}
+```
+
+### Infinite Scroll Search
+
+```typescript
+{
+  children: 'Search Large Dataset...',
+  closeOnSelect: false,
+  icon: 'DatabaseIcon',
+  id: 'large-dataset-search',
+  searchConfig: {
+    heading: 'Items',
+    infinite: true, // ⚠️ Enables infinite scroll
+    labelKey: 'name',
+    pageId: 'items',
+    queryOptions: (params) => getAllItemsQuery({ ...params, per_page: 20 }),
+    valueKey: 'id'
+  }
+}
+```
+
+## Troubleshooting
+
+### Search Not Working
+
+**Problem**: Typing in search page shows no results.
+
+**Checklist**:
+
+1. ✅ Query accepts `params` with `search` field
+2. ✅ `queryOptions` in searchConfig receives params
+3. ✅ `per_page` parameter included
+4. ✅ `enabled` flag properly set (only on search page)
+5. ✅ API endpoint supports `search` parameter
+6. ✅ Check browser console for query errors
+
+### Tabs Not Showing
+
+**Problem**: Selecting entity doesn't show tabs page.
+
+**Checklist**:
+
+1. ✅ `tabs` array added to searchConfig
+2. ✅ `tabs` array has `as const` type cast
+3. ✅ Tab `href` functions return valid URLs
+4. ✅ `page` state matches pattern `{pageId}-{entityId}`
+
+### Item Not Visible
+
+**Problem**: Added item doesn't appear in palette.
+
+**Checklist**:
+
+1. ✅ Item added to correct group in config
+2. ✅ `requiredPermission` check (user has permission?)
+3. ✅ `keywords` include search term
+4. ✅ Group not empty after permission filtering
+5. ✅ Unique `id` (no duplicate IDs)
+
+### Type Errors
+
+**Problem**: TypeScript errors in config file.
+
+**Checklist**:
+
+1. ✅ Import entity types at top
+2. ✅ Generic type in `CommandPaletteSearchConfig<Feature>`
+3. ✅ `as const` on tabs array
+4. ✅ `renderItem` function returns `React.ReactNode`
+5. ✅ `queryOptions` function signature matches `DynamicQueryOptions<T>`
+
+## Reference Implementation
+
+**Complete examples** can be found in:
+
+- Static items: Search for "dashboard" in `command-palette-config.tsx`
+- Simple search: Search for "administration-admins-search" in `command-palette-config.tsx`
+- Search with tabs: Search for "customers-users-search" in `command-palette-config.tsx`
+- Complex render: Search for "companies-search" in `command-palette-config.tsx` (uses phone variant)
+- Permission filtering: Search for "PERMISSIONS" in `command-palette-config.tsx`
+
+## Dependencies
+
+- **react-cmdk** (^1.3.9) - Base command palette library
+- **@tanstack/react-query** - Query management for dynamic search
+- **next-intl** - Translations support
+- **lucide-react** - Icons
+
+## Related Documentation
+
+- [Data Table Filters](mdc:.cursor/rules/ui-components/data-table-filters.mdc) - Similar query patterns
+- [React Query](mdc:.cursor/rules/data-layer/react-query.mdc) - Query configuration requirements
+- [Permissions System](mdc:.cursor/rules/feature-development/permissions-system.mdc) - Permission checks
+- [Feature Structure](mdc:.cursor/rules/feature-development/feature-structure.mdc) - Query file organization

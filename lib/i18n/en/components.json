@@ -1,0 +1,39 @@
+{
+  "ui": {
+    "datePicker": {
+      "placeholder": "Select date"
+    },
+    "dateRangePicker": {
+      "placeholder": "Select date range",
+      "timePlaceholder": "Select time",
+      "fromDate": "From {date}",
+      "selectPreset": "Select preset",
+      "reset": "Reset",
+      "compareTo": "Compare to",
+      "labels": {
+        "presets": "Presets",
+        "from": "From",
+        "to": "To"
+      },
+      "presets": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "last7Days": "Last 7 days",
+        "last30Days": "Last 30 days",
+        "thisMonth": "This month",
+        "lastMonth": "Last month"
+      }
+    }
+  },
+  "form": {
+    "autocomplete": {
+      "placeholder": "Select...",
+      "searchPlaceholder": "Search...",
+      "loading": "Loading...",
+      "noItemsFound": "No items found"
+    },
+    "dateInputBase": {
+      "placeholder": "YYYY-MM-DD"
+    }
+  }
+}

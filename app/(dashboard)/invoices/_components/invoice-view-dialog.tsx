@@ -3,6 +3,7 @@
 import * as React from 'react'
 
 import { useQuery } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 
 import type { Invoice } from '@/query/invoices'
 import { getPaymentsByInvoiceQuery } from '@/query/payments'
@@ -30,6 +31,7 @@ interface InvoiceViewDialogProps {
 }
 
 export function InvoiceViewDialog({ invoice, onOpenChange, open }: InvoiceViewDialogProps) {
+  const t = useTranslations('invoices')
   const [paymentOpen, setPaymentOpen] = React.useState(false)
 
   const { data: payments } = useQuery({
@@ -42,39 +44,40 @@ export function InvoiceViewDialog({ invoice, onOpenChange, open }: InvoiceViewDi
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>فاتورة رقم {invoice.invoice_number}</DialogTitle>
+            <DialogTitle>{t('view.title')} {invoice.invoice_number}</DialogTitle>
           </DialogHeader>
 
           {/* Invoice info */}
-          <div className="grid grid-cols-2 gap-3 text-sm bg-muted rounded-lg p-4">
-            <div><span className="text-muted-foreground">العميل: </span><span className="font-medium">{invoice.customer_name}</span></div>
-            <div><span className="text-muted-foreground">التاريخ: </span><span className="font-medium">{fmtDate(invoice.invoice_date)}</span></div>
-            <div className="flex items-center gap-2"><span className="text-muted-foreground">الحالة: </span><InvoiceStatusBadge status={invoice.status} /></div>
-            <div><span className="text-muted-foreground">الإجمالي: </span><span className="font-bold">{fmtCurrency(invoice.total)}</span></div>
-            <div><span className="text-muted-foreground">المدفوع: </span><span className="font-medium text-green-600">{fmtCurrency(invoice.paid_amount)}</span></div>
-            <div><span className="text-muted-foreground">المتبقي: </span><span className="font-medium text-red-600">{fmtCurrency(invoice.total - invoice.paid_amount)}</span></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm bg-muted rounded-lg p-4">
+            <div><span className="text-muted-foreground">{t('view.customer')}: </span><span className="font-medium">{invoice.customer_name}</span></div>
+            <div><span className="text-muted-foreground">{t('view.date')}: </span><span className="font-medium">{fmtDate(invoice.invoice_date)}</span></div>
+            <div className="flex items-center gap-2"><span className="text-muted-foreground">{t('view.status')}: </span><InvoiceStatusBadge status={invoice.status} /></div>
+            <div><span className="text-muted-foreground">{t('view.total')}: </span><span className="font-bold">{fmtCurrency(invoice.total)}</span></div>
+            <div><span className="text-muted-foreground">{t('view.paid')}: </span><span className="font-medium text-green-600">{fmtCurrency(invoice.paid_amount)}</span></div>
+            <div><span className="text-muted-foreground">{t('view.remaining')}: </span><span className="font-medium text-red-600">{fmtCurrency(invoice.total - invoice.paid_amount)}</span></div>
           </div>
 
           {/* Line items */}
           <div>
-            <h3 className="font-semibold mb-2 text-sm">بنود الفاتورة</h3>
+            <h3 className="font-semibold mb-2 text-sm">{t('view.lineItems')}</h3>
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>المنتج</TableHead>
-                  <TableHead>البيع بـ</TableHead>
-                  <TableHead>الكمية</TableHead>
-                  <TableHead>سعر الوحدة</TableHead>
-                  <TableHead>الإجمالي</TableHead>
+                  <TableHead>{t('lineItems.product')}</TableHead>
+                  <TableHead>{t('view.sellBy')}</TableHead>
+                  <TableHead>{t('lineItems.qty')}</TableHead>
+                  <TableHead>{t('lineItems.unitPrice')}</TableHead>
+                  <TableHead>{t('lineItems.total')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(invoice.items ?? []).map((item, i) => (
                   <TableRow key={i}>
                     <TableCell>{item.product_name}</TableCell>
-                    <TableCell>{item.sell_by === 'unit' ? 'وحدة' : 'قطعة'}</TableCell>
+                    <TableCell>{item.sell_by === 'unit' ? t('view.unit') : t('view.piece')}</TableCell>
                     <TableCell>{item.qty}</TableCell>
                     <TableCell>{fmtCurrency(item.price)}</TableCell>
                     <TableCell>{fmtCurrency(item.total)}</TableCell>
@@ -82,37 +85,39 @@ export function InvoiceViewDialog({ invoice, onOpenChange, open }: InvoiceViewDi
                 ))}
               </TableBody>
             </Table>
+            </div>
           </div>
 
           {/* Totals summary */}
           <div className="flex flex-col gap-1 text-sm border-t pt-3">
-            <div className="flex justify-between"><span className="text-muted-foreground">المجموع الفرعي:</span><span>{fmtCurrency(invoice.subtotal)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{t('view.subtotal')}:</span><span>{fmtCurrency(invoice.subtotal)}</span></div>
             {invoice.tax_percent > 0 && (
-              <div className="flex justify-between"><span className="text-muted-foreground">ضريبة ({invoice.tax_percent}%):</span><span>{fmtCurrency(invoice.tax_amount)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t('view.tax')} ({invoice.tax_percent}%):</span><span>{fmtCurrency(invoice.tax_amount)}</span></div>
             )}
-            <div className="flex justify-between font-bold text-base"><span>الإجمالي:</span><span>{fmtCurrency(invoice.total)}</span></div>
+            <div className="flex justify-between font-bold text-base"><span>{t('view.grandTotal')}:</span><span>{fmtCurrency(invoice.total)}</span></div>
           </div>
 
           {/* Notes */}
           {invoice.notes && (
             <div className="text-sm text-muted-foreground border rounded-lg p-3">
-              <span className="font-medium text-foreground">ملاحظات: </span>{invoice.notes}
+              <span className="font-medium text-foreground">{t('view.notes')}: </span>{invoice.notes}
             </div>
           )}
 
           {/* Payment history */}
           <div>
-            <h3 className="font-semibold mb-2 text-sm">سجل الدفعات</h3>
+            <h3 className="font-semibold mb-2 text-sm">{t('view.paymentHistory')}</h3>
             {!payments || payments.length === 0 ? (
-              <p className="text-sm text-muted-foreground">لا توجد دفعات</p>
+              <p className="text-sm text-muted-foreground">{t('view.noPayments')}</p>
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>التاريخ</TableHead>
-                    <TableHead>المبلغ</TableHead>
-                    <TableHead>طريقة الدفع</TableHead>
-                    <TableHead>ملاحظة</TableHead>
+                    <TableHead>{t('view.date')}</TableHead>
+                    <TableHead>{t('view.amount')}</TableHead>
+                    <TableHead>{t('view.method')}</TableHead>
+                    <TableHead>{t('view.note')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -126,14 +131,15 @@ export function InvoiceViewDialog({ invoice, onOpenChange, open }: InvoiceViewDi
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </div>
 
           <div className="flex justify-between">
             {invoice.status !== 'مدفوعة' && invoice.status !== 'ملغاة' && (
-              <Button onClick={() => setPaymentOpen(true)}>تسجيل دفعة</Button>
+              <Button onClick={() => setPaymentOpen(true)}>{t('view.recordPayment')}</Button>
             )}
-            <Button variant="outline" onClick={() => onOpenChange(false)}>إغلاق</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>{t('view.close')}</Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -1,0 +1,39 @@
+{
+  "ui": {
+    "datePicker": {
+      "placeholder": "اختر تاريخاً"
+    },
+    "dateRangePicker": {
+      "placeholder": "اختر نطاق تاريخ",
+      "timePlaceholder": "اختر الوقت",
+      "fromDate": "من {date}",
+      "selectPreset": "اختر نطاقاً",
+      "reset": "إعادة تعيين",
+      "compareTo": "مقارنة بـ",
+      "labels": {
+        "presets": "نطاقات",
+        "from": "من",
+        "to": "إلى"
+      },
+      "presets": {
+        "today": "اليوم",
+        "yesterday": "أمس",
+        "last7Days": "آخر 7 أيام",
+        "last30Days": "آخر 30 يوم",
+        "thisMonth": "هذا الشهر",
+        "lastMonth": "الشهر الماضي"
+      }
+    }
+  },
+  "form": {
+    "autocomplete": {
+      "placeholder": "اختر...",
+      "searchPlaceholder": "بحث...",
+      "loading": "جاري التحميل...",
+      "noItemsFound": "لا توجد نتائج"
+    },
+    "dateInputBase": {
+      "placeholder": "YYYY-MM-DD"
+    }
+  }
+}

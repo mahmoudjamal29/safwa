@@ -1,0 +1,235 @@
+---
+alwaysApply: false
+description: 'Comprehensive methodology for analyzing file changes and grouping related modifications into logical, coherent commits with dependency mapping and impact assessment.'
+---
+
+# Deep Change Analysis & Commit Grouping
+
+## Overview
+
+When analyzing file changes, perform deep analysis to group related modifications into logical, coherent commits following `@commits.mdc` conventions. **NEVER commit without explicit user review and approval.**
+
+## Analysis Workflow
+
+### 1. Pre-Analysis Phase
+
+- **Scan all modified files** - Get complete picture of changes
+- **Identify change scope** - Understand impact and relationships
+- **Detect patterns** - Look for logical groupings
+- **Assess dependencies** - Find files that must be committed together
+
+### 2. Change Categorization
+
+#### File Relationship Analysis
+
+```
+Related Changes (group together):
+├── Component + Types + Hooks
+├── Form + Schema + Validation
+├── Page + Layout + Styles
+├── API Route + Types + Client Hook
+├── Feature + Tests + Documentation
+└── Bug Fix + Related Test Updates
+
+Separate Changes (different commits):
+├── Unrelated features
+├── Different bug fixes
+├── Formatting vs logic changes
+├── Dependencies vs feature work
+└── Documentation vs implementation
+```
+
+#### Change Type Classification
+
+**🚀 Feature Development (`feat`)**
+
+- New pages, components, or major functionality
+- New API endpoints with client integration
+- New user-facing capabilities
+- Complete feature implementations
+
+**🐛 Bug Resolution (`fix`)**
+
+- Error corrections and exception handling
+- Logic fixes and behavioral corrections
+- Security patches and vulnerability fixes
+- Data validation improvements
+
+**♻️ Code Improvement (`refactor`)**
+
+- Structure reorganization without behavior change
+- Component extraction and code reuse
+- Performance optimizations (non-breaking)
+- Code cleanup and modernization
+
+**🎨 Interface Enhancement (`style`)**
+
+- UI/UX improvements and visual changes
+- CSS and styling modifications
+- Layout adjustments and responsiveness
+- Design system updates
+
+**🔧 Maintenance (`chore`)**
+
+- Dependency updates and package changes
+- Build configuration and tooling
+- Development environment setup
+- CI/CD and automation changes
+
+### 3. Deep Analysis Checklist
+
+Before proposing any commits, analyze:
+
+#### Impact Assessment
+
+- [ ] **Functional Impact**: What user-facing behavior changes?
+- [ ] **Technical Impact**: What internal systems are affected?
+- [ ] **Breaking Changes**: Any API or interface modifications?
+- [ ] **Performance Impact**: Any speed or resource implications?
+- [ ] **Security Impact**: Any security-related modifications?
+
+#### Scope Identification
+
+- [ ] **Primary Module**: What's the main area of change?
+- [ ] **Secondary Effects**: What else is touched by these changes?
+- [ ] **Cross-cutting Concerns**: Are multiple features affected?
+- [ ] **Appropriate Granularity**: Is the scope focused enough?
+
+#### Dependency Mapping
+
+- [ ] **File Dependencies**: Which files must be committed together?
+- [ ] **Feature Dependencies**: What functionality depends on these changes?
+- [ ] **Build Dependencies**: Will the code compile/run at each commit?
+- [ ] **Test Dependencies**: Are test files included with their implementations?
+
+### 4. Grouping Strategies
+
+#### Strategy 1: Feature-Based Grouping
+
+```
+Example: Adding user authentication
+🚀 feat(auth): implement user login system
+├── src/auth/login-form.tsx
+├── src/auth/login-schema.tsx
+├── src/auth/use-login-mutation.ts
+└── src/types/auth.ts
+```
+
+#### Strategy 2: Layer-Based Grouping
+
+```
+Example: Database schema + API + UI
+🚀 feat(users): add user profile management
+
+Commit 1 - Backend:
+├── src/api/users/route.ts
+└── src/types/user.ts
+
+Commit 2 - Frontend:
+├── src/features/profile/profile-form.tsx
+├── src/features/profile/profile-schema.ts
+└── src/hooks/use-profile.ts
+```
+
+#### Strategy 3: Problem-Solution Grouping
+
+```
+Example: Bug fix with comprehensive solution
+🐛 fix(inventory): resolve stock calculation errors
+├── src/features/inventory/hooks/use-inventory-data.tsx
+├── src/features/inventory/types/inventory.ts
+├── src/utils/calculations.ts
+└── tests/inventory.test.ts
+```
+
+### 5. Commit Quality Gates
+
+#### Message Quality
+
+- [ ] **Emoji**: Correct emoji for change type
+- [ ] **Type**: Accurate conventional commit type
+- [ ] **Scope**: Specific, meaningful scope identifier
+- [ ] **Description**: Clear, imperative, under 50 characters
+- [ ] **Body**: Additional context if needed (optional)
+
+#### Content Quality
+
+- [ ] **Atomicity**: Each commit represents one logical change
+- [ ] **Completeness**: All necessary files for the change included
+- [ ] **Consistency**: No mixing of unrelated changes
+- [ ] **Buildability**: Code compiles and runs after each commit
+- [ ] **Testability**: Tests pass after each commit
+
+### 6. Special Case Handling
+
+#### Large Refactoring
+
+```
+Strategy: Break into logical progression
+1. ♻️ refactor(components): extract base form components
+2. ♻️ refactor(forms): migrate to new form components
+3. 🎨 style(forms): update styling for consistency
+4. ✅ test(forms): add tests for refactored components
+```
+
+#### Multi-Feature Development
+
+```
+Strategy: Separate independent features
+1. 🚀 feat(auth): add user authentication
+2. 🚀 feat(inventory): add stock management
+3. 🔧 chore(deps): update dependencies for new features
+```
+
+#### Bug Fix with Side Effects
+
+```
+Strategy: Separate core fix from improvements
+1. 🐛 fix(api): resolve data validation error
+2. ♻️ refactor(validation): improve error handling
+3. ✅ test(api): add comprehensive validation tests
+```
+
+### 7. User Review Process
+
+#### Commit Proposal Format
+
+```
+## Proposed Commits
+
+### Analysis Summary
+- **Files Modified**: X files across Y modules
+- **Change Type**: [Feature/Fix/Refactor/etc.]
+- **Scope**: [Primary affected area]
+- **Impact**: [User-facing/Internal/Breaking/etc.]
+
+### Proposed Commit Structure
+
+**Commit 1: 🚀 feat(auth): implement OAuth integration**
+- src/auth/oauth-provider.tsx
+- src/auth/oauth-types.ts
+- src/hooks/use-oauth.ts
+
+**Commit 2: 🎨 style(auth): update login form styling**
+- src/auth/login-form.tsx
+- src/styles/auth.css
+
+### Pre-commit Checklist
+- [ ] Each commit is logically atomic
+- [ ] Commit messages follow @commits.mdc convention
+- [ ] No unrelated changes mixed together
+- [ ] Code will build and run after each commit
+- [ ] All related files are grouped appropriately
+
+**Ready for review. Please approve before proceeding with commits.**
+```
+
+## Implementation Notes
+
+- **Always request user approval** before executing any commits
+- **Provide detailed analysis** of what each commit contains
+- **Explain grouping rationale** for complex changes
+- **Highlight any potential concerns** or breaking changes
+- **Suggest alternative groupings** if multiple approaches are valid
+
+Remember: The goal is a clean, meaningful git history that tells the story of the codebase evolution while making each commit useful for debugging, code review, and understanding project progression.

@@ -1,19 +1,26 @@
 'use client'
 
-import * as React from 'react'
+import { useMemo, useState } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
+import {
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+  type ColumnDef,
+  type PaginationState,
+} from '@tanstack/react-table'
 import { useTranslations } from 'next-intl'
 
-import { getAllInventoryQuery, type MovementType } from '@/query/inventory'
+import { getAllInventoryQuery, type InventoryMovement, type MovementType } from '@/query/inventory'
 
 import { useDebounce } from '@/hooks/use-debounce'
 
 import { cn } from '@/utils/cn'
 import { fmtDate } from '@/utils/formatters'
 
+import { DataTable } from '@/components/data-table/data-table'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -22,108 +29,125 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 
-const typeColors: Record<MovementType, string> = {
-  'تالف': 'bg-red-100 text-red-700 border-red-200',
-  'تسوية': 'bg-yellow-100 text-yellow-700 border-yellow-200',
-  'صادر': 'bg-blue-100 text-blue-700 border-blue-200',
-  'وارد': 'bg-green-100 text-green-700 border-green-200',
+const typeStyles: Record<MovementType, string> = {
+  'تالف':  'bg-red-50     text-red-700     border-red-200     dark:bg-red-900/20     dark:text-red-400     dark:border-red-800',
+  'تسوية': 'bg-amber-50   text-amber-700   border-amber-200   dark:bg-amber-900/20   dark:text-amber-400   dark:border-amber-800',
+  'صادر':  'bg-sky-50     text-sky-700     border-sky-200     dark:bg-sky-900/20     dark:text-sky-400     dark:border-sky-800',
+  'وارد':  'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
 }
 
 const MOVEMENT_TYPES: MovementType[] = ['وارد', 'صادر', 'تسوية', 'تالف']
 
+const typeTranslationKey: Record<MovementType, string> = {
+  'تالف': 'damaged',
+  'تسوية': 'adjustment',
+  'صادر': 'outgoing',
+  'وارد': 'incoming',
+}
+
 export function InventoryTable() {
   const t = useTranslations('inventory')
-  const [search, setSearch] = React.useState('')
-  const [type, setType] = React.useState<string>('')
-  const [page, setPage] = React.useState(1)
+  const [search, setSearch] = useState('')
+  const [type, setType] = useState<string>('')
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 15 })
   const debouncedSearch = useDebounce(search, 300)
 
-  const params = React.useMemo(() => ({
-    page,
-    per_page: 15,
+  const params = useMemo(() => ({
+    page: pagination.pageIndex + 1,
+    per_page: pagination.pageSize,
     ...(debouncedSearch && { search: debouncedSearch }),
     ...(type && { type }),
-  }), [page, debouncedSearch, type])
+  }), [pagination.pageIndex, pagination.pageSize, debouncedSearch, type])
 
   const { data, isLoading } = useQuery(getAllInventoryQuery(params))
-  const movements = data?.data ?? []
-  const pagination = data?.pagination
+
+  const columns = useMemo<ColumnDef<InventoryMovement>[]>(() => [
+    {
+      accessorKey: 'product_name',
+      cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
+      header: t('columns.product'),
+    },
+    {
+      accessorKey: 'type',
+      cell: ({ getValue }) => {
+        const val = getValue<MovementType>()
+        return (
+          <Badge variant="outline" className={cn('font-medium', typeStyles[val])}>
+            {t(`types.${typeTranslationKey[val]}`)}
+          </Badge>
+        )
+      },
+      header: t('columns.type'),
+      size: 100,
+    },
+    {
+      accessorKey: 'qty',
+      cell: ({ getValue }) => <span>{getValue<number>()}</span>,
+      header: t('columns.qty'),
+      size: 80,
+    },
+    {
+      accessorKey: 'note',
+      cell: ({ getValue }) => <span className="text-muted-foreground">{getValue<string | null>() ?? '-'}</span>,
+      header: t('columns.notes'),
+    },
+    {
+      accessorKey: 'created_at',
+      cell: ({ getValue }) => <span>{fmtDate(getValue<string>())}</span>,
+      header: t('columns.date'),
+      size: 130,
+    },
+  ], [t])
+
+  const table = useReactTable({
+    columns,
+    data: data?.data ?? [],
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: true,
+    onPaginationChange: setPagination,
+    pageCount: data?.pagination?.last_page ?? 1,
+    state: { pagination },
+  })
+
+  const toolbar = (
+    <div className="flex flex-wrap gap-2">
+      <Input
+        placeholder={t('searchPlaceholder')}
+        value={search}
+        onChange={e => {
+          setSearch(e.target.value)
+          setPagination(p => ({ ...p, pageIndex: 0 }))
+        }}
+        className="max-w-xs"
+      />
+      <Select
+        value={type || 'all'}
+        onValueChange={v => {
+          setType(v === 'all' ? '' : v)
+          setPagination(p => ({ ...p, pageIndex: 0 }))
+        }}
+      >
+        <SelectTrigger className="w-40">
+          <SelectValue placeholder={t('allTypes')} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{t('allTypes')}</SelectItem>
+          {MOVEMENT_TYPES.map(mt => (
+            <SelectItem key={mt} value={mt}>{t(`types.${typeTranslationKey[mt]}`)}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-2">
-        <Input
-          placeholder={t('searchPlaceholder')}
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1) }}
-          className="max-w-xs"
-        />
-        <Select value={type} onValueChange={v => { setType(v === 'all' ? '' : v); setPage(1) }}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder={t('allTypes')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('allTypes')}</SelectItem>
-            {MOVEMENT_TYPES.map(mt => (
-              <SelectItem key={mt} value={mt}>{mt}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="rounded-xl border overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('columns.product')}</TableHead>
-              <TableHead>{t('columns.type')}</TableHead>
-              <TableHead>{t('columns.qty')}</TableHead>
-              <TableHead>{t('columns.notes')}</TableHead>
-              <TableHead>{t('columns.date')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">{t('loading')}</TableCell>
-              </TableRow>
-            ) : movements.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">{t('noMovements')}</TableCell>
-              </TableRow>
-            ) : (
-              movements.map(m => (
-                <TableRow key={m.id}>
-                  <TableCell className="font-medium">{m.product_name}</TableCell>
-                  <TableCell>
-                    <Badge className={cn('text-xs', typeColors[m.type])}>{m.type}</Badge>
-                  </TableCell>
-                  <TableCell>{m.qty}</TableCell>
-                  <TableCell className="text-muted-foreground">{m.note ?? '-'}</TableCell>
-                  <TableCell>{fmtDate(m.created_at)}</TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {pagination && pagination.last_page > 1 && (
-        <div className="flex justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('prev')}</Button>
-          <span className="text-sm text-muted-foreground flex items-center">{t('pageOf', { current: page, total: pagination.last_page })}</span>
-          <Button variant="outline" size="sm" disabled={page >= pagination.last_page} onClick={() => setPage(p => p + 1)}>{t('next')}</Button>
-        </div>
-      )}
-    </div>
+    <DataTable
+      enableRowsPerPage
+      isLoading={isLoading}
+      table={table}
+      toolbar={toolbar}
+    />
   )
 }

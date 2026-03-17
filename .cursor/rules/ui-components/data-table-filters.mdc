@@ -1,0 +1,657 @@
+---
+description: Comprehensive guide for data table filter system with 9 filter variants, state management, and best practices.
+globs: components/data-table/**/*.tsx, app/**/tables/*.tsx
+alwaysApply: false
+---
+
+# Data Table Filter System
+
+**⚠️ CRITICAL: Filter Configuration Requirements**
+
+- **ALWAYS use kebab-case for filter keys** (e.g., `'date-range'`, `'time-range'`, not `'date range'` or `'time range'`)
+- **ALWAYS provide proper placeholder text** with correct spacing and capitalization
+- **ALWAYS specify `variant` explicitly** for clarity (even though `'default'` is optional)
+- **Filter values are stored in URL query parameters** using `nuqs` for shareable filtered URLs
+- **String values** are used for simple filters (default, autocomplete)
+- **Array values** (`string[]`) are used for multiselect filters (comma-separated in URL)
+- **JSON values** (`{ from: string, to: string }`) are used for date/time range filters
+
+See [data-table.mdc](mdc:.cursor/rules/ui-components/data-table.mdc) for the complete data table pattern.
+
+## Filter Architecture
+
+The filter system uses a variant-based architecture:
+
+```
+DataTableToolbar (receives filters prop)
+  ↓
+DataTableFiltersPopover (renders filter popover)
+  ↓
+DataTableFilter (routes to specific filter component based on variant)
+  ↓
+Specific Filter Component (e.g., DefaultFilter, DateFilter, etc.)
+  ↓
+useFilterState hook (manages URL state via nuqs)
+```
+
+**State Management**:
+
+- All filter values are stored in URL query parameters using `nuqs`
+- Simple filters use `parseAsString` for string values
+- Multiselect filters use `parseAsArrayOf(parseAsString)` for array values (comma-separated in URL)
+- Range filters use `parseAsJson` with `{ from: string, to: string }` structure
+- Filter values automatically sync with URL, enabling shareable filtered URLs
+
+## Available Filter Variants
+
+The filter system supports **11 filter variants**:
+
+### 1. Default Filter (`variant: 'default'` or no variant)
+
+**Purpose**: Simple dropdown select for predefined options
+
+**Props**:
+
+```typescript
+{
+  key: string                    // Required: URL param key (use kebab-case)
+  label: string                   // Required: Filter label
+  options: FilterOption[]         // Required: Array of { key, label, value }
+  placeholder?: string            // Optional: Placeholder text
+  variant?: 'default'            // Optional: Default if omitted (but recommended to be explicit)
+}
+```
+
+**Example**:
+
+```typescript
+filters={[
+  {
+    key: 'status',
+    label: 'Status',
+    options: [
+      { key: 'active', label: 'Active', value: '1' },
+      { key: 'inactive', label: 'Inactive', value: '0' }
+    ],
+    placeholder: 'Select status',
+    variant: 'default'
+  }
+]}
+```
+
+**Behavior**:
+
+- Renders a `Select` component with options
+- Includes "Default" option (value: "all") to clear filter
+- Stores selected value as string in URL param
+
+---
+
+### 2. Date Filter (`variant: 'date'`)
+
+**Purpose**: Single date picker (no time)
+
+**Props**:
+
+```typescript
+{
+  key: string                    // Required: URL param key
+  label: string                   // Required: Filter label
+  placeholder?: string            // Optional: Placeholder text
+  disabled?: boolean              // Optional: Disable filter
+  variant: 'date'                // Required
+}
+```
+
+**Example**:
+
+```typescript
+filters={[
+  {
+    key: 'date',
+    label: 'Date',
+    placeholder: 'Select Date',
+    variant: 'date'
+  }
+]}
+```
+
+**Behavior**:
+
+- Renders a date picker component
+- Stores selected date as ISO string in URL param
+- No time selection available
+
+---
+
+### 3. Date-Time Filter (`variant: 'date-time'`)
+
+**Purpose**: Single date and time picker
+
+**Props**:
+
+```typescript
+{
+  key: string                    // Required: URL param key
+  label: string                   // Required: Filter label
+  placeholder?: string            // Optional: Placeholder text
+  disabled?: boolean              // Optional: Disable filter
+  timeClearable?: boolean         // Optional: Allow clearing time
+  timePlaceholder?: string        // Optional: Time input placeholder
+  timeShowNowButton?: boolean     // Optional: Show "Now" button
+  timeWithSeconds?: boolean       // Optional: Include seconds in time
+  variant: 'date-time'           // Required
+}
+```
+
+**Example**:
+
+```typescript
+filters={[
+  {
+    key: 'date_time',
+    label: 'Date Time',
+    placeholder: 'Select Date Time',
+    variant: 'date-time'
+  }
+]}
+```
+
+**Behavior**:
+
+- Renders date picker with time selection
+- Stores selected datetime as ISO string in URL param
+- Supports time customization options
+
+---
+
+### 4. Date Range Filter (`variant: 'date-range'`)
+
+**Purpose**: Date range picker (no time)
+
+**Props**:
+
+```typescript
+{
+  key: string                    // Required: URL param key
+  label: string                   // Required: Filter label
+  placeholder?: string            // Optional: Placeholder text
+  align?: 'start' | 'center' | 'end'  // Optional: Popover alignment
+  disabled?: boolean              // Optional: Disable filter
+  showCompare?: boolean           // Optional: Show comparison dates
+  variant: 'date-range'         // Required
+}
+```
+
+**Example**:
+
+```typescript
+filters={[
+  {
+    key: 'date-range',
+    label: 'Date Range',
+    placeholder: 'Select Date Range',
+    variant: 'date-range'
+  }
+]}
+```
+
+**Behavior**:
+
+- Renders date range picker
+- Stores range as JSON `{ from: string, to: string }` in URL param
+- Both dates are ISO strings
+- Empty range is `{ from: '', to: '' }`
+
+---
+
+### 5. Date Range Time Filter (`variant: 'date-range-time'`)
+
+**Purpose**: Date range picker with start/end times
+
+**Props**:
+
+```typescript
+{
+  key: string                    // Required: URL param key
+  label: string                   // Required: Filter label
+  placeholder?: string            // Optional: Placeholder text
+  align?: 'start' | 'center' | 'end'  // Optional: Popover alignment
+  disabled?: boolean              // Optional: Disable filter
+  showCompare?: boolean           // Optional: Show comparison dates
+  timeClearable?: boolean         // Optional: Allow clearing time
+  timePlaceholder?: string        // Optional: Time input placeholder
+  timeShowNowButton?: boolean     // Optional: Show "Now" button
+  timeWithSeconds?: boolean       // Optional: Include seconds in time
+  variant: 'date-range-time'     // Required
+}
+```
+
+**Example**:
+
+```typescript
+filters={[
+  {
+    key: 'date-range-time',
+    label: 'Date Range Time',
+    placeholder: 'Select Date Range Time',
+    variant: 'date-range-time'
+  }
+]}
+```
+
+**Behavior**:
+
+- Renders date range picker with time selection for both start and end
+- Stores range as JSON `{ from: string, to: string }` (ISO datetime strings)
+- Empty range is `{ from: '', to: '' }`
+
+---
+
+### 6. Time Filter (`variant: 'time'`)
+
+**Purpose**: Single time picker (no date)
+
+**Props**:
+
+```typescript
+{
+  key: string                    // Required: URL param key
+  label: string                   // Required: Filter label
+  placeholder?: string            // Optional: Placeholder text
+  disabled?: boolean              // Optional: Disable filter
+  timeClearable?: boolean         // Optional: Allow clearing time
+  timeShowNowButton?: boolean     // Optional: Show "Now" button
+  timeWithSeconds?: boolean       // Optional: Include seconds in time
+  variant: 'time'                // Required
+}
+```
+
+**Example**:
+
+```typescript
+filters={[
+  {
+    key: 'time',
+    label: 'Time',
+    placeholder: 'Select Time',
+    variant: 'time'
+  }
+]}
+```
+
+**Behavior**:
+
+- Renders time picker only (no date)
+- Stores selected time as string in URL param
+
+---
+
+### 7. Time Range Filter (`variant: 'time-range'`)
+
+**Purpose**: Time range picker for a single day
+
+**Props**:
+
+```typescript
+{
+  key: string                    // Required: URL param key (use kebab-case: 'time-range')
+  label: string                   // Required: Filter label
+  placeholder?: string            // Optional: Placeholder text
+  disabled?: boolean              // Optional: Disable filter
+  timeClearable?: boolean         // Optional: Allow clearing time
+  timePlaceholder?: string        // Optional: Time input placeholder
+  timeShowNowButton?: boolean     // Optional: Show "Now" button
+  timeWithSeconds?: boolean       // Optional: Include seconds in time
+  variant: 'time-range'          // Required
+}
+```
+
+**Example**:
+
+```typescript
+filters={[
+  {
+    key: 'time-range',
+    label: 'Time Range',
+    placeholder: 'Select Time Range',
+    variant: 'time-range'
+  }
+]}
+```
+
+**Behavior**:
+
+- Renders time range picker (start and end times)
+- Stores range as JSON `{ from: string, to: string }` (time strings)
+- Empty range is `{ from: '', to: '' }`
+
+---
+
+### 8. Autocomplete Static Filter (`variant: 'autocomplete'` with `options`)
+
+**Purpose**: Autocomplete with predefined static options
+
+**Props**:
+
+```typescript
+{
+  key: string                    // Required: URL param key
+  label: string                   // Required: Filter label
+  options: FilterOption[]         // Required: Static options array
+  labelKey: 'key' | 'label'       // Required: Which property to use for display
+  valueKey: 'key' | 'value'      // Required: Which property to use for value
+  placeholder?: string            // Optional: Placeholder text
+  variant: 'autocomplete'        // Required
+}
+```
+
+**Example**:
+
+```typescript
+filters={[
+  {
+    key: 'autocomplete',
+    label: 'Users',
+    labelKey: 'label',
+    options: [
+      { key: '1', label: 'Option 1', value: '1' },
+      { key: '2', label: 'Option 2', value: '2' }
+    ],
+    placeholder: 'Select users',
+    valueKey: 'value',
+    variant: 'autocomplete'
+  }
+]}
+```
+
+**Behavior**:
+
+- Renders autocomplete component with static options
+- Supports search/filtering within options
+- Stores selected value as string in URL param
+
+---
+
+### 9. Autocomplete Query Filter (`variant: 'autocomplete'` without `options`)
+
+**Purpose**: Autocomplete with dynamic options from API query
+
+**Props**:
+
+```typescript
+{
+  key: string                    // Required: URL param key
+  label: string                   // Required: Filter label
+  queryOptions: QueryOptions     // Required: TanStack Query options function
+  valueKey: string               // Required: Property name for value
+  labelKey?: string              // Optional: Single property for display
+  labelKeys?: string[]           // Optional: Multiple properties for display (mutually exclusive with labelKey)
+  placeholder?: string            // Optional: Placeholder text
+  disabled?: boolean              // Optional: Disable filter
+  getOptionLabel?: (item) => ReactNode  // Optional: Custom label renderer
+  renderOption?: (item) => ReactNode    // Optional: Custom option renderer
+  renderSelected?: (item) => ReactNode  // Optional: Custom selected renderer
+  searchDebounceMs?: number      // Optional: Search debounce delay
+  infinite?: boolean             // Optional: Enable infinite scroll
+  variant: 'autocomplete'        // Required
+}
+```
+
+**Example**:
+
+```typescript
+filters={[
+  {
+    key: 'user',
+    label: 'User',
+    queryOptions: (params) => getAllUsersQuery({ search: params.search }),
+    valueKey: 'id',
+    labelKey: 'name',
+    placeholder: 'Search users...',
+    variant: 'autocomplete'
+  }
+]}
+```
+
+**Behavior**:
+
+- Renders autocomplete with dynamic options from API
+- Supports search with debouncing
+- Can use infinite scroll for large datasets
+- Stores selected value as string in URL param
+
+---
+
+### 10. Multiselect Static Filter (`variant: 'multiselect'` with `options`)
+
+**Purpose**: Multi-select dropdown with predefined static options
+
+**Props**:
+
+```typescript
+{
+  key: string                    // Required: URL param key
+  label: string                   // Required: Filter label
+  options: FilterOption[]         // Required: Static options array
+  placeholder?: string            // Optional: Placeholder text
+  variant: 'multiselect'         // Required
+}
+```
+
+**Example**:
+
+```typescript
+filters={[
+  {
+    key: 'status',
+    label: 'Status',
+    options: [
+      { key: 'active', label: 'Active', value: '1' },
+      { key: 'inactive', label: 'Inactive', value: '0' }
+    ],
+    placeholder: 'Select statuses',
+    variant: 'multiselect'
+  }
+]}
+```
+
+**Behavior**:
+
+- Renders multi-select component with static options
+- Supports search/filtering within options
+- Stores selected values as array of strings in URL param (comma-separated: `?status=1,2,3`)
+- Empty selection removes parameter from URL
+
+---
+
+### 11. Multiselect Query Filter (`variant: 'multiselect'` without `options`)
+
+**Purpose**: Multi-select dropdown with dynamic options from API query
+
+**Props**:
+
+```typescript
+{
+  key: string                    // Required: URL param key
+  label: string                   // Required: Filter label
+  queryOptions: QueryOptions     // Required: TanStack Query options function
+  valueKey: string               // Required: Property name for value
+  labelKey?: string              // Optional: Single property for display
+  labelKeys?: string[]           // Optional: Multiple properties for display (mutually exclusive with labelKey)
+  placeholder?: string            // Optional: Placeholder text
+  disabled?: boolean              // Optional: Disable filter
+  getOptionLabel?: (item) => ReactNode  // Optional: Custom label renderer
+  renderOption?: (item) => ReactNode    // Optional: Custom option renderer
+  renderSelected?: (item) => ReactNode  // Optional: Custom selected renderer
+  searchDebounceMs?: number      // Optional: Search debounce delay
+  infinite?: boolean             // Optional: Enable infinite scroll
+  variant: 'multiselect'         // Required
+}
+```
+
+**Example**:
+
+```typescript
+filters={[
+  {
+    key: 'users',
+    label: 'Users',
+    queryOptions: (params) => getAllUsersQuery({ search: params.search }),
+    valueKey: 'id',
+    labelKey: 'name',
+    placeholder: 'Select users',
+    variant: 'multiselect'
+  }
+]}
+```
+
+**Behavior**:
+
+- Renders multi-select with dynamic options from API
+- Supports search with debouncing
+- Can use infinite scroll for large datasets
+- Stores selected values as array of strings in URL param (comma-separated: `?users=1,2,3`)
+- Empty selection removes parameter from URL
+
+---
+
+## Filter Configuration Best Practices
+
+**✅ DO**:
+
+- Use kebab-case for all filter keys (e.g., `'date-range'`, `'time-range'`)
+- Provide clear, descriptive labels and placeholders
+- Use explicit `variant` prop for clarity
+- Match filter keys to backend query parameter names
+- Use `variant: 'default'` for simple dropdown selects
+- Use `variant: 'multiselect'` for allowing multiple selections
+- Use date/time variants for date-related filtering
+- Use combobox variants for large option sets or dynamic data (single select)
+- Use multiselect variants for multiple selections from large option sets
+
+**❌ DON'T**:
+
+- Use spaces in filter keys (e.g., `'time range'` → use `'time-range'`)
+- Omit placeholder text (always provide user-friendly placeholders)
+- Mix filter key naming conventions (stick to kebab-case)
+- Use autocomplete for small static option sets (use `variant: 'default'` instead)
+- Hard-code filter values in components (filters are configured via props)
+
+## Complete Filter Example
+
+```typescript
+<DataTableToolbar
+  createButtonHref="/features/create"
+  createButtonText="Create Feature"
+  filters={[
+    // Default filter (dropdown select)
+    {
+      key: 'status',
+      label: 'Status',
+      options: [
+        { key: 'active', label: 'Active', value: '1' },
+        { key: 'inactive', label: 'Inactive', value: '0' }
+      ],
+      placeholder: 'Select status',
+      variant: 'default'
+    },
+    // Date filter
+    {
+      key: 'created-date',
+      label: 'Created Date',
+      placeholder: 'Select Date',
+      variant: 'date'
+    },
+    // Date range filter
+    {
+      key: 'date-range',
+      label: 'Date Range',
+      placeholder: 'Select Date Range',
+      variant: 'date-range'
+    },
+    // Autocomplete with static options
+    {
+      key: 'category',
+      label: 'Category',
+      labelKey: 'label',
+      options: [
+        { key: '1', label: 'Category 1', value: '1' },
+        { key: '2', label: 'Category 2', value: '2' }
+      ],
+      placeholder: 'Select category',
+      valueKey: 'value',
+      variant: 'autocomplete'
+    },
+    // Multiselect with static options
+    {
+      key: 'status',
+      label: 'Status',
+      options: [
+        { key: 'active', label: 'Active', value: '1' },
+        { key: 'inactive', label: 'Inactive', value: '0' }
+      ],
+      placeholder: 'Select statuses',
+      variant: 'multiselect'
+    },
+    // Multiselect with query options
+    {
+      key: 'users',
+      label: 'Users',
+      queryOptions: (params) => getAllUsersQuery({ search: params.search }),
+      valueKey: 'id',
+      labelKey: 'name',
+      placeholder: 'Select users',
+      variant: 'multiselect'
+    }
+  ]}
+  searchKey="search"
+  searchPlaceholder="Search features..."
+  table={table}
+/>
+```
+
+## Filter State Management
+
+Filters automatically manage their state through URL query parameters:
+
+- **Simple filters** (default, autocomplete, date, time): Store values as strings
+- **Multiselect filters** (multiselect): Store values as arrays of strings (comma-separated in URL: `?status=1,2,3`)
+- **Range filters** (date-range, date-range-time, time-range): Store values as JSON `{ from: string, to: string }`
+- **URL sync**: All filter values are automatically synced with the URL, enabling:
+  - Shareable filtered URLs
+  - Browser back/forward navigation
+  - Bookmarkable filter states
+  - Deep linking to filtered views
+
+**Accessing filter values in query params hook**:
+
+```typescript
+import { parseAsArrayOf, parseAsJson, parseAsString, useQueryState } from 'nuqs'
+
+// In useFeatureParams hook
+export function useFeatureParams() {
+  const [status] = useQueryState('status', parseAsString.withDefault(''))
+  const [statuses] = useQueryState(
+    'statuses',
+    parseAsArrayOf(parseAsString).withDefault([])
+  )
+  const [dateRange] = useQueryState(
+    'date-range',
+    parseAsJson<{ from: string; to: string }>().withDefault({
+      from: '',
+      to: ''
+    })
+  )
+
+  return {
+    standardParams: {
+      // ... other params
+      ...(status && { status }),
+      ...(statuses.length > 0 && { statuses: statuses.join(',') }),
+      ...(dateRange.from && { date_from: dateRange.from }),
+      ...(dateRange.to && { date_to: dateRange.to })
+    }
+  }
+}
+```

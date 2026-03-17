@@ -1,8 +1,16 @@
 'use client'
 
 import * as React from 'react'
+import { useMemo, useState } from 'react'
 
 import { useQuery, queryOptions } from '@tanstack/react-query'
+import {
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+  type ColumnDef,
+  type PaginationState,
+} from '@tanstack/react-table'
 import { useTranslations } from 'next-intl'
 import { PencilIcon, Trash2Icon } from '@/lib/icons'
 
@@ -27,13 +35,14 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+
+import { DataTable } from '@/components/data-table/data-table'
 
 import { ProductFormDialog } from './product-form-dialog'
 
@@ -41,29 +50,28 @@ const CATEGORIES_QUERY_KEY = ['product-categories']
 
 export function ProductsTable() {
   const t = useTranslations('products')
-  const [search, setSearch] = React.useState('')
-  const [category, setCategory] = React.useState('')
-  const [page, setPage] = React.useState(1)
+  const [search, setSearch] = useState('')
+  const [category, setCategory] = useState('')
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 15 })
   const debouncedSearch = useDebounce(search, 300)
 
-  const [editProduct, setEditProduct] = React.useState<Product | null>(null)
-  const [dialogOpen, setDialogOpen] = React.useState(false)
-  const [deleteId, setDeleteId] = React.useState<string | null>(null)
+  const [editProduct, setEditProduct] = useState<Product | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const deleteMutation = useDeleteProduct()
 
-  const params = React.useMemo(() => ({
-    page,
-    per_page: 15,
+  const params = useMemo(() => ({
+    page: pagination.pageIndex + 1,
+    per_page: pagination.pageSize,
     ...(debouncedSearch && { search: debouncedSearch }),
     ...(category && { category }),
-  }), [page, debouncedSearch, category])
+  }), [pagination.pageIndex, pagination.pageSize, debouncedSearch, category])
 
   const { data, isLoading } = useQuery(getAllProductsQuery(params))
   const products = data?.data ?? []
-  const pagination = data?.pagination
 
-  // Distinct categories from current data
+  // Distinct categories inline query
   const { data: allProducts } = useQuery(queryOptions({
     queryFn: async () => {
       const { data } = await createClient().from('products').select('category').order('category')
@@ -84,118 +92,164 @@ export function ProductsTable() {
     setDialogOpen(true)
   }
 
+  const columns = useMemo<ColumnDef<Product>[]>(() => [
+    {
+      accessorKey: 'name',
+      header: t('columns.name'),
+      cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
+    },
+    {
+      accessorKey: 'sku',
+      header: t('columns.sku'),
+      cell: ({ getValue }) => <span className="text-muted-foreground">{getValue<string | null>() ?? '-'}</span>,
+    },
+    {
+      accessorKey: 'category',
+      header: t('columns.category'),
+      cell: ({ getValue }) => <span>{getValue<string | null>() ?? '-'}</span>,
+    },
+    {
+      accessorKey: 'unit',
+      header: t('columns.unit'),
+      cell: ({ getValue }) => <span>{getValue<string>()}</span>,
+    },
+    {
+      accessorKey: 'price',
+      header: t('columns.price'),
+      cell: ({ getValue }) => <span>{fmtCurrency(getValue<number>())}</span>,
+    },
+    {
+      accessorKey: 'cost',
+      header: t('columns.cost'),
+      cell: ({ getValue }) => {
+        const v = getValue<number | null>()
+        return <span>{v != null ? fmtCurrency(v) : '-'}</span>
+      },
+    },
+    {
+      accessorKey: 'qty',
+      header: t('columns.qty'),
+      cell: ({ row }) => {
+        const isLow = row.original.min_qty != null && row.original.qty <= (row.original.min_qty ?? Infinity)
+        return (
+          <span className={isLow ? 'text-red-600 font-bold' : ''}>
+            {row.original.qty}
+          </span>
+        )
+      },
+    },
+    {
+      accessorKey: 'min_qty',
+      header: t('columns.minQty'),
+      cell: ({ getValue }) => <span>{getValue<number | null>() ?? '-'}</span>,
+    },
+    {
+      accessorKey: 'pieces_per_unit',
+      header: t('columns.piecesPerUnit'),
+      cell: ({ getValue }) => <span>{getValue<number | null>() ?? '-'}</span>,
+    },
+    {
+      id: 'actions',
+      header: t('columns.actions'),
+      cell: ({ row }) => (
+        <div className="flex gap-1">
+          <Button size="icon" variant="ghost" onClick={() => openEdit(row.original)}>
+            <PencilIcon className="h-4 w-4" />
+          </Button>
+          <Button size="icon" variant="ghost" className="text-destructive" onClick={() => setDeleteId(row.original.id)}>
+            <Trash2Icon className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ], [t])
+
+  const table = useReactTable({
+    columns,
+    data: products,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: true,
+    pageCount: data?.pagination?.last_page ?? 1,
+    onPaginationChange: setPagination,
+    state: { pagination },
+  })
+
+  const toolbar = (
+    <div className="flex flex-wrap gap-2">
+      <Input
+        placeholder={t('searchPlaceholder')}
+        value={search}
+        onChange={e => {
+          setSearch(e.target.value)
+          setPagination(p => ({ ...p, pageIndex: 0 }))
+        }}
+        className="max-w-xs"
+      />
+      <Select
+        value={category || '__all__'}
+        onValueChange={v => {
+          setCategory(v === '__all__' ? '' : v)
+          setPagination(p => ({ ...p, pageIndex: 0 }))
+        }}
+      >
+        <SelectTrigger className="w-40">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__all__">{t('allCategories')}</SelectItem>
+          {categories.map(c => (
+            <SelectItem key={c} value={c}>{c}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+
+  const deleteDialog = (
+    <AlertDialog open={!!deleteId} onOpenChange={open => !open && setDeleteId(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
+          <AlertDialogDescription>{t('deleteDescription')}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={async () => {
+              if (deleteId) {
+                await deleteMutation.mutateAsync(deleteId)
+                setDeleteId(null)
+              }
+            }}
+          >
+            {t('delete')}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <Input
-          placeholder={t('searchPlaceholder')}
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1) }}
-          className="max-w-xs"
-        />
-        <select
-          value={category}
-          onChange={e => { setCategory(e.target.value); setPage(1) }}
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-        >
-          <option value="">{t('allCategories')}</option>
-          {categories.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-      </div>
+      <DataTable
+        isLoading={isLoading}
+        table={table}
+        toolbar={toolbar}
+        enableRowsPerPage
+        deleteDialog={deleteDialog}
+      />
 
-      {/* Table */}
-      <div className="rounded-xl border overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('columns.name')}</TableHead>
-              <TableHead>{t('columns.sku')}</TableHead>
-              <TableHead>{t('columns.category')}</TableHead>
-              <TableHead>{t('columns.unit')}</TableHead>
-              <TableHead>{t('columns.price')}</TableHead>
-              <TableHead>{t('columns.cost')}</TableHead>
-              <TableHead>{t('columns.qty')}</TableHead>
-              <TableHead>{t('columns.minQty')}</TableHead>
-              <TableHead>{t('columns.piecesPerUnit')}</TableHead>
-              <TableHead>{t('columns.actions')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground">{t('loading')}</TableCell>
-              </TableRow>
-            ) : products.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground">{t('noProducts')}</TableCell>
-              </TableRow>
-            ) : (
-              products.map(p => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{p.sku ?? '-'}</TableCell>
-                  <TableCell>{p.category ?? '-'}</TableCell>
-                  <TableCell>{p.unit}</TableCell>
-                  <TableCell>{fmtCurrency(p.price)}</TableCell>
-                  <TableCell>{p.cost != null ? fmtCurrency(p.cost) : '-'}</TableCell>
-                  <TableCell className={p.min_qty != null && p.qty <= p.min_qty ? 'text-red-600 font-bold' : ''}>
-                    {p.qty}
-                  </TableCell>
-                  <TableCell>{p.min_qty ?? '-'}</TableCell>
-                  <TableCell>{p.pieces_per_unit ?? '-'}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(p)}>
-                        <PencilIcon className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="text-destructive" onClick={() => setDeleteId(p.id)}>
-                        <Trash2Icon className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Pagination */}
-      {pagination && pagination.last_page > 1 && (
-        <div className="flex justify-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('prev')}</Button>
-          <span className="text-sm text-muted-foreground flex items-center">{t('pageOf', { current: page, total: pagination.last_page })}</span>
-          <Button variant="outline" size="sm" disabled={page >= pagination.last_page} onClick={() => setPage(p => p + 1)}>{t('next')}</Button>
-        </div>
-      )}
-
-      {/* Form Dialog */}
-      <ProductFormDialog open={dialogOpen} onOpenChange={setDialogOpen} product={editProduct} />
-
-      {/* Delete Dialog */}
-      <AlertDialog open={!!deleteId} onOpenChange={open => !open && setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('deleteDescription')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={async () => {
-                if (deleteId) {
-                  await deleteMutation.mutateAsync(deleteId)
-                  setDeleteId(null)
-                }
-              }}
-            >
-              {t('delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ProductFormDialog
+        key={editProduct?.id ?? 'create'}
+        open={dialogOpen}
+        onOpenChange={open => {
+          setDialogOpen(open)
+          if (!open) setEditProduct(null)
+        }}
+        product={editProduct}
+      />
     </div>
   )
 }

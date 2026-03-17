@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import * as React from 'react'
 
 import { useQuery } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 
 import { createClient } from '@/lib/supabase/client'
 
@@ -13,9 +14,9 @@ import { useCreateInvoice, type InvoiceStatus } from '@/query/invoices'
 
 import { fmtCurrency } from '@/utils/formatters'
 
+import { FieldWrapper } from '@/components/form/field-wrapper'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -36,13 +37,6 @@ export interface LineItem {
   total: number
   pieces_per_unit: number
 }
-
-const STATUSES: { label: string; value: InvoiceStatus; }[] = [
-  { label: 'معلقة', value: 'معلقة' },
-  { label: 'مدفوعة', value: 'مدفوعة' },
-  { label: 'مدفوعة جزئياً', value: 'مدفوعة جزئياً' },
-  { label: 'ملغاة', value: 'ملغاة' },
-]
 
 interface FormState {
   customer_id: string
@@ -69,6 +63,7 @@ async function getNextInvoiceNumber() {
 
 export function NewInvoiceForm() {
   const router = useRouter()
+  const t = useTranslations('invoices')
   const createInvoice = useCreateInvoice()
   const createMovement = useCreateMovement()
 
@@ -136,7 +131,7 @@ export function NewInvoiceForm() {
 
     await createInvoice.mutateAsync({
       customer_id: form.customer_id || null,
-      customer_name: form.customer_name || 'غير محدد',
+      customer_name: form.customer_name || t('form.unknownCustomer'),
       invoice_date: form.invoice_date,
       invoice_number: invoiceNumber,
       items: JSON.stringify(items),
@@ -149,10 +144,9 @@ export function NewInvoiceForm() {
       total: grandTotal,
     })
 
-    // Create inventory movements for each line item
     for (const item of items) {
       await createMovement.mutateAsync({
-        note: `فاتورة ${invoiceNumber}`,
+        note: `${t('form.invoiceRef')} ${invoiceNumber}`,
         product_id: item.product_id,
         product_name: item.product_name,
         qty: item.sell_by === 'piece' ? item.qty / (item.pieces_per_unit || 1) : item.qty,
@@ -170,63 +164,68 @@ export function NewInvoiceForm() {
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       {/* Customer + Date + Status */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
-          <Label>العميل</Label>
+        <div className="sm:col-span-2 lg:col-span-1">
+          <FieldWrapper label={t('form.customer')}>
+            <Input
+              placeholder={t('form.customerSearch')}
+              value={customerSearch}
+              onChange={e => {
+                setCustomerSearch(e.target.value)
+                set('customer_id', '')
+                set('customer_name', e.target.value)
+              }}
+            />
+            {customerSearch && filteredCustomers.length > 0 && !form.customer_id && (
+              <div className="border rounded-md bg-background shadow-md max-h-40 overflow-y-auto z-10">
+                {filteredCustomers.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className="w-full text-right px-3 py-2 text-sm hover:bg-accent"
+                    onClick={() => {
+                      set('customer_id', c.id)
+                      set('customer_name', c.name)
+                      setCustomerSearch(c.name)
+                    }}
+                  >
+                    {c.name} {c.phone ? `(${c.phone})` : ''}
+                  </button>
+                ))}
+              </div>
+            )}
+          </FieldWrapper>
+        </div>
+
+        <FieldWrapper label={t('form.invoiceDate')}>
           <Input
-            placeholder="ابحث عن عميل..."
-            value={customerSearch}
-            onChange={e => {
-              setCustomerSearch(e.target.value)
-              set('customer_id', '')
-              set('customer_name', e.target.value)
-            }}
+            type="date"
+            value={form.invoice_date}
+            onChange={e => set('invoice_date', e.target.value)}
+            required
           />
-          {customerSearch && filteredCustomers.length > 0 && !form.customer_id && (
-            <div className="border rounded-md bg-background shadow-md max-h-40 overflow-y-auto z-10">
-              {filteredCustomers.map(c => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className="w-full text-right px-3 py-2 text-sm hover:bg-accent"
-                  onClick={() => {
-                    set('customer_id', c.id)
-                    set('customer_name', c.name)
-                    setCustomerSearch(c.name)
-                  }}
-                >
-                  {c.name} {c.phone ? `(${c.phone})` : ''}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        </FieldWrapper>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>تاريخ الفاتورة</Label>
-          <Input type="date" value={form.invoice_date} onChange={e => set('invoice_date', e.target.value)} required />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label>الحالة</Label>
+        <FieldWrapper label={t('form.status')}>
           <Select value={form.status} onValueChange={v => set('status', v as InvoiceStatus)}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {STATUSES.map(s => (
-                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-              ))}
+              <SelectItem value="معلقة">{t('statuses.pending')}</SelectItem>
+              <SelectItem value="مدفوعة">{t('statuses.paid')}</SelectItem>
+              <SelectItem value="مدفوعة جزئياً">{t('statuses.partiallyPaid')}</SelectItem>
+              <SelectItem value="ملغاة">{t('statuses.cancelled')}</SelectItem>
             </SelectContent>
           </Select>
-        </div>
+        </FieldWrapper>
       </div>
 
       {/* Line items */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <Label className="text-base font-semibold">بنود الفاتورة</Label>
+          <span className="text-base font-semibold">{t('form.items')}</span>
           <Button type="button" variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
-            + إضافة منتج
+            {t('form.addProduct')}
           </Button>
         </div>
         <LineItemsTable items={items} onUpdateItem={updateItem} onRemoveItem={removeItem} />
@@ -235,11 +234,11 @@ export function NewInvoiceForm() {
       {/* Totals */}
       <div className="rounded-xl border p-4 flex flex-col gap-2 text-sm bg-muted/30">
         <div className="flex justify-between">
-          <span className="text-muted-foreground">المجموع الفرعي:</span>
+          <span className="text-muted-foreground">{t('form.subtotal')}:</span>
           <span className="font-medium">{fmtCurrency(subtotal)}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-muted-foreground">ضريبة %:</span>
+          <span className="text-muted-foreground">{t('form.tax')}:</span>
           <Input
             type="number"
             min="0"
@@ -252,15 +251,14 @@ export function NewInvoiceForm() {
           <span className="font-medium">{fmtCurrency(taxAmount)}</span>
         </div>
         <div className="flex justify-between font-bold text-base border-t pt-2">
-          <span>الإجمالي:</span>
+          <span>{t('form.grandTotal')}:</span>
           <span>{fmtCurrency(grandTotal)}</span>
         </div>
       </div>
 
       {/* Paid amount + Notes */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <Label>المبلغ المدفوع</Label>
+        <FieldWrapper label={t('form.paid')}>
           <Input
             type="number"
             min="0"
@@ -268,22 +266,22 @@ export function NewInvoiceForm() {
             value={form.paid_amount}
             onChange={e => set('paid_amount', e.target.value)}
           />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>ملاحظات</Label>
+        </FieldWrapper>
+
+        <FieldWrapper label={t('form.notes')}>
           <Input
             value={form.notes}
             onChange={e => set('notes', e.target.value)}
-            placeholder="أي ملاحظات إضافية..."
+            placeholder={t('form.notesPlaceholder')}
           />
-        </div>
+        </FieldWrapper>
       </div>
 
       {/* Actions */}
       <div className="flex gap-2 justify-end">
-        <Button type="button" variant="outline" onClick={handleReset}>تفريغ</Button>
+        <Button type="button" variant="outline" onClick={handleReset}>{t('form.reset')}</Button>
         <Button type="submit" disabled={isPending || items.length === 0}>
-          {isPending ? 'جاري الحفظ...' : 'حفظ الفاتورة'}
+          {isPending ? t('payment.saving') : t('form.save')}
         </Button>
       </div>
 

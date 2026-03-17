@@ -1,0 +1,758 @@
+---
+description: This rule defines the standard structure and patterns for creating new pages in the application
+alwaysApply: false
+---
+
+# Create New Page Rule
+
+This rule defines the standard structure and patterns for creating new pages in the application, based on the edit-profile feature architecture.
+
+**⚠️ IMPORTANT: By default, use hard-coded English strings in all examples and implementations. Translations should only be added when explicitly requested by the user.**
+
+See [code-comments.mdc](mdc:.cursor/rules/_common/code-comments.mdc) for code commenting standards.
+
+**⚠️ MANDATORY:** See [context7-docs.mdc](mdc:.cursor/rules/_common/context7-docs.mdc) for Context7 MCP requirements and [nextjs-devtools.mdc](mdc:.cursor/rules/_common/nextjs-devtools.mdc) for Next.js DevTools MCP requirements.
+
+### Why Next.js DevTools MCP Is Mandatory:
+
+- **Prevents Duplicate Routes**: Identifies existing routes before creating new ones
+- **Catches Errors Early**: Detects compilation and runtime errors immediately
+- **Validates Architecture**: Ensures new pages follow Next.js App Router conventions
+- **Runtime Verification**: Confirms pages work correctly in the actual Next.js runtime
+- **Better Context**: Provides real-time information about the running application
+
+### Example Workflow:
+
+```typescript
+// 1. Initialize (once per session)
+nextjs_init({ project_path: '/path/to/project' })
+
+// 2. Discover dev server
+nextjs_index() // Returns server info and available tools
+
+// 3. Check current state before creating page
+nextjs_call({
+  port: '3000',
+  toolName: 'get_routes'
+})
+
+// 4. After implementation, verify
+nextjs_call({
+  port: '3000',
+  toolName: 'get_errors'
+})
+```
+
+**Failure to use Next.js DevTools MCP may result in:**
+
+- Duplicate route creation
+- Missing error detection
+- Architecture violations
+- Runtime issues going unnoticed
+
+## ⚠️ CRITICAL: Page Component Requirements
+
+### ALL Pages MUST Be Server Components
+
+**MANDATORY REQUIREMENTS:**
+
+1. **ALL pages MUST be async Server Components** - No page file should have `'use client'` directive
+2. **ALL async pages MUST export `generateMetadata`** - Every page component must include metadata generation
+3. **If a page needs interactivity**, extract the interactive logic to a separate Client Component and import it in the Server Component page
+
+**Pattern for Pages Requiring Interactivity:**
+
+```tsx
+// ✅ CORRECT: Server Component page with separate Client Component
+// app/(feature)/page.tsx
+import { Metadata } from 'next'
+
+import { InteractiveComponent } from './_feature/interactive-component'
+
+export default async function FeaturePage() {
+  return <InteractiveComponent />
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Page description',
+    title: 'Page Title'
+  }
+}
+```
+
+```tsx
+// ✅ CORRECT: Client Component for interactivity
+// app/(feature)/_feature/interactive-component.tsx
+'use client'
+
+import { useState } from 'react'
+
+export function InteractiveComponent() {
+  const [state, setState] = useState()
+  // ... interactive logic
+  return <div>...</div>
+}
+```
+
+**❌ WRONG: Client Component Page**
+
+```tsx
+// ❌ WRONG: Page as Client Component
+'use client'
+
+export default function FeaturePage() {
+  // This violates the requirement
+}
+```
+
+**❌ WRONG: Missing generateMetadata**
+
+```tsx
+// ❌ WRONG: Async page without generateMetadata
+export default async function FeaturePage() {
+  return <div>...</div>
+  // Missing generateMetadata export
+}
+```
+
+**❌ WRONG: Non-async Page**
+
+```tsx
+// ❌ WRONG: Non-async page
+export default function FeaturePage() {
+  return <div>...</div>
+  // Should be: export default async function FeaturePage()
+}
+```
+
+### generateMetadata Pattern
+
+**For Static Pages:**
+
+```tsx
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Page description',
+    title: 'Page Title'
+  }
+}
+```
+
+**For Dynamic Pages (with params):**
+
+```tsx
+type PageProps = {
+  params: Promise<{ id: string }>
+}
+
+export async function generateMetadata({
+  params
+}: PageProps): Promise<Metadata> {
+  const { id } = await params
+
+  // Optionally fetch data for metadata
+  const data = await fetchData(id)
+
+  return {
+    description: data?.description || 'Default description',
+    title: data?.name || 'Default Title'
+  }
+}
+```
+
+## Page Structure Requirements
+
+### 1. Page Header Component
+
+Every page MUST include a `PageHeader` component with:
+
+- `title`: Main page title
+- `description`: Brief description of the page purpose
+- `children`: Optional content (typically submit buttons for forms)
+- `resourceName`: (Optional) For edit pages, the actual resource name to display in breadcrumb
+
+```tsx
+import { PageHeader } from '@/components/custom/page-header'
+;<PageHeader title="Page Title" description="Page description">
+  {/* Optional children content */}
+</PageHeader>
+```
+
+#### PageHeader resourceName Prop for Edit and Show Pages
+
+**When viewing or editing a specific resource, use the `resourceName` prop to display the actual resource name in the breadcrumb trail.**
+
+The `resourceName` prop is used by the `SmartBreadcrumb` component to:
+- Replace generic breadcrumb segments with the actual resource name
+- Provide better context for users navigating through the app
+- Create more meaningful breadcrumb trails like "Spaces > Layouts > Conference Room Layout" instead of "Spaces > Layouts > Edit"
+- Apply to both edit pages (`/edit`) and show/detail pages (`/[id]`)
+
+**Example: Edit Page with Resource Name**
+
+```tsx
+'use client'
+
+import { useQuery } from '@tanstack/react-query'
+import { PageHeader } from '@/components/custom/page-header'
+
+export function EditResourceForm({ resourceId }: { resourceId: string }) {
+  const { data: resource } = useQuery(getResourceByIdQuery(resourceId))
+
+  return (
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        description="Update resource information"
+        resourceName={resource?.name} // Displays actual resource name in breadcrumb
+        title="Edit Resource"
+      >
+        <form.AppForm>
+          <form.SubmitButton form="edit-form">
+            Save Changes
+          </form.SubmitButton>
+        </form.AppForm>
+      </PageHeader>
+      {/* Form content */}
+    </div>
+  )
+}
+```
+
+**Example: Show/Detail Page with Resource Name**
+
+```tsx
+'use client'
+
+import { useQuery } from '@tanstack/react-query'
+import { PageHeader } from '@/components/custom/page-header'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
+
+export function ResourceDetailPage({ resourceId }: { resourceId: string }) {
+  const { data: resource } = useQuery(getResourceByIdQuery(resourceId))
+
+  return (
+    <>
+      <PageHeader
+        description="Resource details"
+        resourceName={resource?.name} // Shows actual resource name in breadcrumb
+        title={resource?.name || 'Resource'}
+      >
+        <HeaderActions
+          edit={{ path: `/resources/${resourceId}/edit` }}
+          // ... other actions
+        />
+      </PageHeader>
+      <Tabs defaultValue="overview">
+        <TabsContent value="overview">
+          {/* Resource details */}
+        </TabsContent>
+      </Tabs>
+    </>
+  )
+}
+```
+
+#### Handling Resources with Arabic/English Translations
+
+**When viewing or editing resources that have `ar` and `en` translations, use the `useLocale()` hook to select the appropriate language for the `resourceName`.**
+
+**Pattern for Resources with Translations:**
+
+```tsx
+'use client'
+
+import { useQuery } from '@tanstack/react-query'
+import { useLocale } from '@/hooks/use-locale'
+import { PageHeader } from '@/components/custom/page-header'
+
+type ResourceWithTranslations = {
+  id: number
+  translations?: {
+    ar: { name: string }
+    en: { name: string }
+  }
+}
+
+export function EditResourceForm({ resourceId }: { resourceId: string }) {
+  const { isRTL } = useLocale()
+
+  const { data: resource } = useQuery<ResourceWithTranslations>(
+    getResourceByIdQuery(resourceId)
+  )
+
+  // Select translation based on current locale
+  const resourceName = isRTL
+    ? resource?.translations?.ar.name
+    : resource?.translations?.en.name
+
+  return (
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        description="Update resource information"
+        resourceName={resourceName} // Locale-aware resource name
+        title="Edit Resource"
+      >
+        <form.AppForm>
+          <form.SubmitButton form="edit-form">
+            Save Changes
+          </form.SubmitButton>
+        </form.AppForm>
+      </PageHeader>
+      {/* Form content */}
+    </div>
+  )
+}
+```
+
+**Real Example: Space Layout Form**
+
+```tsx
+'use client'
+
+import { useQuery } from '@tanstack/react-query'
+import { useLocale } from '@/hooks/use-locale'
+import { getMasterSpaceLayoutByIdQuery } from '@/query/master-space-layouts'
+
+export function SpaceLayoutForm({ layoutId }: { layoutId: string }) {
+  const { isRTL } = useLocale()
+
+  const { data: layout } = useQuery(getMasterSpaceLayoutByIdQuery(layoutId))
+
+  // Get localized layout name
+  const layoutName = isRTL
+    ? layout?.translations?.ar.name
+    : layout?.translations?.en.name
+
+  return (
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        description="Update space layout info"
+        resourceName={layoutName} // Shows "Conference Room" instead of "Edit"
+        title="Edit Space Layout"
+      >
+        <form.AppForm>
+          <form.SubmitButton form="edit-space-layout-form">
+            Save Changes
+          </form.SubmitButton>
+        </form.AppForm>
+      </PageHeader>
+      {/* Form fields */}
+    </div>
+  )
+}
+```
+
+**Key Requirements for Translated Resources:**
+
+- ✅ Import and use `useLocale()` hook from `@/hooks/use-locale`
+- ✅ Check `isRTL` to determine current language direction
+- ✅ Use ternary operator to select appropriate translation: `isRTL ? ar : en`
+- ✅ Handle optional chaining for translations: `resource?.translations?.ar.name`
+- ✅ Pass the localized name to PageHeader's `resourceName` prop
+- ✅ This pattern applies to all resources with bilingual support (spaces, layouts, amenities, types, categories, etc.)
+
+### 2. Form Integration with PageHeader
+
+When a page contains a form, the submit button MUST be placed as children of the PageHeader:
+
+```tsx
+<PageHeader title="Form Page" description="Form description">
+  <form.AppForm>
+    <form.SubmitButton form="unique-form-id">
+      Submit Button Text
+    </form.SubmitButton>
+  </form.AppForm>
+</PageHeader>
+```
+
+- **Navigation-first workflow**: When adding CRUD flows for data tables, default to dedicated `/create` and `/[id]/edit` pages that render the form. Only use inline dialogs when the product requirements explicitly demand them.
+
+### 3. Form Structure Requirements
+
+- **Unique Form ID**: Every form MUST have a unique `id` attribute
+- **Form Prop**: The `form.SubmitButton` MUST have a `form` prop matching the form's `id`
+- **Form Container**: The form element MUST have the same `id` as the submit button's `form` prop
+
+```tsx
+<form
+  onSubmit={(e) => {
+    e.preventDefault()
+    form.handleSubmit()
+  }}
+  id="unique-form-id" // Must match form prop in SubmitButton
+  className="w-full flex-1 space-y-5 px-5"
+>
+  {/* Form content */}
+</form>
+```
+
+### 4. Content Layout Structure
+
+Content beneath the header MUST follow this structure:
+
+#### For Pages with Forms:
+
+**⚠️ CRITICAL: Form pages MUST follow this pattern:**
+
+**When a form component is used directly in a page (not inside tabs), it MUST receive `className="m-5"` from the page component:**
+
+- **✅ DO**: Pass `className="m-5"` when form is direct child of `PageHeader` (no tabs)
+- **❌ DON'T**: Pass `className="m-5"` when form is inside `TabsContent` (tabs handle spacing)
+
+```tsx
+import { Metadata } from 'next'
+
+import { {Resource}Form } from '@/app/(app)/{feature}/_{feature}/forms/{resource}-form'
+
+export default async function Create{Resource}Page() {
+  return <{Resource}Form className="m-5" />
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Create a new {resource}',
+    title: 'Create {Resource}'
+  }
+}
+```
+
+**Form Component Structure:**
+
+Form components should accept `className?: string` prop and merge it using `cn()` utility:
+
+```tsx
+type {Resource}FormProps = {
+  className?: string
+  isEdit?: boolean
+  // ... other props
+}
+
+export const {Resource}Form: React.FC<{Resource}FormProps> = ({
+  className,
+  // ... other props
+}) => {
+  // ... form logic ...
+
+  return (
+    <div className={cn('flex flex-col gap-5', className)}>
+      <PageHeader title="..." description="...">
+        <form.AppForm>
+          <form.SubmitButton form="unique-form-id">Submit</form.SubmitButton>
+        </form.AppForm>
+      </PageHeader>
+      <form
+        id="unique-form-id"
+        className="w-full flex-1 space-y-5 px-5"
+        onSubmit={(e) => {
+          e.preventDefault()
+          form.handleSubmit()
+        }}
+      >
+        <FormFields form={form} id="section-1" title="Section 1" />
+        <FormFields form={form} id="section-2" title="Section 2" />
+      </form>
+    </div>
+  )
+}
+```
+
+**Pattern for Forms Inside Tabs:**
+
+```tsx
+// ✅ CORRECT: Form inside tabs - NO m-5 needed (tabs handle spacing)
+<TabsContent value="form">
+  <{Resource}Form /> {/* No className prop - tabs handle spacing */}
+</TabsContent>
+```
+
+#### For Pages without Forms (Table Pages):
+
+**⚠️ CRITICAL: Table pages MUST follow this pattern:**
+
+**When a table component is used directly in a page (not inside tabs), it MUST receive `className="m-5"` from the page component:**
+
+- **✅ DO**: Pass `className="m-5"` when table is direct child of `PageHeader` (no tabs)
+- **❌ DON'T**: Pass `className="m-5"` when table is inside `TabsContent` (tabs handle spacing)
+
+```tsx
+import { Metadata } from 'next'
+
+import { {Resource}Table } from '@/app/(app)/{feature}/_{feature}/tables/{resource}-table'
+import {PageHeader} from '@/components/custom/page-header'
+
+export default async function {Resource}TablePage() {
+  return (
+    <>
+      <PageHeader description="Manage and view {Resources}" title="{Resources}" />
+      <{Resource}Table className="m-5" />
+    </>
+  )
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Manage and view {Resources}',
+    title: '{Resources}'
+  }
+}
+```
+
+**Pattern for Tables Inside Tabs:**
+
+```tsx
+// ✅ CORRECT: Table inside tabs - NO m-5 needed (tabs handle spacing)
+<TabsContent value="table">
+  <{Resource}Table /> {/* No className prop - tabs handle spacing */}
+</TabsContent>
+```
+
+**Client Component Pattern (Table Component):**
+
+The table component MUST accept `className` prop and use `cn()` to merge it. The `toolbar` prop MUST be passed to `DataTable`, and `main` must use `className={cn('relative', className)}`:
+
+```tsx
+'use client'
+
+import { cn } from '@/utils'
+import { DataTable, DataTableToolbar } from '@/components/data-table'
+
+export const {Resource}Table: React.FC<{ className?: string }> = ({
+  className
+}) => {
+  // ... table logic ...
+
+  return (
+    <main className={cn('relative', className)}>
+      <DataTable
+        toolbar={
+          <DataTableToolbar
+            createButtonHref="/{feature}/create"
+            table={table}
+          />
+        }
+        table={table}
+      />
+    </main>
+  )
+}
+```
+
+**Key Requirements:**
+
+- ✅ Page is **server component** (async function, no `'use client'`)
+- ✅ Page includes `PageHeader` with `title` and `description`
+- ✅ Client component accepts `className` prop
+- ✅ Pass `className="m-5"` from page to client component
+- ✅ Client component uses `cn()` to merge `className` with base classes
+- ✅ Client component's main element uses merged `className`
+
+### 5. Feature Folder Structure and Form Declaration
+
+Every page MUST have a corresponding folder with the same name but starting with an underscore (`_feature_name/`). This folder contains all components, hooks, and config files related to the feature.
+
+#### Folder Structure Requirements:
+
+- **Naming Convention**: Folder name should match the page folder name with an underscore prefix
+- **Contents**: All feature-specific components, hooks, utilities, and configuration files
+- **Organization**: Keep related functionality grouped within this folder
+
+#### Form Declaration Requirements:
+
+Every form in the application MUST declare a `form-options.tsx` file that contains:
+
+1. **formOptions** with `defaultValues` typed as `FeatureSchema`
+2. **featureSchema** as a Zod v4 object for validation
+3. **FeatureSchema** type inferred from the schema
+
+```tsx
+// _feature_name/form-options.tsx
+import { formOptions } from '@tanstack/react-form'
+import { z } from 'zod/v4'
+
+export const featureForm = formOptions({
+  defaultValues: {
+    // form default values
+  } as FeatureSchema
+})
+
+export const featureSchema = z.object({
+  // validation schema
+})
+
+export type FeatureSchema = z.infer<typeof featureSchema>
+```
+
+#### Feature Component Structure:
+
+```tsx
+// _feature_name/section-fields.tsx
+import { featureForm } from '@/app/(app)/path/_feature_name/form-options'
+import { withForm } from '@/components/form'
+
+export const SectionFields = withForm({
+  ...featureForm,
+  render: function Render({ form }) {
+    return (
+      <div className="space-y-5">
+        <form.AppField
+          name="field_name"
+          children={(field) => <field.Input label="Field Label" />}
+        />
+        {/* Additional fields */}
+      </div>
+    )
+  }
+})
+```
+
+#### Example Folder Structure:
+
+```
+app/(app)/settings/edit-profile/
+├── page.tsx
+└── _edit_profile/
+    ├── form-options.tsx
+    ├── basic-info.tsx
+    ├── password.tsx
+    └── other-components.tsx
+```
+
+### 6. Vertical Stepper Integration
+
+When using forms with multiple sections:
+
+- Each section MUST have a unique `id` that matches the stepper step `id`
+- Use `Card` components for each section with matching `id`
+- Stepper steps MUST correspond to form sections
+
+### 7. Spacing Requirements
+
+- All form fields MUST have `space-y-5`
+
+### 8. RTL-Friendly Classes Requirement
+
+**CRITICAL: All spacing, positioning, and alignment classes MUST use RTL-friendly logical properties.**
+
+```tsx
+// ✅ CORRECT - RTL-friendly classes
+<div className="ms-4 me-2 ps-4 pe-2">  // Logical margin/padding
+<div className="start-0 end-0">        // Logical positioning
+<div className="text-start">           // Logical text alignment
+<div className="border-s-2 border-e-4"> // Logical borders
+
+// ❌ WRONG - RTL-unfriendly classes
+<div className="ml-4 mr-2 pl-4 pr-2">  // Physical margin/padding
+<div className="left-0 right-0">     // Physical positioning
+<div className="text-left">           // Physical text alignment
+<div className="border-l-2 border-r-4"> // Physical borders
+```
+
+**See [styling-guide.mdc](mdc:.cursor/rules/styling/styling-guide.mdc) for complete RTL migration guide and RTL-friendly class reference.**
+
+### 9. Detail Pages with PageHeader and HeaderActions
+
+**⚠️ CRITICAL: When using PageHeader with HeaderActions in server components, you MUST move PageHeader into a client component.**
+
+**❌ WRONG: Passing functions from server to client component**
+
+```tsx
+// ❌ DON'T: Server component passing mutationOptions (functions) to client component
+export default async function DetailPage({ params }) {
+  const workspace = await fetchWorkspace(id)
+  const toggleMutation = mutationOptions({ ... }) // Contains functions
+
+  return (
+    <PageHeader title={workspace.name}>
+      <HeaderActions
+        activeToggleMutation={{
+          mutationOptions: toggleMutation // ❌ Can't pass functions from server to client
+        }}
+      />
+    </PageHeader>
+  )
+}
+```
+
+**✅ CORRECT: Move PageHeader and HeaderActions to client component**
+
+```tsx
+// ✅ DO: Server component uses prefetchQuery with HydrationBoundary
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query'
+
+export default async function DetailPage({ params }) {
+  const { id } = await params
+  const queryClient = getQueryClient()
+
+  try {
+    await queryClient.prefetchQuery(getWorkspaceByIdQuery(id))
+  } catch (error) {
+    console.error(error)
+  }
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <WorkspaceTabs workspaceId={id} />
+    </HydrationBoundary>
+  )
+}
+```
+
+```tsx
+// ✅ DO: Client component uses useQuery to read prefetched data and creates mutationOptions
+'use client'
+
+import { useQuery, mutationOptions } from '@tanstack/react-query'
+import { HeaderActions } from '@/components/custom/header-actions'
+import { PageHeader } from '@/components/custom/page-header'
+
+export const WorkspaceTabs: React.FC<{
+  workspaceId: number | string
+}> = ({ workspaceId }) => {
+  // ✅ CORRECT: useQuery reads prefetched data from HydrationBoundary
+  const { data: workspace, isLoading, isError } = useQuery(getWorkspaceByIdQuery(workspaceId))
+
+  if (isLoading) return null
+  if (!workspace || isError) return <NotFound title="Workspace not found" />
+
+  // Create mutationOptions in client component (can contain functions)
+  const toggleMutation = mutationOptions({
+    meta: { invalidatesQuery: [['workspaces']] },
+    mutationFn: async () => { ... }
+  })
+
+  return (
+    <>
+      <PageHeader
+        description="Meeting Room"
+        image={workspace.photo || undefined}
+        isAvatar
+        title={workspace.name}
+      >
+        <HeaderActions
+          activeToggleMutation={{
+            initialStatus: workspace.status,
+            mutationFnParam: workspaceId,
+            mutationOptions: toggleMutation, // ✅ Functions created in client component
+            permissionKey: PERMISSIONS.WORKSPACES_UPDATE
+          }}
+          edit={{
+            path: `/workspaces/${workspaceId}/edit`,
+            permissionKey: PERMISSIONS.WORKSPACES_UPDATE
+          }}
+        />
+      </PageHeader>
+      <Tabs defaultValue="pricing" useUrlState>
+        {/* Tabs content */}
+      </Tabs>
+    </>
+  )
+}
+```
+
+**Key Requirements:**
+
+- ✅ **Server component**: Only fetches data and passes serializable props (strings, numbers, objects without functions)
+- ✅ **Client component**: Creates `mutationOptions` and renders `PageHeader` with `HeaderActions`
+- ✅ **No function props**: Never pass functions (including `mutationOptions`) from server to client components
+- ✅ **Data props only**: Pass only data objects (name, photo, status, etc.) from server to client

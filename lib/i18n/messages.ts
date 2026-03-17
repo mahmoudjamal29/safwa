@@ -1,7 +1,7 @@
 import type { Locale } from './i18n-config'
 
 const loadMessages = async (locale: Locale) => {
-  const [common, auth, layout, dashboard, invoices, products, inventory, customers] =
+  const [common, auth, layout, dashboard, invoices, products, inventory, customers, components] =
     await Promise.all([
       import(`./${locale}/common.json`),
       import(`./${locale}/auth.json`),
@@ -10,7 +10,8 @@ const loadMessages = async (locale: Locale) => {
       import(`./${locale}/invoices.json`),
       import(`./${locale}/products.json`),
       import(`./${locale}/inventory.json`),
-      import(`./${locale}/customers.json`)
+      import(`./${locale}/customers.json`),
+      import(`./${locale}/components.json`)
     ])
   return {
     common: common.default,
@@ -20,7 +21,8 @@ const loadMessages = async (locale: Locale) => {
     invoices: invoices.default,
     products: products.default,
     inventory: inventory.default,
-    customers: customers.default
+    customers: customers.default,
+    components: components.default
   }
 }
 

@@ -1,0 +1,1201 @@
+---
+description: Comprehensive styling guide for EDGE Admin Dashboard. Covers CSS variables, dark mode support, HTML structure best practices, SEO considerations, layout patterns, spacing, responsive design, RTL migration guide, and component styling patterns. Based on actual implementation patterns from tenants feature and global CSS variables.
+globs: **/*.{tsx,ts,css}
+alwaysApply: false
+---
+
+# Styling Guide
+
+## Overview
+
+This rule provides comprehensive guidance for styling components and pages in the AlOuf Admin Dashboard. It emphasizes the use of CSS variables for dark mode support, semantic HTML for SEO, and consistent layout patterns throughout the application.
+
+## ⚠️ CRITICAL: RTL-Friendly Classes are Mandatory
+
+**RTL support is the HIGHEST PRIORITY** when dealing with UI. The application supports Arabic (RTL) and English (LTR), and all UI components MUST work correctly in both directions.
+
+### Mandatory RTL-Friendly Classes
+
+**NEVER use these RTL-unfriendly classes:**
+
+- `pl-*`, `pr-*` → Use `ps-*`, `pe-*` instead
+- `ml-*`, `mr-*` → Use `ms-*`, `me-*` instead
+- `left-*`, `right-*` → Use `start-*`, `end-*` instead
+- `text-left`, `text-right` → Use `text-start`, `text-end` instead
+- `border-l-*`, `border-r-*` → Use `border-s-*`, `border-e-*` instead
+- `rounded-l-*`, `rounded-r-*` → Use `rounded-s-*`, `rounded-e-*` instead
+
+### RTL-Friendly Spacing Pattern
+
+```typescript
+// ✅ CORRECT - Logical properties (RTL-aware)
+<div className="ms-4 me-2 ps-4 pe-2">  // margin/padding start/end
+<div className="start-0 end-0">        // positioning start/end
+<div className="text-start">           // text alignment start
+<div className="border-s-2 border-e-4"> // border start/end
+
+// ❌ WRONG - Physical properties (break RTL)
+<div className="ml-4 mr-2 pl-4 pr-2">  // margin/padding left/right
+<div className="left-0 right-0">       // positioning left/right
+<div className="text-left">             // text alignment left
+<div className="border-l-2 border-r-4"> // border left/right
+```
+
+## Important: Official Documentation
+
+**When implementing styling, components, or HTML structure:**
+
+**⚠️ MANDATORY:** See [context7-docs.mdc](mdc:.cursor/rules/_common/context7-docs.mdc) for Context7 MCP requirements.
+
+## CSS Variables and Dark Mode
+
+### Critical Rule: Always Use CSS Variables
+
+**NEVER use hardcoded colors** - Always use CSS variable-based Tailwind classes for colors to ensure dark mode compatibility.
+
+### Available Color Variables
+
+All colors are defined in `styles/globals.css` and automatically switch between light and dark modes:
+
+#### Background Colors
+
+```typescript
+// ✅ CORRECT - Uses CSS variables
+<div className="bg-card">           // Card background
+<div className="bg-background">     // Main background
+<div className="bg-muted">          // Muted background
+<div className="bg-accent">         // Accent background
+<div className="bg-primary">        // Primary background
+<div className="bg-secondary">       // Secondary background
+
+// ❌ WRONG - Hardcoded colors (won't work with dark mode)
+<div className="bg-white">          // Don't use
+<div className="bg-gray-100">       // Don't use
+<div className="bg-black">          // Don't use
+```
+
+#### Text Colors
+
+```typescript
+// ✅ CORRECT - Uses CSS variables
+<p className="text-foreground">              // Main text
+<p className="text-card-foreground">         // Card text
+<p className="text-muted-foreground">       // Muted text
+<p className="text-accent-foreground">      // Accent text
+<p className="text-primary-foreground">     // Primary text
+<p className="text-secondary-foreground">   // Secondary text
+
+// ❌ WRONG - Hardcoded colors
+<p className="text-gray-900">               // Don't use
+<p className="text-black">                  // Don't use
+```
+
+#### Semantic Colors
+
+```typescript
+// ✅ CORRECT - Semantic color variables
+<div className="bg-success">                    // Success background
+<div className="text-success-foreground">       // Success text
+<div className="bg-destructive">                // Destructive/error background
+<div className="text-destructive-foreground">  // Destructive text
+<div className="bg-info-accent">                // Info background
+<div className="text-info-foreground">          // Info text
+
+// Status indicators
+<span className="bg-success-foreground" />      // Success indicator
+<span className="bg-destructive" />            // Error indicator
+```
+
+#### Border Colors
+
+```typescript
+// ✅ CORRECT - Border variables
+<div className="border-border">                // Standard border
+<div className="border-input">                 // Input border
+<div className="border-t border-border">       // Border top
+
+// ❌ WRONG - Hardcoded borders
+<div className="border-gray-200">              // Don't use
+<div className="border-black">                // Don't use
+```
+
+### Color Variable Reference
+
+**From `styles/globals.css`:**
+
+```css
+/* Light Mode */
+--background: oklch(1 0 0) /* bg-background */ --foreground: oklch(0.145 0 0)
+  /* text-foreground */ --card: oklch(1 0 0) /* bg-card */
+  --card-foreground: oklch(0.145 0 0) /* text-card-foreground */
+  --muted: oklch(0.97 0 0) /* bg-muted */ --muted-foreground: oklch(0.556 0 0)
+  /* text-muted-foreground */ --accent: oklch(0.97 0 0) /* bg-accent */
+  --accent-foreground: oklch(0.205 0 0) /* text-accent-foreground */
+  --primary: #000000 /* bg-primary */ --primary-foreground: oklch(0.985 0 0)
+  /* text-primary-foreground */ --secondary: oklch(0.97 0 0) /* bg-secondary */
+  --secondary-foreground: oklch(0.205 0 0) /* text-secondary-foreground */
+  --success: oklch(0.6183 0.143 150.63 / 10.2%) /* bg-success */
+  --success-foreground: oklch(0.6183 0.143 150.63) /* text-success-foreground */
+  --destructive: oklch(0.5963 0.2281 25.71) /* bg-destructive */
+  --destructive-foreground: oklch(0.597 0.199 25.61)
+  /* text-destructive-foreground */ --border: oklch(0.922 0 0)
+  /* border-border */ --input: oklch(0.922 0 0) /* border-input */
+  /* Dark Mode - Automatically applied when .dark class is present */ .dark
+  {--background: oklch(0.145 0 0) --foreground: oklch(0.985 0 0)
+  /* ... all variables change automatically */};
+```
+
+### Using CSS Variables Directly
+
+For custom styling, access CSS variables directly:
+
+```typescript
+// ✅ CORRECT - Direct CSS variable access
+<div style={{ background: 'var(--background)' }}>
+<div style={{ color: 'var(--foreground)' }}>
+<div style={{ borderColor: 'var(--border)' }}>
+
+// In inline styles or CSS
+background: var(--background);
+color: var(--foreground);
+border-color: var(--border);
+```
+
+## HTML Structure and SEO Best Practices
+
+### Semantic HTML Elements
+
+**Always use semantic HTML elements** for better SEO, accessibility, and code clarity:
+
+```typescript
+// ✅ CORRECT - Semantic HTML
+<header>                    // Page header
+<nav>                       // Navigation
+<main>                      // Main content
+<section>                   // Content sections
+<article>                   // Article/content
+<aside>                     // Sidebar content
+<footer>                    // Page footer
+<h1>, <h2>, <h3>...        // Heading hierarchy
+<p>                         // Paragraphs
+<ul>, <ol>                  // Lists
+<button>                    // Buttons
+<a>                         // Links
+<label>                     // Form labels
+<form>                      // Forms
+<table>                     // Tables
+
+// ❌ WRONG - Generic divs for semantic content
+<div className="header">   // Should be <header>
+<div className="nav">       // Should be <nav>
+<div className="button">    // Should be <button>
+```
+
+### Heading Hierarchy
+
+**Maintain proper heading hierarchy** for SEO and accessibility:
+
+```typescript
+// ✅ CORRECT - Proper heading hierarchy
+<PageHeader title="..." />  // Uses <h1> or <h2> internally
+<section>
+  <Card>
+    <CardHeader>
+      <CardTitle>Section Title</CardTitle>  // Uses <h3>
+    </CardHeader>
+    <CardContent>
+      <h4>Subsection</h4>                   // <h4>
+      <p>Content...</p>
+    </CardContent>
+  </Card>
+</section>
+
+// ❌ WRONG - Skipping heading levels
+<h1>Main Title</h1>
+<h3>Subtitle</h3>            // Skipped h2 - WRONG
+```
+
+### ARIA Labels and Attributes
+
+**Use ARIA attributes** for accessibility:
+
+```typescript
+// ✅ CORRECT - ARIA attributes
+<nav aria-label="Section stepper">
+<button aria-current={active ? 'step' : undefined}>
+<div aria-hidden="true">     // Decorative content
+<button aria-label="Close dialog">
+<form aria-label="Tenant form">
+
+// Semantic elements automatically provide ARIA
+<button>                     // Implicit button role
+<nav>                        // Implicit navigation role
+<form>                       // Implicit form role
+```
+
+### Data Attributes
+
+**Use `data-slot` attributes** for component identification:
+
+```typescript
+// ✅ CORRECT - Data slot attributes
+<div data-slot="card">
+<div data-slot="card-header">
+<div data-slot="card-content">
+<button data-slot="button">
+```
+
+### Image Alt Text
+
+**Always provide alt text** for images:
+
+```typescript
+// ✅ CORRECT - Alt text
+<NextImage
+  alt={title}                    // Descriptive alt text
+  src={image}
+/>
+
+// ❌ WRONG - Missing or empty alt
+<img src={image} />              // Missing alt
+<img src={image} alt="" />       // Empty alt (only for decorative)
+```
+
+## Layout Patterns
+
+### Page Structure
+
+**Standard page layout pattern:**
+
+```typescript
+<>
+  <PageHeader
+    description="Page description"
+    title="Page Title"
+  >
+    {/* Action buttons */}
+  </PageHeader>
+  <div className="m-5">
+    {/* Main content */}
+  </div>
+</>
+```
+
+### Content Container
+
+**Main content wrapper:**
+
+```typescript
+// ✅ CORRECT - Standard content container
+<div className="m-5">
+  {/* Content */}
+</div>
+
+// For flex layouts
+<div className="m-5 flex">
+  <form className="w-full flex-1 space-y-5">
+    {/* Form content */}
+  </form>
+</div>
+```
+
+### Card Layout
+
+**Card component structure:**
+
+```typescript
+<Card>
+  <CardHeader>
+    <CardTitle>Title</CardTitle>
+  </CardHeader>
+  <CardContent>
+    {/* Content */}
+  </CardContent>
+</Card>
+```
+
+### Flexbox Patterns
+
+**Common flex patterns:**
+
+```typescript
+// ✅ CORRECT - Horizontal flex with icon + text (REQUIRES rtl:flex-row-reverse)
+<div className="flex items-center gap-2 rtl:flex-row-reverse">
+  <Icon />
+  <span>Text</span>
+</div>
+
+// ✅ CORRECT - Vertical flex with gap (NO rtl:flex-row-reverse needed)
+<div className="flex flex-col gap-5">
+  {/* Items */}
+</div>
+
+// ✅ CORRECT - Responsive flex with justify-between (NO rtl:flex-row-reverse needed)
+<div className="flex flex-col gap-5 md:flex-row md:justify-between">
+  {/* Items */}
+</div>
+
+// ✅ CORRECT - Full width flex item
+<div className="flex-1">
+  {/* Takes remaining space */}
+</div>
+```
+
+**RTL Flex Row Rules:**
+
+- **ALWAYS add `rtl:flex-row-reverse`** to flex rows containing icons, badges, or directional content where visual order matters
+- **NEVER add `rtl:flex-row-reverse`** to flex rows with `justify-between`, `justify-center`, or semantic ordering
+- Use logical spacing (`gap-*`, `ms-*`, `me-*`) instead of physical spacing (`space-x-*`, `ml-*`, `mr-*`)
+
+### Spacing Patterns
+
+**Consistent spacing with logical properties (RTL-REQUIRED):**
+
+```typescript
+// ✅ CORRECT - Standard spacing with logical properties (MANDATORY for RTL)
+<div className="m-5">                    // Main margin (20px) - works in both directions
+<div className="space-y-5">             // Vertical spacing (logical)
+<div className="gap-2">                 // Flex gap (8px) - works in both directions
+<div className="gap-3">                 // Flex gap (12px)
+<div className="gap-5">                 // Flex gap (20px)
+<div className="p-5">                   // Padding (20px) - works in both directions
+
+// ✅ CORRECT - Logical margin/padding properties (RTL-REQUIRED)
+<div className="ms-4">                  // margin-start (left in LTR, right in RTL) - REQUIRED
+<div className="me-4">                  // margin-end (right in LTR, left in RTL) - REQUIRED
+<div className="ps-4">                  // padding-start (left in LTR, right in RTL) - REQUIRED
+<div className="pe-4">                  // padding-end (right in LTR, left in RTL) - REQUIRED
+
+// ❌ WRONG - Directional properties (BREAK RTL - NEVER USE)
+<div className="ml-4">                  // margin-left - NEVER USE
+<div className="mr-4">                  // margin-right - NEVER USE
+<div className="pl-4">                  // padding-left - NEVER USE
+<div className="pr-4">                  // padding-right - NEVER USE
+<div className="space-x-2">             // horizontal spacing - use gap-* instead
+
+// Common spacing scale
+gap-1   // 4px
+gap-2   // 8px
+gap-3   // 12px
+gap-4   // 16px
+gap-5   // 20px
+```
+
+## Responsive Design
+
+### Breakpoint Strategy
+
+**Use Tailwind breakpoints:**
+
+```typescript
+// ✅ CORRECT - Mobile-first responsive
+<div className="flex flex-col gap-5 md:flex-row md:justify-between">
+<div className="hidden lg:block">        // Hide on mobile, show on large
+<div className="w-full md:w-1/2">        // Full width on mobile, half on medium
+<div className="text-sm md:text-base">  // Smaller text on mobile
+
+// Breakpoints
+sm:  640px   // Small devices
+md:  768px   // Medium devices
+lg:  1024px  // Large devices
+xl:  1280px  // Extra large devices
+2xl: 1536px  // 2x Extra large devices
+```
+
+### RTL Support (CRITICAL REQUIREMENT)
+
+**RTL support is MANDATORY. All UI components MUST work correctly in both LTR and RTL.**
+
+**Use logical properties (REQUIRED):**
+
+```typescript
+// ✅ CORRECT - Use logical properties (works automatically in both LTR and RTL)
+<div className="flex gap-2">
+  {/* gap-* automatically handles both directions */}
+</div>
+
+// ✅ CORRECT - Logical spacing properties (MANDATORY)
+<div className="me-4 pe-2 border-e">
+  {/* me-* (margin-end), pe-* (padding-end), border-e (border-end) */}
+</div>
+
+// ✅ CORRECT - Logical positioning (MANDATORY)
+<div className="absolute start-0 end-0">
+  {/* start-* and end-* work in both directions */}
+</div>
+
+// ✅ CORRECT - Logical text alignment (MANDATORY)
+<div className="text-start">
+  {/* text-start works in both directions */}
+</div>
+
+// ❌ WRONG - Directional properties break RTL (NEVER USE)
+<div className={cn(
+  isRTL ? 'pl-4' : 'pr-4'  // Don't use conditional directional classes
+)}>
+<div className="ml-4 mr-2">  // Don't use physical properties
+<div className="left-0 right-0">  // Don't use physical positioning
+<div className="text-left">  // Don't use physical text alignment
+
+// ✅ CORRECT - Use logical properties instead
+<div className="ps-4">  {/* padding-start works in both LTR and RTL */}
+<div className="ms-4 me-2">  {/* margin-start/end works in both directions */}
+<div className="start-0 end-0">  {/* start/end works in both directions */}
+<div className="text-start">  {/* text-start works in both directions */}
+```
+
+**For flex layouts that need to reverse in RTL:**
+
+```typescript
+// ✅ CORRECT - Use flex-row-reverse for RTL
+<div className="flex items-center gap-2 rtl:flex-row-reverse">
+  <Icon />
+  <span>Text</span>
+</div>
+```
+
+**For directional icons:**
+
+```typescript
+// ✅ CORRECT - Rotate icons for RTL
+<ChevronRight className="rtl:rotate-180" />
+<ChevronLeft className="rtl:rotate-180" />
+```
+
+## Complete RTL Migration Guide
+
+### Phase 1: Identify RTL-Unfriendly Classes
+
+Search for these patterns across all `.tsx`, `.ts`, and `.css` files:
+
+```bash
+# Physical padding classes
+pl-*, pr-*
+
+# Physical margin classes
+ml-*, mr-*
+
+# Physical positioning
+left-*, right-*
+
+# Physical text alignment
+text-left, text-right
+
+# Physical borders
+border-l-*, border-r-*, rounded-l-*, rounded-r-*, rounded-tl-*, rounded-tr-*, rounded-bl-*, rounded-br-*
+
+# Physical float
+float-left, float-right
+
+# Physical scroll
+scroll-ml-*, scroll-mr-*, scroll-pl-*, scroll-pr-*
+```
+
+### Phase 2: Complete Migration Mapping
+
+#### Padding Classes
+
+| ❌ RTL-Unfriendly | ✅ RTL-Friendly | Notes                                 |
+| ----------------- | --------------- | ------------------------------------- |
+| `pl-{size}`       | `ps-{size}`     | padding-inline-start                  |
+| `pr-{size}`       | `pe-{size}`     | padding-inline-end                    |
+| `px-{size}`       | `px-{size}`     | Already RTL-friendly (padding-inline) |
+| `py-{size}`       | `py-{size}`     | Already RTL-friendly (padding-block)  |
+
+**Examples:**
+
+```typescript
+// ❌ WRONG
+<div className="pl-4 pr-6">Content</div>
+
+// ✅ CORRECT
+<div className="ps-4 pe-6">Content</div>
+```
+
+#### Margin Classes
+
+| ❌ RTL-Unfriendly | ✅ RTL-Friendly | Notes                                |
+| ----------------- | --------------- | ------------------------------------ |
+| `ml-{size}`       | `ms-{size}`     | margin-inline-start                  |
+| `mr-{size}`       | `me-{size}`     | margin-inline-end                    |
+| `mx-{size}`       | `mx-{size}`     | Already RTL-friendly (margin-inline) |
+| `my-{size}`       | `my-{size}`     | Already RTL-friendly (margin-block)  |
+
+**Examples:**
+
+```typescript
+// ❌ WRONG
+<div className="ml-2 mr-4">Content</div>
+<button className="ml-auto">Button</button>
+
+// ✅ CORRECT
+<div className="ms-2 me-4">Content</div>
+<button className="ms-auto">Button</button>
+```
+
+#### Positioning Classes
+
+| ❌ RTL-Unfriendly | ✅ RTL-Friendly  | Notes                           |
+| ----------------- | ---------------- | ------------------------------- |
+| `left-{size}`     | `start-{size}`   | inset-inline-start              |
+| `right-{size}`    | `end-{size}`     | inset-inline-end                |
+| `inset-x-{size}`  | `inset-x-{size}` | Already RTL-friendly            |
+| `inset-y-{size}`  | `inset-y-{size}` | Already RTL-friendly            |
+| `top-{size}`      | `top-{size}`     | Already RTL-friendly (vertical) |
+| `bottom-{size}`   | `bottom-{size}`  | Already RTL-friendly (vertical) |
+
+**Examples:**
+
+```typescript
+// ❌ WRONG
+<div className="absolute left-0 right-0">Content</div>
+<div className="fixed left-4">Sidebar</div>
+
+// ✅ CORRECT
+<div className="absolute start-0 end-0">Content</div>
+<div className="fixed start-4">Sidebar</div>
+```
+
+#### Border Classes
+
+| ❌ RTL-Unfriendly   | ✅ RTL-Friendly     | Notes                     |
+| ------------------- | ------------------- | ------------------------- |
+| `border-l-{size}`   | `border-s-{size}`   | border-inline-start-width |
+| `border-r-{size}`   | `border-e-{size}`   | border-inline-end-width   |
+| `border-l-{color}`  | `border-s-{color}`  | border-inline-start-color |
+| `border-r-{color}`  | `border-e-{color}`  | border-inline-end-color   |
+| `border-x-{size}`   | `border-x-{size}`   | Already RTL-friendly      |
+| `border-y-{size}`   | `border-y-{size}`   | Already RTL-friendly      |
+| `rounded-l-{size}`  | `rounded-s-{size}`  | border-start-radius       |
+| `rounded-r-{size}`  | `rounded-e-{size}`  | border-end-radius         |
+| `rounded-tl-{size}` | `rounded-ss-{size}` | border-start-start-radius |
+| `rounded-tr-{size}` | `rounded-se-{size}` | border-start-end-radius   |
+| `rounded-bl-{size}` | `rounded-es-{size}` | border-end-start-radius   |
+| `rounded-br-{size}` | `rounded-ee-{size}` | border-end-end-radius     |
+
+**Examples:**
+
+```typescript
+// ❌ WRONG
+<div className="border-l-2 border-r-4 border-l-primary rounded-l-lg">Content</div>
+
+// ✅ CORRECT
+<div className="border-s-2 border-e-4 border-s-primary rounded-s-lg">Content</div>
+```
+
+#### Text Alignment Classes
+
+| ❌ RTL-Unfriendly | ✅ RTL-Friendly | Notes                |
+| ----------------- | --------------- | -------------------- |
+| `text-left`       | `text-start`    | text-align: start    |
+| `text-right`      | `text-end`      | text-align: end      |
+| `text-center`     | `text-center`   | Already RTL-friendly |
+
+**Examples:**
+
+```typescript
+// ❌ WRONG
+<div className="text-left">Content</div>
+<div className="text-right">Content</div>
+
+// ✅ CORRECT
+<div className="text-start">Content</div>
+<div className="text-end">Content</div>
+```
+
+#### Float Classes
+
+| ❌ RTL-Unfriendly | ✅ RTL-Friendly | Notes               |
+| ----------------- | --------------- | ------------------- |
+| `float-left`      | `float-start`   | float: inline-start |
+| `float-right`     | `float-end`     | float: inline-end   |
+
+**Examples:**
+
+```typescript
+// ❌ WRONG
+<img className="float-left" src="..." />
+
+// ✅ CORRECT
+<img className="float-start" src="..." />
+```
+
+#### Scroll Classes
+
+| ❌ RTL-Unfriendly  | ✅ RTL-Friendly    | Notes                       |
+| ------------------ | ------------------ | --------------------------- |
+| `scroll-ml-{size}` | `scroll-ms-{size}` | scroll-margin-inline-start  |
+| `scroll-mr-{size}` | `scroll-me-{size}` | scroll-margin-inline-end    |
+| `scroll-pl-{size}` | `scroll-ps-{size}` | scroll-padding-inline-start |
+| `scroll-pr-{size}` | `scroll-pe-{size}` | scroll-padding-inline-end   |
+| `scroll-mx-{size}` | `scroll-mx-{size}` | Already RTL-friendly        |
+| `scroll-px-{size}` | `scroll-px-{size}` | Already RTL-friendly        |
+
+**Examples:**
+
+```typescript
+// ❌ WRONG
+<div className="scroll-ml-4 scroll-pl-2">Content</div>
+
+// ✅ CORRECT
+<div className="scroll-ms-4 scroll-ps-2">Content</div>
+```
+
+### Phase 3: Special Cases
+
+#### Conditional RTL Classes
+
+**❌ NEVER use conditional RTL classes:**
+
+```typescript
+// ❌ WRONG - Don't use conditional classes
+<div className={cn(isRTL ? 'pl-4' : 'pr-4')}>
+
+// ❌ WRONG - Don't use ltr: and rtl: variants for spacing
+<div className="ltr:mr-2 rtl:ml-2">
+```
+
+**✅ ALWAYS use logical properties:**
+
+```typescript
+// ✅ CORRECT - Use logical properties that work automatically
+<div className="ps-4">  {/* Works in both LTR and RTL */}
+<div className="ms-2">  {/* Works in both LTR and RTL */}
+```
+
+#### Flexbox Layouts
+
+**When to use `rtl:flex-row-reverse`:**
+
+**✅ REQUIRED - Use `rtl:flex-row-reverse` for:**
+
+- Flex rows with icons + text (icon should be on right in RTL)
+- Menu items, navigation items, buttons with icons
+- Badges or labels with icons
+- Any flex row where visual order matters and should flip in RTL
+- **Responsive flex patterns** that become rows at certain breakpoints (e.g., `lg:flex-row` should also get `lg:rtl:flex-row-reverse` if it contains icons+text)
+
+**❌ NOT NEEDED - Don't use `rtl:flex-row-reverse` for:**
+
+- Flex rows with `justify-between` (space distribution, order doesn't matter)
+- Flex rows with `justify-center` (centered content)
+- Flex rows where order is semantic (form fields, data display)
+- Flex rows where items are positioned using logical properties (`ms-auto`, `me-auto`)
+
+```typescript
+// ✅ CORRECT - Icon + text pattern (REQUIRES rtl:flex-row-reverse)
+<div className="flex items-center gap-2 rtl:flex-row-reverse">
+  <Icon />
+  <span>Text</span>
+</div>
+
+// ✅ CORRECT - Menu item with icon (REQUIRES rtl:flex-row-reverse)
+<Link className="flex items-center gap-2 rtl:flex-row-reverse">
+  <Icon />
+  <span>Menu Item</span>
+</Link>
+
+// ✅ CORRECT - Button with icon (REQUIRES rtl:flex-row-reverse)
+<Button className="flex items-center gap-2 rtl:flex-row-reverse">
+  <Icon />
+  <span>Action</span>
+</Button>
+
+// ✅ CORRECT - Responsive flex with icon+text (REQUIRES responsive rtl:flex-row-reverse)
+<div className="flex flex-col items-center justify-center gap-1.5 p-4 xl:flex-row xl:justify-start xl:rtl:flex-row-reverse">
+  <Icon className="text-destructive me-2 h-5 w-5" />
+  <div className="flex flex-col">
+    <span className="text-muted-foreground text-xs font-normal">{label}</span>
+    <span className="text-foreground text-sm font-medium">{value}</span>
+  </div>
+</div>
+
+// ✅ CORRECT - Responsive flex row pattern (REQUIRES matching responsive rtl:flex-row-reverse)
+<div className="flex flex-col gap-2 md:flex-row md:rtl:flex-row-reverse">
+  <Icon />
+  <span>Text</span>
+</div>
+
+// ✅ CORRECT - justify-between (NO rtl:flex-row-reverse needed)
+<div className="flex items-center justify-between">
+  <span>Left</span>
+  <span>Right</span>
+</div>
+
+// ✅ CORRECT - justify-center (NO rtl:flex-row-reverse needed)
+<div className="flex items-center justify-center gap-2">
+  <span>Centered</span>
+</div>
+```
+
+#### Icon Rotation
+
+For directional icons that need rotation in RTL:
+
+```typescript
+// ✅ CORRECT - Rotate icons for RTL
+<ChevronRight className="rtl:rotate-180" />
+<ChevronLeft className="rtl:rotate-180" />
+```
+
+#### Transform Translations
+
+For transforms that need RTL adjustment:
+
+```typescript
+// ✅ CORRECT - Use RTL variants for transforms
+<div className="translate-x-1/2 rtl:-translate-x-1/2">
+```
+
+### Phase 4: CSS Files
+
+For CSS files, use CSS logical properties:
+
+```css
+/* ❌ WRONG */
+.element {
+  margin-left: 1rem;
+  padding-right: 1rem;
+  border-left: 1px solid;
+  text-align: left;
+}
+
+/* ✅ CORRECT */
+.element {
+  margin-inline-start: 1rem;
+  padding-inline-end: 1rem;
+  border-inline-start: 1px solid;
+  text-align: start;
+}
+```
+
+### Complete Migration Checklist
+
+#### Files to Check
+
+1. ✅ All `.tsx` files in `app/` directory
+2. ✅ All `.tsx` files in `components/` directory
+3. ✅ All `.ts` files with className usage
+4. ✅ All `.css` files in `styles/` directory
+5. ✅ Any inline styles using physical properties
+
+#### Search Patterns
+
+Use these grep patterns to find RTL-unfriendly classes:
+
+```bash
+# Padding
+grep -r "pl-[0-9]\|pr-[0-9]" --include="*.tsx" --include="*.ts"
+
+# Margin
+grep -r "ml-[0-9]\|mr-[0-9]" --include="*.tsx" --include="*.ts"
+
+# Positioning
+grep -r "left-[0-9]\|right-[0-9]" --include="*.tsx" --include="*.ts"
+
+# Text alignment
+grep -r "text-left\|text-right" --include="*.tsx" --include="*.ts"
+
+# Borders
+grep -r "border-l-\|border-r-\|rounded-l-\|rounded-r-\|rounded-tl-\|rounded-tr-\|rounded-bl-\|rounded-br-" --include="*.tsx" --include="*.ts"
+
+# Float
+grep -r "float-left\|float-right" --include="*.tsx" --include="*.ts"
+
+# Responsive flex-row patterns that might need rtl:flex-row-reverse
+grep -r "\(sm\|md\|lg\|xl\|2xl\):flex-row" --include="*.tsx" --include="*.ts"
+```
+
+### Migration Examples from Codebase
+
+#### Example 1: Table Search Component
+
+**Before:**
+
+```typescript
+<Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+<input className="pl-10 text-sm" />
+```
+
+**After:**
+
+```typescript
+<Search className="absolute top-1/2 start-3 size-4 -translate-y-1/2" />
+<input className="ps-10 text-sm" />
+```
+
+#### Example 2: Navigation Menu
+
+**Before:**
+
+```typescript
+<div className="absolute top-full left-0">
+```
+
+**After:**
+
+```typescript
+<div className="absolute top-full start-0">
+```
+
+#### Example 3: Dialog
+
+**Before:**
+
+```typescript
+<div className="left-[50%] translate-x-[-50%]">
+```
+
+**After:**
+
+```typescript
+<div className="start-[50%] -translate-x-1/2 rtl:translate-x-1/2">
+```
+
+### Testing RTL Support
+
+After migration, test components in both LTR and RTL modes:
+
+1. **Switch locale** to Arabic (RTL)
+2. **Verify spacing** is correct (margins/padding flip correctly)
+3. **Verify alignment** is correct (text-align works correctly)
+4. **Verify positioning** is correct (absolute/fixed elements position correctly)
+5. **Verify borders** are correct (border radius and borders flip correctly)
+6. **Verify icons** rotate correctly (directional icons face correct direction)
+
+### RTL Migration Best Practices
+
+1. ✅ **ALWAYS use logical properties** (`ps-`, `pe-`, `ms-`, `me-`, `start-`, `end-`)
+2. ✅ **NEVER use physical properties** (`pl-`, `pr-`, `ml-`, `mr-`, `left-`, `right-`)
+3. ✅ **Use `rtl:` variants** only for transforms, rotations, and flex-direction
+4. ✅ **Test in both LTR and RTL** after making changes
+5. ✅ **Prefer logical properties** over conditional classes
+6. ✅ **Use `text-start` and `text-end`** instead of `text-left` and `text-right`
+
+### Migration Priority
+
+**HIGHEST PRIORITY** - This migration is critical for proper RTL support. All new features MUST use RTL-friendly classes from the start. Existing code should be migrated as soon as possible.
+
+## Component Styling Patterns
+
+### Button Styling
+
+**Use button variants:**
+
+```typescript
+// ✅ CORRECT - Button variants
+<Button variant="primary">Primary</Button>
+<Button variant="outline">Outline</Button>
+<Button variant="ghost">Ghost</Button>
+<Button variant="destructive">Delete</Button>
+<Button size="sm">Small</Button>
+<Button size="md">Medium</Button>
+<Button size="lg">Large</Button>
+```
+
+### Status Indicators
+
+**Status badge patterns:**
+
+```typescript
+// ✅ CORRECT - Status indicators
+<div className="flex items-center gap-1">
+  <span className="bg-success-foreground size-2 rounded-full" />
+  Active
+</div>
+
+<div className="flex items-center gap-1">
+  <span className="bg-destructive size-2 rounded-full" />
+  Inactive
+</div>
+```
+
+### Form Field Layout
+
+**Form field structure:**
+
+```typescript
+// ✅ CORRECT - Form field layout
+<form.AppField name="field">
+  {(field) => (
+    <div className="space-y-2">
+      <Label className="text-sm font-medium">Label</Label>
+      <field.Input />
+    </div>
+  )}
+</form.AppField>
+
+// With custom styling
+<div className="flex flex-col gap-2">
+  <Label className="text-muted-foreground text-sm font-medium">
+    Label
+  </Label>
+  <field.Input className="w-full" />
+</div>
+```
+
+### Table/DataTable Styling
+
+**Table patterns:**
+
+```typescript
+// ✅ CORRECT - Table wrapper with toolbar prop
+import { cn } from '@/utils'
+
+<main className={cn('relative', className)}>
+  <DataTable
+    toolbar={
+      <DataTableToolbar
+        createButtonHref="/feature/create"
+        table={table}
+      />
+    }
+    table={table}
+  />
+</main>
+```
+
+### Modal/Dialog Styling
+
+**Dialog patterns:**
+
+```typescript
+// ✅ CORRECT - Dialog content
+<DialogContent className="bg-root max-w-2xl">
+  <DialogHeader>
+    <DialogTitle>Title</DialogTitle>
+  </DialogHeader>
+  <div className="space-y-6">
+    {/* Content */}
+  </div>
+</DialogContent>
+```
+
+## Border Radius
+
+**Use consistent border radius:**
+
+```typescript
+// ✅ CORRECT - Border radius variables
+<div className="rounded-md">       // Standard (var(--radius))
+<div className="rounded-lg">      // Large (var(--radius-lg))
+<div className="rounded-xl">      // Extra large (var(--radius-xl))
+<div className="rounded-2xl">     // 2x Extra large
+<div className="rounded-full">    // Full circle
+
+// Available radius variables
+--radius: 10px                    // Base radius
+--radius-xl: calc(var(--radius) + 4px)
+--radius-lg: var(--radius)
+--radius-md: calc(var(--radius) - 2px)
+--radius-sm: calc(var(--radius) - 4px)
+```
+
+## Shadows
+
+**Use shadow utilities:**
+
+```typescript
+// ✅ CORRECT - Shadow classes
+<div className="shadow-xs">           // Extra small shadow
+<div className="shadow-sm">           // Small shadow
+<div className="shadow-md">           // Medium shadow
+<div className="shadow-lg">           // Large shadow
+
+// With opacity
+<div className="shadow-xs shadow-black/5">  // Shadow with opacity
+```
+
+## Typography
+
+**Typography patterns:**
+
+```typescript
+// ✅ CORRECT - Typography classes
+<h1 className="text-2xl font-bold">           // Page title
+<h2 className="text-xl font-semibold">       // Section title
+<h3 className="text-base font-semibold">      // Card title
+<p className="text-sm text-muted-foreground"> // Description text
+<span className="text-xs">                    // Small text
+<span className="font-medium">                // Medium weight
+<span className="font-semibold">              // Semibold weight
+<span className="font-bold">                  // Bold weight
+
+// Font family
+<span className="font-mono">                  // Monospace font
+```
+
+## Icon Styling
+
+**Icon patterns:**
+
+```typescript
+// ✅ CORRECT - Icon classes
+<Icon className="h-4 w-4 text-muted-foreground" />
+<Icon className="size-4" />                    // Square icon
+<Icon className="h-6 w-6 text-gray-400" />     // Specific size (acceptable for icons)
+
+// Icon sizes
+h-3 w-3    // 12px
+h-4 w-4    // 16px
+h-5 w-5    // 20px
+h-6 w-6    // 24px
+size-4     // 16px (shorthand)
+```
+
+## Common Patterns
+
+### Page Layout
+
+```typescript
+export default function Page() {
+  return (
+    <>
+      <PageHeader title="Title" description="Description">
+        {/* Actions */}
+      </PageHeader>
+      <div className="m-5">
+        {/* Main content */}
+      </div>
+    </>
+  )
+}
+```
+
+### Form Page Layout
+
+```typescript
+export default function FormPage() {
+  return (
+    <>
+      <PageHeader title="Form Title">
+        <form.AppForm>
+          <form.SubmitButton form="form-id">Submit</form.SubmitButton>
+        </form.AppForm>
+      </PageHeader>
+      <div className="m-5 flex">
+        <form className="w-full flex-1 space-y-5" id="form-id">
+          <Card>
+            <CardHeader>
+              <CardTitle>Section</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Fields */}
+            </CardContent>
+          </Card>
+        </form>
+      </div>
+    </>
+  )
+}
+```
+
+### Status Badge
+
+```typescript
+const StatusBadge = ({ isActive }: { isActive: boolean }) => (
+  <div className="flex items-center gap-1">
+    <span
+      className={cn(
+        'size-2 rounded-full',
+        isActive ? 'bg-success-foreground' : 'bg-destructive'
+      )}
+    />
+    {isActive ? 'Active' : 'Inactive'}
+  </div>
+)
+```
+
+### List Item with Icon
+
+```typescript
+<div className="flex items-center gap-2">
+  <Icon className="h-4 w-4 text-gray-400" />
+  <span className="font-medium">Text</span>
+</div>
+```
+
+## Best Practices
+
+1. ✅ **RTL-FRIENDLY CLASSES ARE MANDATORY** - Always use logical properties (`ps-*`, `pe-*`, `ms-*`, `me-*`, `start-*`, `end-*`, `text-start`, `text-end`, `border-s-*`, `border-e-*`) - See Complete RTL Migration Guide section above
+2. ✅ **Always use CSS variable-based Tailwind classes** for colors
+3. ✅ **Use semantic HTML elements** (header, nav, main, section, article, etc.)
+4. ✅ **Maintain proper heading hierarchy** (h1 → h2 → h3...)
+5. ✅ **Provide alt text** for all images
+6. ✅ **Use ARIA attributes** for accessibility
+7. ✅ **Use `m-5`** for main content containers
+8. ✅ **Use `space-y-5`** for vertical spacing
+9. ✅ **Use `gap-2`, `gap-3`, `gap-5`** for flex gaps (not `space-x-*`)
+10. ✅ **Use logical properties** (`me-*`, `ms-*`, `pe-*`, `ps-*`, `border-e`, `border-s`) instead of directional (`mr-*`, `ml-*`, `pr-*`, `pl-*`, `border-r`, `border-l`)
+11. ✅ **Mobile-first responsive design** with Tailwind breakpoints
+12. ✅ **Support RTL layouts** for Arabic locale (logical properties handle this automatically)
+13. ✅ **Use `cn()` utility** for conditional classes
+14. ✅ **Use component variants** (Button, Card, Badge, etc.)
+15. ✅ **Maintain consistent spacing** (use spacing scale)
+16. ✅ **Use semantic color names** (success, destructive, muted, etc.)
+17. ✅ **Never hardcode colors** - always use CSS variables
+18. ✅ **Never use directional spacing** (`ml-*`, `mr-*`, `pl-*`, `pr-*`, `space-x-*`) - use logical properties instead
+
+## Anti-Patterns to Avoid
+
+1. ❌ **NEVER use RTL-unfriendly classes** (`pl-*`, `pr-*`, `ml-*`, `mr-*`, `left-*`, `right-*`, `text-left`, `text-right`, `border-l-*`, `border-r-*`, `rounded-l-*`, `rounded-r-*`) - Use logical properties instead - See Complete RTL Migration Guide section above
+2. ❌ **Don't use hardcoded colors** (`bg-white`, `text-black`, `bg-gray-100`)
+3. ❌ **Don't use generic divs** for semantic content (`<div className="header">` → use `<header>`)
+4. ❌ **Don't skip heading levels** (`h1` → `h3` is wrong, should be `h1` → `h2`)
+5. ❌ **Don't forget alt text** on images
+6. ❌ **Don't use arbitrary values** when standard utilities exist (`p-[20px]` → use `p-5`)
+7. ❌ **Don't mix spacing systems** (stick to Tailwind spacing scale)
+8. ❌ **Don't use inline styles** for colors (use CSS variables)
+9. ❌ **Don't use directional spacing properties** (`ml-*`, `mr-*`, `pl-*`, `pr-*`, `space-x-*`, `border-l`, `border-r`) - use logical properties (`ms-*`, `me-*`, `ps-*`, `pe-*`, `gap-*`, `border-s`, `border-e`) instead
+10. ❌ **Don't use conditional RTL classes** (`isRTL ? 'pl-4' : 'pr-4'`) - use logical properties (`ps-4`) that work automatically
+
+## CSS Variable Reference
+
+### Complete Variable List
+
+**Backgrounds:**
+
+- `bg-background` → `var(--background)`
+- `bg-card` → `var(--card)`
+- `bg-muted` → `var(--muted)`
+- `bg-accent` → `var(--accent)`
+- `bg-primary` → `var(--primary)`
+- `bg-secondary` → `var(--secondary)`
+- `bg-success` → `var(--success)`
+- `bg-destructive` → `var(--destructive)`
+
+**Text:**
+
+- `text-foreground` → `var(--foreground)`
+- `text-card-foreground` → `var(--card-foreground)`
+- `text-muted-foreground` → `var(--muted-foreground)`
+- `text-accent-foreground` → `var(--accent-foreground)`
+- `text-primary-foreground` → `var(--primary-foreground)`
+- `text-secondary-foreground` → `var(--secondary-foreground)`
+- `text-success-foreground` → `var(--success-foreground)`
+- `text-destructive-foreground` → `var(--destructive-foreground)`
+
+**Borders:**
+
+- `border-border` → `var(--border)`
+- `border-input` → `var(--input)`
+
+**Radius:**
+
+- `rounded-md` → `var(--radius-md)`
+- `rounded-lg` → `var(--radius-lg)`
+- `rounded-xl` → `var(--radius-xl)`
+
+See [code-comments.mdc](mdc:.cursor/rules/_common/code-comments.mdc) for code commenting standards.
+
+```typescript
+// ✅ CORRECT - Comment explains complex logic
+// Calculate RTL-aware offset: negative for LTR, positive for RTL
+const offset = direction === 'rtl' ? -scrollAmount : scrollAmount
+
+// ❌ WRONG - Obvious comment that restates code
+// Set the offset to scrollAmount
+const offset = scrollAmount
+```
+
+This styling guide ensures consistent, accessible, SEO-friendly, and dark-mode-compatible styling throughout the application.

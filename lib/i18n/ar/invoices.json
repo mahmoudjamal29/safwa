@@ -51,6 +51,8 @@
     "title": "إنشاء فاتورة جديدة",
     "customer": "العميل",
     "customerSearch": "ابحث عن عميل...",
+    "unknownCustomer": "غير محدد",
+    "invoiceRef": "فاتورة",
     "date": "التاريخ",
     "invoiceDate": "تاريخ الفاتورة",
     "status": "الحالة",
@@ -66,7 +68,7 @@
     "notes": "ملاحظات",
     "notesPlaceholder": "أي ملاحظات إضافية...",
     "discount": "الخصم",
-    "paid": "المدفوع",
+    "paid": "المبلغ المدفوع",
     "save": "حفظ الفاتورة",
     "cancel": "إلغاء",
     "reset": "تفريغ",
@@ -75,6 +77,25 @@
     "piece": "قطعة",
     "piecesFrom": "من اصل {count} قطعة",
     "lockedItem": "لا يمكن تعديل هذا البند"
+  },
+  "picker": {
+    "title": "اختيار منتج",
+    "search": "بحث في المنتجات...",
+    "empty": "لا توجد منتجات",
+    "available": "المخزون",
+    "piecesPerUnit": "قطعة/وحدة",
+    "sellPiece": "قطعة",
+    "sellUnit": "وحدة",
+    "add": "إضافة",
+    "allCategories": "كل الفئات",
+    "columns": {
+      "name": "المنتج",
+      "unit": "الوحدة",
+      "stock": "المخزون",
+      "price": "السعر",
+      "sellBy": "البيع بـ",
+      "actions": ""
+    }
   },
   "view": {
     "title": "فاتورة رقم",

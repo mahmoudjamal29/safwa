@@ -7,10 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 
 import type { InvoiceStatus } from '@/query/invoices'
 
-import { cn } from '@/utils/cn'
 import { fmtCurrency, fmtDate } from '@/utils/formatters'
 
-import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -20,12 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-const statusColors: Record<InvoiceStatus, string> = {
-  'مدفوعة': 'bg-green-100 text-green-700 border-green-200',
-  'مدفوعة جزئياً': 'bg-yellow-100 text-yellow-700 border-yellow-200',
-  'معلقة': 'bg-blue-100 text-blue-700 border-blue-200',
-  'ملغاة': 'bg-gray-100 text-gray-500 border-gray-200',
-}
+import { InvoiceStatusBadge } from '@/app/(dashboard)/invoices/_components/invoice-status-badge'
 
 interface RecentInvoice {
   id: string
@@ -54,44 +47,44 @@ export function RecentInvoices() {
   const { data: invoices = [], isLoading } = useQuery(recentInvoicesOptions)
 
   return (
-    <div className="rounded-xl border bg-card p-4">
-      <h2 className="mb-3 text-base font-semibold">{t('recentInvoices')}</h2>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>رقم الفاتورة</TableHead>
-            <TableHead>العميل</TableHead>
-            <TableHead>التاريخ</TableHead>
-            <TableHead>الحالة</TableHead>
-            <TableHead>الإجمالي</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading ? (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="border-b px-4 py-3">
+        <h2 className="text-base font-semibold">{t('recentInvoices')}</h2>
+      </div>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">{t('loading')}</TableCell>
+              <TableHead>{t('columns.invoiceNumber')}</TableHead>
+              <TableHead>{t('columns.customer')}</TableHead>
+              <TableHead>{t('columns.date')}</TableHead>
+              <TableHead>{t('columns.status')}</TableHead>
+              <TableHead>{t('columns.total')}</TableHead>
             </TableRow>
-          ) : invoices.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">لا توجد فواتير</TableCell>
-            </TableRow>
-          ) : (
-            invoices.map(inv => (
-              <TableRow key={inv.id}>
-                <TableCell className="font-mono text-sm">{inv.invoice_number}</TableCell>
-                <TableCell>{inv.customer_name}</TableCell>
-                <TableCell>{fmtDate(inv.invoice_date)}</TableCell>
-                <TableCell>
-                  <Badge className={cn('text-xs', statusColors[inv.status])}>
-                    {inv.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="font-medium">{fmtCurrency(inv.total)}</TableCell>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground">{t('loading')}</TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            ) : invoices.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground">{t('noInvoices')}</TableCell>
+              </TableRow>
+            ) : (
+              invoices.map(inv => (
+                <TableRow key={inv.id}>
+                  <TableCell className="font-mono text-sm">{inv.invoice_number}</TableCell>
+                  <TableCell>{inv.customer_name}</TableCell>
+                  <TableCell>{fmtDate(inv.invoice_date)}</TableCell>
+                  <TableCell><InvoiceStatusBadge status={inv.status} /></TableCell>
+                  <TableCell className="font-medium">{fmtCurrency(inv.total)}</TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }

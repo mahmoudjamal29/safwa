@@ -1,0 +1,677 @@
+---
+description: Conventional Commits specification with emoji support for consistent commit message formatting. Ensures all commits follow a standardized format with type, scope, description, and optional emoji prefixes. MUST be applied when generating commit messages.
+alwaysApply: false
+---
+
+# Conventional Commits with Emojis
+
+## ⚠️ CRITICAL: When to Apply This Rule
+
+**This rule MUST be applied whenever:**
+
+- User asks to generate a commit message
+- User asks to write a git commit
+- User requests commit message suggestions
+- User asks "what should I commit" or similar
+- Any commit-related message generation is requested
+
+**ALWAYS use this format when generating commit messages for the user.**
+
+## Overview
+
+This rule enforces the [Conventional Commits](https://www.conventionalcommits.org/) specification with emoji prefixes for better visual identification of commit types. All commits MUST follow this format.
+
+## Commit Message Format
+
+```
+<emoji> <type>(<scope>): <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+### Format Breakdown
+
+- **Emoji**: Visual indicator for commit type (required)
+- **Type**: Type of change (required)
+- **Scope**: Affected area/feature (optional)
+- **Description**: Short, imperative description (required)
+- **Body**: Detailed explanation (optional)
+- **Footer**: Breaking changes, issue references (optional)
+
+## Commit Types and Emojis
+
+### Primary Types
+
+| Type       | Emoji | Description                                               | Example                                                       |
+| ---------- | ----- | --------------------------------------------------------- | ------------------------------------------------------------- |
+| `feat`     | ✨    | New feature                                               | `✨ feat(auth/forms): add JWT token refresh`                  |
+| `fix`      | 🐛    | Bug fix                                                   | `🐛 fix(api/queries): resolve pagination offset issue`        |
+| `docs`     | 📝    | Documentation changes                                     | `📝 docs(readme): update installation steps`                  |
+| `style`    | 💄    | Code style changes (formatting, missing semicolons, etc.) | `💄 style(components/ui): format with prettier`               |
+| `refactor` | ♻️    | Code refactoring (no feature change or bug fix)           | `♻️ refactor(utils/helpers): extract common validation logic` |
+| `perf`     | ⚡    | Performance improvements                                  | `⚡ perf(queries/tenants): optimize database query`           |
+| `test`     | ✅    | Adding or updating tests                                  | `✅ test(auth/forms): add login mutation tests`               |
+| `chore`    | 🔧    | Maintenance tasks, build config, dependencies             | `🔧 chore(deps): update react to v19`                         |
+| `ci`       | 👷    | CI/CD changes                                             | `👷 ci(github): add automated testing workflow`               |
+| `build`    | 📦    | Build system or external dependencies                     | `📦 build(webpack): update bundler configuration`             |
+| `revert`   | ⏪    | Revert previous commit                                    | `⏪ revert: revert "feat: add user dashboard"`                |
+
+### Additional Types
+
+| Type            | Emoji | Description                | Example                                            |
+| --------------- | ----- | -------------------------- | -------------------------------------------------- |
+| `security`      | 🔒    | Security fixes             | `🔒 security(auth/forms): fix XSS vulnerability`   |
+| `i18n`          | 🌐    | Internationalization       | `🌐 i18n(translations): add Arabic locale`         |
+| `accessibility` | ♿    | Accessibility improvements | `♿ accessibility(forms/ui): add ARIA labels`      |
+| `ui`            | 🎨    | UI/UX changes              | `🎨 ui(dashboard/components): improve card layout` |
+| `database`      | 🗄️    | Database changes           | `🗄️ database(migration): add users table`          |
+| `config`        | ⚙️    | Configuration changes      | `⚙️ config(env): add API endpoint variable`        |
+
+## Scope Guidelines
+
+**⚠️ CRITICAL: Scopes MUST follow the pattern `{main_feature}/{sub_feature}`**
+
+Scopes should reflect the folder structure:
+
+- **Main feature**: The top-level feature folder (e.g., `tenants`, `routes`, `drivers`, `vehicles`)
+- **Sub feature**: The subdirectory within `_{feature}/` (e.g., `forms`, `tables`, `columns`, `tabs`, `hooks`, `components`)
+
+### Scope Format
+
+```
+{main_feature}/{sub_feature}
+```
+
+### Determining Scope from File Path
+
+**Pattern**: `app/(app)/{main_feature}/_{main_feature}/{sub_feature}/...`
+
+**Examples**:
+
+- `app/(app)/tenants/_tenants/forms/tenant-form.tsx` → `tenants/forms`
+- `app/(app)/tenants/_tenants/tables/tenant-table.tsx` → `tenants/tables`
+- `app/(app)/tenants/_tenants/columns/tenants-columns.tsx` → `tenants/columns`
+- `app/(app)/routes/[routeId]/shifts/_shifts/tabs/shift-riders-tab.tsx` → `routes/tabs` or `shifts/tabs`
+- `app/(app)/drivers/_drivers/hooks/drivers-params.ts` → `drivers/hooks`
+- `app/(app)/vehicles/_vehicles/components/vehicle-header-buttons.tsx` → `vehicles/components`
+
+### Common Main Features
+
+- `tenants` - Tenant management
+- `routes` - Route management
+- `drivers` - Driver management
+- `vehicles` - Vehicle management
+- `admins` - Admin management
+- `users` - User management
+- `dashboard` - Dashboard features
+
+### Common Sub Features
+
+- `forms` - Form components
+- `tables` - Table components
+- `columns` - Column definitions
+- `tabs` - Tab components
+- `hooks` - Custom hooks
+- `components` - Shared components
+- `form-options` - Form options and schemas
+- `types` - Type definitions
+
+### Examples
+
+```bash
+✨ feat(tenants/forms): add bulk delete functionality
+🐛 fix(tenants/tables): resolve column sorting issue
+♻️ refactor(routes/tabs): extract common tab logic
+📝 docs(drivers/hooks): document params hook usage
+✅ test(vehicles/forms): add validation tests
+🔧 chore(tenants/components): update header buttons
+✨ feat(routes/tabs): add riders tab component
+🐛 fix(drivers/columns): resolve type mismatch
+```
+
+### Special Cases
+
+**For query layer changes** (`query/{feature}/`):
+
+- Use `{feature}/queries` or `{feature}/mutations` or `{feature}/types`
+
+```bash
+✨ feat(tenants/queries): add export query
+🐛 fix(drivers/mutations): handle error responses
+```
+
+**For root-level changes** (not in a feature folder):
+
+- Use appropriate scope without main feature, or use `global/{sub_feature}`
+
+```bash
+✨ feat(global/components): add shared button component
+🔧 chore(config): update environment variables
+```
+
+**⚠️ CRITICAL: For cursor rules changes** (`.cursor/rules/`):
+
+- **ALWAYS use `chore` type**, NOT `feat` or `docs`
+- Scope should be `rules` or `rules/{rule-name}`
+
+```bash
+# ✅ CORRECT
+🔧 chore(rules): update conventional commits rule
+🔧 chore(rules/data-table): add export configuration guidelines
+🔧 chore(rules/feature-structure): consolidate feature folder rules
+
+# ❌ WRONG
+✨ feat(rules): add conventional commits rule
+📝 docs(rules): update commit guidelines
+```
+
+## Description Guidelines
+
+- **Imperative mood**: "add" not "added" or "adds"
+- **Lowercase** (except for proper nouns)
+- **No period** at the end
+- **50 characters or less** (aim for brevity)
+- **Clear and specific**: describe what the commit does
+
+### Good Examples
+
+```bash
+✨ feat(auth/forms): add password reset flow
+🐛 fix(api/queries): handle null response gracefully
+♻️ refactor(utils/helpers): simplify date formatting
+📝 docs(readme): update setup instructions
+```
+
+### Bad Examples
+
+```bash
+# ❌ Too vague
+✨ feat: update code
+
+# ❌ Past tense
+✨ feat(auth): added login button
+
+# ❌ Too long
+✨ feat(tenants): add comprehensive tenant management system with advanced filtering and bulk operations
+
+# ❌ Missing emoji
+feat(auth): add login
+
+# ❌ Wrong format
+Added new feature
+```
+
+## Body (Optional)
+
+Use the body for:
+
+- **Detailed explanation** of what and why
+- **Context** about the change
+- **Trade-offs** or considerations
+
+Format:
+
+- Separate from header with blank line
+- Wrap at 72 characters
+- Use imperative mood
+
+### Example
+
+```bash
+✨ feat(tenants/tables): add export functionality
+
+Add CSV export button to tenants table that allows
+admins to download filtered tenant data. Includes
+permission check to ensure only authorized users
+can export.
+
+Closes #123
+```
+
+## Footer (Optional)
+
+Use footer for:
+
+- **Breaking changes**: `BREAKING CHANGE: <description>`
+- **Issue references**: `Closes #123`, `Fixes #456`
+- **Co-authors**: `Co-authored-by: Name <email>`
+
+### Breaking Changes
+
+```bash
+✨ feat(auth/queries)!: change authentication method
+
+BREAKING CHANGE: JWT tokens now expire after 1 hour
+instead of 24 hours. Users will need to refresh
+tokens more frequently.
+```
+
+Note: The `!` after the type/scope indicates a breaking change.
+
+## Examples by Category
+
+### Features
+
+```bash
+✨ feat(tenants/tables): add bulk delete action
+✨ feat(dashboard/components): implement analytics widget
+✨ feat(auth/forms): add two-factor authentication
+✨ feat(global/components): add file upload component
+```
+
+### Bug Fixes
+
+```bash
+🐛 fix(tenants/tables): resolve pagination edge case
+🐛 fix(api/queries): handle network timeout errors
+🐛 fix(tenants/forms): validate email format correctly
+🐛 fix(ui/components): correct button alignment on mobile
+```
+
+### Refactoring
+
+```bash
+♻️ refactor(tenants/queries): extract common query logic
+♻️ refactor(tenants/components): split large component
+♻️ refactor(utils/helpers): improve error handling
+♻️ refactor(tenants/types): consolidate type definitions
+```
+
+### Documentation
+
+```bash
+📝 docs(readme): update installation guide
+📝 docs(api): document new endpoints
+📝 docs(contributing): add commit guidelines
+📝 docs(architecture): explain folder structure
+```
+
+### Tests
+
+```bash
+✅ test(auth): add login mutation tests
+✅ test(utils): test date formatting functions
+✅ test(components): add table component tests
+✅ test(e2e): add user flow tests
+```
+
+### Chores
+
+```bash
+🔧 chore(deps): update react to v19
+🔧 chore(eslint): fix linting errors
+🔧 chore(config): update environment variables
+🔧 chore(ci): update GitHub Actions workflow
+```
+
+### Performance
+
+```bash
+⚡ perf(queries): optimize database queries
+⚡ perf(images): implement lazy loading
+⚡ perf(bundle): reduce bundle size
+⚡ perf(rendering): memoize expensive calculations
+```
+
+### Style
+
+```bash
+💄 style(components): format with prettier
+💄 style(types): fix TypeScript formatting
+💄 style(css): organize class names
+💄 style(imports): sort import statements
+```
+
+## Multi-Line Commit Examples
+
+### With Body
+
+```bash
+✨ feat(tenants): add export functionality
+
+Add CSV export button to tenants table that allows
+admins to download filtered tenant data. The export
+includes all visible columns and respects current
+filters and search terms.
+
+- Add export button to DataTableToolbar
+- Implement export mutation in query layer
+- Add permission check for export action
+- Handle file download in browser
+
+Closes #123
+```
+
+### With Breaking Change
+
+```bash
+✨ feat(api)!: migrate to new authentication system
+
+BREAKING CHANGE: The authentication API has been
+completely rewritten. All clients must update to
+use the new token format and refresh mechanism.
+
+Migration guide: docs/migration/auth-v2.md
+
+Closes #456
+```
+
+### With Multiple Issues
+
+```bash
+🐛 fix(table): resolve sorting and pagination bugs
+
+Fix issue where table sorting would reset pagination
+and vice versa. Also resolves edge case where empty
+state would not display correctly.
+
+Fixes #123
+Fixes #456
+Closes #789
+```
+
+## Best Practices
+
+### 1. One Logical Change Per Commit
+
+**✅ DO:**
+
+```bash
+✨ feat(auth): add password reset flow
+🐛 fix(table): resolve pagination issue
+```
+
+**❌ DON'T:**
+
+```bash
+✨ feat: add auth and fix table bugs
+```
+
+### 2. Use Specific Scopes
+
+**✅ DO:**
+
+```bash
+✨ feat(tenants): add bulk delete
+🐛 fix(data-table): resolve column sorting
+```
+
+**❌ DON'T:**
+
+```bash
+✨ feat: add bulk delete
+🐛 fix: resolve sorting
+```
+
+### 3. Write Clear Descriptions
+
+**✅ DO:**
+
+```bash
+✨ feat(forms): add validation error messages
+🐛 fix(api): handle 404 responses gracefully
+```
+
+**❌ DON'T:**
+
+```bash
+✨ feat(forms): update
+🐛 fix(api): fix bug
+```
+
+### 4. Keep It Short
+
+**✅ DO:**
+
+```bash
+✨ feat(dashboard): add analytics widget
+```
+
+**❌ DON'T:**
+
+```bash
+✨ feat(dashboard): add comprehensive analytics widget with real-time data visualization and customizable charts
+```
+
+### 5. Use Imperative Mood
+
+**✅ DO:**
+
+```bash
+✨ feat(auth): add login button
+🐛 fix(api): handle errors
+```
+
+**❌ DON'T:**
+
+```bash
+✨ feat(auth): added login button
+🐛 fix(api): handles errors
+```
+
+### 6. Include Emoji
+
+**✅ DO:**
+
+```bash
+✨ feat(auth): add login
+🐛 fix(table): resolve bug
+```
+
+**❌ DON'T:**
+
+```bash
+feat(auth): add login
+fix(table): resolve bug
+```
+
+## Commit Message Template
+
+Use this template when writing commits:
+
+```
+<emoji> <type>(<scope>): <short description>
+
+<longer description if needed>
+
+<footer if needed>
+```
+
+## Quick Reference
+
+### Most Common Types
+
+```bash
+✨ feat:     New feature
+🐛 fix:      Bug fix
+♻️ refactor: Code refactoring
+📝 docs:     Documentation
+✅ test:     Tests
+🔧 chore:    Maintenance
+⚡ perf:     Performance
+💄 style:    Code style
+```
+
+### Breaking Changes
+
+Add `!` after type/scope:
+
+```bash
+✨ feat(api)!: change authentication
+```
+
+Or use footer:
+
+```bash
+✨ feat(api): change authentication
+
+BREAKING CHANGE: <description>
+```
+
+## Integration with Git
+
+### Pre-commit Hook (Optional)
+
+You can add a pre-commit hook to validate commit messages:
+
+```bash
+#!/bin/sh
+# .git/hooks/commit-msg
+
+commit_msg=$(cat "$1")
+pattern="^(✨|🐛|📝|💄|♻️|⚡|✅|🔧|👷|📦|⏪|🔒|🌐|♿|🎨|🗄️|⚙️) (feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert|security|i18n|accessibility|ui|database|config)(\(.+\))?: .+"
+
+if ! echo "$commit_msg" | grep -qE "$pattern"; then
+    echo "❌ Invalid commit message format!"
+    echo ""
+    echo "Format: <emoji> <type>(<scope>): <description>"
+    echo ""
+    echo "Examples:"
+    echo "  ✨ feat(auth): add login button"
+    echo "  🐛 fix(table): resolve pagination bug"
+    echo "  ♻️ refactor(utils): extract common logic"
+    exit 1
+fi
+```
+
+## Examples from Real Workflows
+
+### Feature Development
+
+```bash
+✨ feat(tenants): add create tenant form
+✅ test(tenants): add form validation tests
+🐛 fix(tenants): handle form submission errors
+📝 docs(tenants): update API documentation
+```
+
+### Bug Fixing
+
+```bash
+🐛 fix(data-table): resolve column sorting issue
+✅ test(data-table): add sorting edge case tests
+📝 docs(data-table): document sorting behavior
+```
+
+### Refactoring
+
+```bash
+♻️ refactor(queries): extract common query logic
+✅ test(queries): update tests for new structure
+📝 docs(queries): update query patterns guide
+```
+
+### Dependency Updates
+
+```bash
+🔧 chore(deps): update react to v19.1.0
+🔧 chore(deps): update typescript to v5.8.3
+✅ test: fix tests after dependency updates
+```
+
+## Summary
+
+- **Always** use emoji + type + scope + description format
+- **Keep** descriptions short and imperative
+- **Use** specific scopes for clarity
+- **Include** body for complex changes
+- **Reference** issues in footer when applicable
+- **Mark** breaking changes with `!` or footer
+
+This ensures consistent, readable, and maintainable commit history.
+
+## AI Instructions for Commit Message Generation
+
+**When generating commit messages, you MUST:**
+
+1. **Analyze the changes** in the staged files or diff provided
+2. **Determine the appropriate type** (feat, fix, refactor, etc.)
+3. **Identify the scope** using the pattern `{main_feature}/{sub_feature}`:
+   - Extract `main_feature` from the path: `app/(app)/{main_feature}/`
+   - Extract `sub_feature` from the path: `_{main_feature}/{sub_feature}/`
+   - Format as: `{main_feature}/{sub_feature}`
+4. **Write an imperative description** (50 chars or less)
+5. **Include the emoji** for the commit type
+6. **Follow the format**: `<emoji> <type>(<main_feature>/<sub_feature>): <description>`
+
+### Example Workflow
+
+**User**: "Generate a commit message for my changes"
+
+**AI should:**
+
+1. Review the git diff or staged changes
+2. Identify file paths (e.g., `app/(app)/tenants/_tenants/forms/tenant-form.tsx`)
+3. Extract main feature: `tenants` (from `app/(app)/tenants/`)
+4. Extract sub feature: `forms` (from `_tenants/forms/`)
+5. Identify what changed (e.g., "Added new tenant form component")
+6. Determine type: `feat` (new feature)
+7. Generate: `✨ feat(tenants/forms): add create tenant form`
+
+**User**: "What should I commit?"
+
+**AI should:**
+
+1. Check git status to see what's changed
+2. Analyze the file paths to determine scope
+3. Extract `{main_feature}/{sub_feature}` from paths
+4. Suggest appropriate commit message following this format
+5. Provide explanation if needed
+
+### Scope Extraction Examples
+
+**File**: `app/(app)/tenants/_tenants/tables/tenant-admins-table.tsx`
+
+- Main feature: `tenants`
+- Sub feature: `tables`
+- Scope: `tenants/tables`
+- Commit: `✨ feat(tenants/tables): add tenant admins table`
+
+**File**: `app/(app)/routes/[routeId]/shifts/_shifts/tabs/shift-riders-tab.tsx`
+
+- Main feature: `routes` (or `shifts` if nested)
+- Sub feature: `tabs`
+- Scope: `routes/tabs` or `shifts/tabs`
+- Commit: `✨ feat(routes/tabs): add shift riders tab`
+
+**File**: `app/(app)/drivers/_drivers/hooks/drivers-params.ts`
+
+- Main feature: `drivers`
+- Sub feature: `hooks`
+- Scope: `drivers/hooks`
+- Commit: `✨ feat(drivers/hooks): add drivers params hook`
+
+**File**: `query/tenants/tenants-mutations.ts`
+
+- Main feature: `tenants`
+- Sub feature: `mutations` (or `queries`)
+- Scope: `tenants/mutations`
+- Commit: `✨ feat(tenants/mutations): add delete tenant mutation`
+
+**File**: `.cursor/rules/conventional-commits.mdc`
+
+- Type: `chore` (ALWAYS for cursor rules)
+- Scope: `rules` or `rules/conventional-commits`
+- Commit: `🔧 chore(rules): update conventional commits rule` or `🔧 chore(rules/conventional-commits): add cursor rules special case`
+
+### Quick Decision Tree
+
+```
+Cursor rules changes? → 🔧 chore(rules)
+New functionality? → ✨ feat
+Bug fix? → 🐛 fix
+Code improvement (no new features)? → ♻️ refactor
+Documentation? → 📝 docs
+Tests? → ✅ test
+Dependencies/config? → 🔧 chore
+Performance? → ⚡ perf
+Styling/formatting? → 💄 style
+```
+
+### Important Notes
+
+- **Cursor rules changes**: ALWAYS use `chore(rules)` or `chore(rules/{rule-name})`, NEVER use `feat` or `docs` for rule files
+- **Always include the emoji** and follow the format exactly as specified in this rule
+- **Always use `{main_feature}/{sub_feature}` format** for scopes when applicable

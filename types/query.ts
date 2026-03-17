@@ -38,3 +38,11 @@ export type DynamicQueryOptions<T extends object = object> =
   | RegularQueryOptionsFn<T>
   | InfiniteQueryOptions<T>
   | InfiniteQueryOptionsFn<T>
+
+export type DynamicRegularQueryOptions<T extends object = object> =
+  | RegularQueryOptions<T>
+  | RegularQueryOptionsFn<T>
+
+export type DynamicInfiniteQueryOptions<T extends object = object> =
+  | InfiniteQueryOptions<T>
+  | InfiniteQueryOptionsFn<T>

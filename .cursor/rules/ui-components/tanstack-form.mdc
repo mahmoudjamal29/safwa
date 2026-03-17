@@ -1,0 +1,3417 @@
+---
+description: Comprehensive guide for working with TanStack Form in the application. Based on actual implementation patterns from tenants feature and form components. Covers form initialization, field composition, validation, error handling, and integration with React Query mutations.
+alwaysApply: false
+---
+
+# TanStack Form Patterns
+
+## Overview
+
+This cursor rule provides comprehensive guidance for working with TanStack Form, a headless form library for building performant and type-safe forms. Based on patterns used in the codebase.
+
+See [code-comments.mdc](mdc:.cursor/rules/_common/code-comments.mdc) for code commenting standards.
+
+## Core Hooks and Patterns
+
+### Primary Form Hooks
+
+- `useAppForm()` - **Primary form initialization hook** (always use this)
+- `useStore()` - Form state subscription hook (for debugging/logging)
+
+### Form Components
+
+- `form.AppField` - Pre-bound field component with context (always use this)
+- `form.AppForm` - Pre-bound form component with context (always use this)
+- `form.SubmitButton` - Pre-bound submit button component
+
+**⚠️ CRITICAL: ALL `form.SubmitButton` components MUST include `isLoading` prop**
+
+Every `form.SubmitButton` across the application MUST have an `isLoading` prop that reflects the mutation's pending state. This ensures consistent loading feedback across all forms.
+
+**Pattern:**
+
+- Extract `isPending` from mutation hooks: `const { isPending, mutateAsync } = useCreateMutation()`
+- For edit forms, use conditional: `isLoading={isEdit ? isUpdating : isCreating}`
+- For forms using ref patterns, expose loading state via callback: `onSubmittingChange={setIsLoading}`
+
+**Examples:**
+
+```typescript
+// ✅ CORRECT: Includes isLoading prop
+const { isPending, mutateAsync: createAdmin } = useCreateAdminMutation()
+<form.SubmitButton form="create-admin-form" isLoading={isPending}>
+  Create Admin
+</form.SubmitButton>
+
+// ✅ CORRECT: Edit form with conditional loading
+const { isPending: isCreating } = useCreateMutation()
+const { isPending: isUpdating } = useUpdateMutation()
+<form.SubmitButton isLoading={isEdit ? isUpdating : isCreating}>
+  {isEdit ? 'Update' : 'Create'}
+</form.SubmitButton>
+
+// ❌ WRONG: Missing isLoading prop
+<form.SubmitButton form="create-form">
+  Create
+</form.SubmitButton>
+```
+
+### Form Composition
+
+- `withForm` - HOC for creating reusable form field groups
+
+**⚠️ CRITICAL: ImageComponent MUST include `classNames={{ wrapper: 'md:col-span-full' }}`**
+
+**ALL `field.ImageComponent` usages MUST include `classNames={{ wrapper: 'md:col-span-full' }}` to ensure proper responsive layout in grid-based forms.**
+
+**✅ CORRECT:**
+
+```typescript
+<form.AppField name="image">
+  {(field) => (
+    <field.ImageComponent
+      classNames={{ wrapper: 'md:col-span-full' }}
+      label="Image"
+      placeholder="Click to add image"
+      src={imageSrc}
+    />
+  )}
+</form.AppField>
+```
+
+**❌ WRONG:**
+
+```typescript
+<form.AppField name="image">
+  {(field) => (
+    <field.ImageComponent
+      label="Image"
+      placeholder="Click to add image"
+      src={imageSrc}
+      // ❌ WRONG: Missing classNames prop
+    />
+  )}
+</form.AppField>
+```
+
+## FormCard Pattern
+
+**⚠️ CRITICAL: FormCard MUST be inside fields components, NOT in main form files**
+
+Fields components created with `withForm` HOC should wrap their content in `FormCard` internally. The main form component should only pass `id` and `title` props to fields components, not wrap them in FormCard.
+
+**✅ CORRECT: FormCard inside fields component**
+
+```typescript
+// fields/basic-info.tsx
+'use client'
+
+import { FormCard } from '@/components/custom/form-card'
+import { withForm } from '@/components/form'
+
+import { FormOptions } from './form-options'
+
+export const BasicInfoFields = withForm({
+  ...FormOptions(),
+  render: function Render({ form }) {
+    return (
+      <FormCard id="basic-info" title="Basic Info">
+        <form.AppField name="name">
+          {(field) => <field.Input label="Name" />}
+        </form.AppField>
+        {/* Other field components */}
+      </FormCard>
+    )
+  }
+})
+
+// main form file
+<form>
+  <BasicInfoFields form={form} />
+  {/* Other section components */}
+</form>
+```
+
+**❌ WRONG: FormCard in main form wrapping fields**
+
+```typescript
+// main form file
+<form>
+  <FormCard id="basic-info" title="Basic Info">
+    <BasicInfoFields form={form} />
+  </FormCard>
+</form>
+```
+
+**Why**: Fields components should own their presentation wrapper for better component composition and reusability.
+
+## Best Practices
+
+- **When translations are requested, localize enum-driven selects**: call `const t = useTranslations('enums.<namespace>')` inside the form component and build options like `{ label: t(value), value }`. **By default, use hard-coded English labels** (e.g., `{ label: 'Active', value: '1' }`). When translations are requested, avoid maintaining bespoke label maps (e.g. `SERVICE_CENTER_SERVICE_TYPE_LABELS`); the canonical copy lives in `lib/i18n/{locale}.json`.
+
+- **⚠️ CRITICAL: Form layout pattern** - Forms MUST follow the standard layout pattern:
+  - **For page components**: Wrap PageHeader and form in a fragment `<>...</>`, with form inside `<div className="m-5">`
+  - **For form components**: Use wrapper `<div className="mb-10 flex flex-col gap-5">` to wrap PageHeader and form
+  - **Form element**: `<form className="w-full flex-1 space-y-5 px-5">` - Form with full width, flex-1, vertical spacing, and horizontal padding
+  - **DO NOT use `max-w-7xl`** - Forms should use full width with padding instead of max-width constraint
+  - This pattern ensures consistent spacing and responsive layout across all forms
+
+### REQUIRED: Numeric Fields Must Be Strings in Schema
+
+**⚠️ CRITICAL: ALL numeric fields (enums, IDs, numbers) MUST be defined as strings in the form schema, NOT as numbers or native enums.**
+
+**Why:**
+
+- Form components (ButtonSelector, Select, etc.) work with string values
+- Avoids type conversion complexity in components
+- Consistent pattern across all forms
+- Easier to work with enum translations (which use string keys)
+
+**❌ WRONG - Using numbers or nativeEnum in schema:**
+
+```typescript
+export const schema = z.object({
+  type: z.nativeEnum(UserTypeEnum), // ❌ WRONG: Should be string
+  group_id: z.number().optional(), // ❌ WRONG: Should be string
+  status: z.number() // ❌ WRONG: Should be boolean (see status pattern below)
+})
+```
+
+**✅ CORRECT - Using strings in schema:**
+
+```typescript
+export const schema = z.object({
+  type: z.string(), // ✅ CORRECT: String for enum
+  group_id: z.string().optional().nullable(), // ✅ CORRECT: String for ID
+  status: z.boolean() // ✅ CORRECT: Boolean for status (see status pattern below)
+})
+```
+
+**Conversion Pattern:**
+
+1. **In Schema**: Define as `z.string()`
+2. **In default values constant**: Use string enum values: `type: `${EnumType.VALUE}``
+3. **In FormOptions (when using initial data)**: Convert numeric values to strings: `type: `${user.type}``
+4. **In Components**: Use string values directly (no conversion needed)
+5. **On Submit**: Convert back to number: `type: Number(value.type)`
+
+**Example - Complete Pattern:**
+
+```typescript
+// form-options.ts
+import { formOptions } from '@tanstack/react-form-nextjs'
+import { z } from 'zod'
+import { UserTypeEnum } from '@/types/enums'
+
+export const UsersFormSchema = (t: Translations<'forms.validation'>) => {
+  const schema = z.object({
+    type: z.string(), // ✅ String, not z.nativeEnum
+    group_id: z.string().optional().nullable(), // ✅ String, not z.number()
+    // ... other fields
+  })
+  return schema
+}
+
+export type UsersFormSchema = z.infer<ReturnType<typeof UsersFormSchema>>
+
+export const UsersFormDefaultValues: UsersFormSchema = {
+  type: `${UserTypeEnum.INDIVIDUAL}`, // ✅ String enum value
+  group_id: null,
+  // ... other fields
+}
+
+export const useUsersFormOptions = (defaultValues?: UsersFormSchema) => {
+  const t = useTranslations('forms.validation')
+  return formOptions({
+    defaultValues: {
+      ...UsersFormDefaultValues,
+      ...defaultValues
+    },
+    validators: {
+      onChange: UsersFormSchema(t)
+    }
+  })
+}
+
+// users-form.tsx - Convert numeric values to strings when using initial data
+const formOptions = useUsersFormOptions(
+  user ? {
+    type: `${user.type}`, // ✅ Convert number to string
+    group_id: user.group_id ? `${user.group_id}` : null, // ✅ Convert number to string
+    // ... other fields
+  } : undefined
+)
+
+// identity.tsx - Use string values directly (no conversion needed)
+<form.AppField name="type">
+  {(field) => (
+    <field.ButtonSelector
+      options={[
+        { label: tUserType(`${UserTypeEnum.INDIVIDUAL}`), value: `${UserTypeEnum.INDIVIDUAL}` },
+        { label: tUserType(`${UserTypeEnum.COMPANY}`), value: `${UserTypeEnum.COMPANY}` }
+      ]}
+      value={field.state.value || `${UserTypeEnum.INDIVIDUAL}`} // ✅ Direct string value
+    />
+  )}
+</form.AppField>
+
+// users-form.tsx - Convert back to number on submit
+onSubmit: async ({ formApi, value }) => {
+  const payload: CreateUserInput = {
+    type: Number(value.type) as UserTypeEnum, // ✅ Convert string back to number
+    group_id: value.group_id ? Number(value.group_id) : null, // ✅ Convert string back to number
+    // ... other fields
+  }
+  // ... submit
+}
+```
+
+**Key Points:**
+
+- ✅ **Schema**: Always use `z.string()` for numeric/enum fields
+- ✅ **Default values constant**: Use string enum values: `` `${EnumType.VALUE}` ``
+- ✅ **FormOptions**: Convert numeric API values to strings: `` `${user.type}` ``
+- ✅ **Components**: Use string values directly (no conversion in components)
+- ✅ **On Submit**: Convert strings back to numbers: `Number(value.type)`
+- ❌ **Never use**: `z.nativeEnum()`, `z.number()` for form fields that come from APIs
+- ❌ **Never convert**: In components - keep values as strings throughout the form lifecycle
+
+### REQUIRED: Status field boolean mapping (standardized)
+
+When APIs represent status as a numeric enum (e.g., 0/1), the form schema should use a boolean field and map the numeric value to boolean in `defaultValues`, then convert back to numeric on submit.
+
+Use nullish coalescing to handle 0 correctly, and compare to the enum. Avoid truthy checks.
+
+```typescript
+// In form-options.ts
+import { formOptions } from '@tanstack/react-form'
+import { z } from 'zod'
+import { StatusEnum } from '@/types/enums'
+
+export const schema = z.object({
+  // status in form is boolean
+  status: z.boolean()
+  // ...other fields
+})
+
+export type Schema = z.infer<typeof schema>
+
+export const FeatureFormOptions = (defaultValues?: { status?: number }) =>
+  formOptions({
+    defaultValues: {
+      // ✅ REQUIRED PATTERN
+      // Map numeric status (0/1) to boolean
+      status:
+        (defaultValues?.status ?? StatusEnum.ACTIVE) === StatusEnum.ACTIVE
+          ? true
+          : false
+      // ...other fields
+    } as Schema,
+    validators: { onChange: schema }
+  })
+```
+
+On submit, always convert the boolean back to the backend’s numeric representation:
+
+```typescript
+// In the form component
+const form = useAppForm({
+  ...FeatureFormOptions(existingData),
+  onSubmit: async ({ formApi, value }) => {
+    apiFormValidation(
+      () =>
+        isEdit
+          ? updateFn({ ...value, status: value.status ? 1 : 0, id })
+          : createFn({ ...value, status: value.status ? 1 : 0 }),
+      formApi
+    )
+  }
+})
+```
+
+Anti-patterns to avoid:
+
+- `status: defaultValues?.status ? !!defaultValues?.status : true` // wrong when status is 0
+- `status: entity ? entity.status === StatusEnum.ACTIVE : true` // wrong fallback semantics
+
+### formOptions Pattern (Project Standard for Form Configuration)
+
+**Always use `formOptions` to create reusable form configuration** - This is the project standard that provides:
+
+- Separation of form configuration from component logic
+- Reusable form options for both create and edit modes
+- Type-safe default values and validation
+- Cleaner, more maintainable form code
+
+#### File Structure
+
+Create a separate `form-options` file for each form feature:
+
+```
+app/(app)/{feature}/form-options/
+├── {feature}-form-options.ts   # Form options and validation schemas
+```
+
+Or co-located with forms:
+
+```
+app/(app)/{feature}/
+├── form-options.ts              # Form options and validation schemas
+├── {feature}-form.tsx           # Main form component
+└── forms/                       # Sub-form components (optional)
+    ├── basic-info.tsx
+    └── contact.tsx
+```
+
+**⚠️ CRITICAL: Forms with Sections MUST Use Form-Name Folder Structure**
+
+**When a form has multiple sections (3+ sections), it MUST be organized in a form-name folder structure where all sections and the main form live in the same folder. ALL section components MUST use `withForm` HOC pattern.**
+
+**Folder Structure:**
+
+```
+app/(app)/{feature}/forms/
+├── {form-name}/                 # Form-name folder (e.g., company-form/)
+│   ├── {form-name}.tsx          # Main form component
+│   ├── {section-name}-section.tsx  # Section components (e.g., basic-info-section.tsx)
+│   ├── {section-name}-section.tsx
+│   ├── index.ts                 # Barrel exports for all sections
+│   └── ...
+└── {form-name}.tsx              # Re-export from form-name folder
+```
+
+**✅ CORRECT - Form-name folder structure:**
+
+```typescript
+// app/(app)/companies/forms/company-form/company-form.tsx
+'use client'
+
+import dynamic from 'next/dynamic'
+import { useAppForm } from '@/components/form'
+import { companyFormOptions } from '../../form-options/company-form-options'
+
+// Dynamic imports for code splitting
+const BasicInfoSection = dynamic(
+  () => import('./index').then((mod) => ({ default: mod.BasicInfoSection })),
+  { loading: () => <FormCardSkeleton />, ssr: false }
+)
+
+export const CompanyForm = () => {
+  const form = useAppForm({
+    ...companyFormOptions({ company }),
+    onSubmit: async ({ formApi, value }) => {
+      // Handle submission
+    }
+  })
+
+  return (
+    <form>
+      <BasicInfoSection form={form} isLoading={isLoading} />
+      <AddressSection form={form} isLoading={isLoading} />
+      <ContactSection form={form} isLoading={isLoading} />
+    </form>
+  )
+}
+```
+
+```typescript
+// app/(app)/companies/forms/company-form/basic-info-section.tsx
+'use client'
+
+import { withForm } from '@/components/form'
+import { companyFormDefaultValues } from '../../form-options/company-form-options'
+
+type BasicInfoSectionProps = {
+  isLoading?: boolean
+}
+
+export const BasicInfoSection = withForm({
+  defaultValues: companyFormDefaultValues,
+  props: {
+    isLoading: undefined
+  } as BasicInfoSectionProps,
+  render: function Render({ form, isLoading }) {
+    return (
+      <FormCard title="Basic Info">
+        <form.AppField
+          children={(field) => (
+            <field.Input
+              disabled={isLoading}
+              label="Name"
+              placeholder="Enter company name"
+              required
+            />
+          )}
+          name="name"
+        />
+      </FormCard>
+    )
+  }
+})
+```
+
+```typescript
+// app/(app)/companies/forms/company-form/index.ts
+export { BasicInfoSection } from './basic-info-section'
+export { AddressSection } from './address-section'
+export { ContactSection } from './contact-section'
+```
+
+```typescript
+// app/(app)/companies/forms/company-form.tsx
+export { CompanyForm } from './company-form/company-form'
+```
+
+**Key Requirements:**
+
+- ✅ **Form-name folder**: Create `{form-name}/` folder containing all sections and main form
+- ✅ **All sections use `withForm`**: Every section component MUST use `withForm` HOC pattern
+- ✅ **Dynamic imports**: Use `next/dynamic` for all section components (3+ sections)
+- ✅ **Barrel exports**: Create `index.ts` in form-name folder to export all sections
+- ✅ **Re-export main form**: Create `{form-name}.tsx` at forms level that re-exports from form-name folder
+- ✅ **Section props**: Use `props` object in `withForm` to pass data like `isLoading`, `company`, etc.
+- ✅ **Default values**: Use exported `defaultValues` constant from form-options in `withForm`
+- ❌ **Never use `useFormContext()`**: Sections must use `withForm`, not `useFormContext()`
+- ❌ **Never use separate sections folder**: All sections must be in the form-name folder, not a separate `sections/` folder
+
+#### Standard Form Options File Pattern (Project Standard)
+
+**⚠️ CRITICAL: All form options files MUST follow this exact structure and order:**
+
+```typescript
+// ✅ Project Standard - Complete form options file structure
+import { formOptions, FormValidateOrFn } from '@tanstack/react-form-nextjs'
+import { z } from 'zod'
+
+// 1. Define validation schema (as function that returns zod schema)
+export const {Feature}FormSchema = () =>
+  z.object({
+    // ... field definitions
+  })
+
+// 2. Export schema type
+export type {Feature}FormSchema = z.infer<
+  ReturnType<typeof {Feature}FormSchema>
+>
+
+// 3. Declare default values in separate exported constant
+// ⚠️ NAMING CONVENTION: Use {Feature}DV (e.g., FloorGarageDV, TenantDV, CenterDV, SpaceTypeDV)
+export const {Feature}DV: {Feature}FormSchema = {
+  // ... default values
+}
+
+// 4. Create form options function or hook (supports both create and edit modes)
+// Use function pattern when no hooks are needed
+export const {Feature}FormOptions = (entity?: {Feature}ById) =>
+  formOptions({
+    defaultValues: {
+      ...{Feature}DV,
+      // Override with entity data for edit mode, using defaultValues object as fallback
+      name: entity?.name || {Feature}DV.name,
+      email: entity?.email || {Feature}DV.email,
+      status: entity?.status ?? {Feature}DV.status,
+      // ... other entity transformations
+    } as {Feature}FormSchema,
+    validators: {
+      onChange: {Feature}FormSchema() as FormValidateOrFn<{Feature}FormSchema>
+    }
+  })
+
+// OR use hook pattern when hooks are needed (e.g., useTranslations)
+export const use{Feature}FormOptions = (entity?: {Feature}ById) => {
+  // Can use hooks here if needed (e.g., const t = useTranslations('...'))
+  return formOptions({
+    defaultValues: {
+      ...{Feature}DV,
+      // Override with entity data for edit mode
+      name: entity?.name || {Feature}DV.name,
+      // ... other entity transformations
+    } as {Feature}FormSchema,
+    validators: {
+      onChange: {Feature}FormSchema() as FormValidateOrFn<{Feature}FormSchema>
+    }
+  })
+}
+```
+
+**Key Requirements:**
+
+- ✅ **Import order**: `formOptions`, `FormValidateOrFn` from `@tanstack/react-form-nextjs`, `z`, then feature-specific types
+- ✅ **Schema first**: Define validation schema as a function that returns zod schema: `export const {Feature}FormSchema = () => z.object({...})`
+- ✅ **Type export**: Export schema type using `z.infer<ReturnType<typeof {Feature}FormSchema>>`
+- ✅ **Default values constant**: Declare as separate exported constant with schema type (not `DefaultValues<SchemaType>`): `export const {Feature}DV: {Feature}FormSchema = {...}`
+- ✅ **Naming convention**: **ALWAYS name default values constant as `{Feature}DV`** (e.g., `FloorGarageDV`, `TenantDV`, `CenterDV`, `SpaceTypeDV`) - This is the project standard
+- ✅ **Form options function or hook**: Use `formOptions()` with default values constant. Use function pattern when no hooks needed, hook pattern when hooks are needed (e.g., `useTranslations`)
+- ✅ **Spread default values**: Use `...{Feature}DV` when merging with entity data
+- ✅ **Use defaultValues as fallback**: When overriding with entity data, use `entity?.field || {Feature}DV.field` or `entity?.field ?? {Feature}DV.field` instead of hardcoding fallback values
+- ✅ **Schema in validators**: Call schema function in validators: `onChange: {Feature}FormSchema() as FormValidateOrFn<{Feature}FormSchema>`
+
+#### Basic formOptions Pattern
+
+```typescript
+// ✅ Project Standard - Create form options with formOptions
+import { formOptions, FormValidateOrFn } from '@tanstack/react-form-nextjs'
+import { z } from 'zod'
+
+// 1. Define validation schema (as function that returns zod schema)
+export const createFeatureSchema = () =>
+  z.object({
+    name: z.string().min(1, { message: 'Name is required' }),
+    email: z.string().email({ message: 'Invalid email format' })
+  })
+
+// 2. Export schema type
+export type CreateFeatureSchema = z.infer<
+  ReturnType<typeof createFeatureSchema>
+>
+
+// 3. Declare default values in separate variable
+// ⚠️ NAMING CONVENTION: Use CreateFeatureDV (not CreateFeatureFormDefaultValues)
+export const CreateFeatureDV: CreateFeatureSchema = {
+  name: '',
+  email: ''
+}
+
+// 4. Create form options using default values constant
+export const createFeatureFormOptions = formOptions({
+  defaultValues: CreateFeatureDV,
+  validators: {
+    onChange: createFeatureSchema() as FormValidateOrFn<CreateFeatureSchema>
+  }
+})
+
+// Usage in component
+const form = useAppForm({
+  ...createFeatureFormOptions,
+  onSubmit: async ({ value }) => {
+    // Handle submission
+  }
+})
+```
+
+#### formOptions with Edit Mode
+
+```typescript
+import { formOptions, FormValidateOrFn } from '@tanstack/react-form-nextjs'
+import { z } from 'zod'
+import { Feature } from '@/query/{feature}'
+import { StatusEnum } from '@/types/enums'
+
+// 1. Define validation schema (as function that returns zod schema)
+export const featureSchema = () =>
+  z.object({
+    name: z.string().min(1, { message: 'Name is required' }),
+    email: z.string().email({ message: 'Invalid email format' }),
+    status: z.boolean()
+  })
+
+// 2. Export schema type
+export type FeatureSchema = z.infer<ReturnType<typeof featureSchema>>
+
+// 3. Declare default values in separate variable
+// ⚠️ NAMING CONVENTION: Use FeatureDV (not FeatureFormDefaultValues)
+export const FeatureDV: FeatureSchema = {
+  name: '',
+  email: '',
+  status: true
+}
+
+// 4. Form options function that accepts optional data for edit mode
+export const FeatureFormOptions = (feature?: Feature) =>
+  formOptions({
+    defaultValues: {
+      ...FeatureDV,
+      // ✅ CORRECT - Use defaultValues object as fallback instead of hardcoding values
+      name: feature?.name || FeatureDV.name,
+      email: feature?.email || FeatureDV.email,
+      // ✅ CORRECT - Convert numeric status (0/1) to boolean using nullish coalescing
+      status: (feature?.status ?? 0) === StatusEnum.ACTIVE
+    } as FeatureSchema,
+    validators: {
+      onChange: featureSchema() as FormValidateOrFn<FeatureSchema>
+    }
+  })
+
+// Usage in component
+const form = useAppForm({
+  ...FeatureFormOptions(existingData), // Pass data for edit mode
+  onSubmit: async ({ value, formApi }) => {
+    // Handle submission
+  }
+})
+```
+
+#### formOptions with Complex Transformations
+
+```typescript
+import { formOptions, FormValidateOrFn } from '@tanstack/react-form-nextjs'
+import { z } from 'zod'
+
+// 1. Define validation schema with transformations (as function that returns zod schema)
+export const contractFormSchema = () =>
+  z.object({
+    dynamic_routes_count: z.string().pipe(
+      z.coerce
+        .number()
+        .min(0, { message: 'Dynamic routes count is required' })
+        .transform((val) => val.toString())
+    ),
+    dynamic_routes_vehicle_types: z
+      .array(z.string())
+      .min(1, { message: 'Vehicle types are required' })
+  })
+
+// 2. Export schema type
+export type ContractFormSchema = z.infer<ReturnType<typeof contractFormSchema>>
+
+// 3. Declare default values in separate exported constant
+// ⚠️ NAMING CONVENTION: Use ContractDV (not ContractFormDefaultValues)
+export const ContractDV: ContractFormSchema = {
+  dynamic_routes_count: '0',
+  dynamic_routes_vehicle_types: []
+}
+
+// 4. Create form options with entity data transformations
+export const contractFormOptions = (contractData?: Contract) =>
+  formOptions({
+    defaultValues: {
+      ...ContractDV,
+      // ✅ CORRECT - Use defaultValues object as fallback
+      dynamic_routes_count:
+        contractData?.dynamic_routes?.count.toString() ??
+        ContractDV.dynamic_routes_count,
+      dynamic_routes_vehicle_types:
+        contractData?.dynamic_routes?.vehicle_types.map((vehicle) =>
+          vehicle.toString()
+        ) ?? ContractDV.dynamic_routes_vehicle_types
+    } as ContractFormSchema,
+    validators: {
+      onChange: contractFormSchema() as FormValidateOrFn<ContractFormSchema>
+    }
+  })
+```
+
+#### Using formOptions with withForm
+
+**⚠️ CRITICAL: `defaultValues` in `withForm` is Only for Types**
+
+When using `withForm`, the `defaultValues` property is **ONLY used for TypeScript type inference**. It does NOT need to match runtime values or require props that form options functions/hooks need.
+
+**✅ CORRECT Pattern - Use Exported Default Values Constant:**
+
+```typescript
+// form-options.ts
+import { formOptions, FormValidateOrFn } from '@tanstack/react-form-nextjs'
+import { z } from 'zod'
+
+// 1. Define validation schema (as function that returns zod schema)
+export const featureSchema = () =>
+  z.object({
+    name: z.string().min(1, { message: 'Name is required' }),
+    email: z.string().email({ message: 'Invalid email format' }),
+    status: z.boolean()
+  })
+
+// 2. Export schema type
+export type FeatureSchema = z.infer<ReturnType<typeof featureSchema>>
+
+// 3. Declare default values in separate exported constant
+// ⚠️ NAMING CONVENTION: Use FeatureDV (not FeatureFormDefaultValues)
+export const FeatureDV: FeatureSchema = {
+  name: '',
+  email: '',
+  status: true
+}
+
+// 4. Create form options function or hook
+export const FeatureFormOptions = (feature?: Feature) =>
+  formOptions({
+    defaultValues: {
+      ...FeatureDV,
+      // ✅ CORRECT - Use defaultValues object as fallback
+      name: feature?.name || FeatureDV.name,
+      email: feature?.email || FeatureDV.email
+    } as FeatureSchema,
+    validators: {
+      onChange: featureSchema() as FormValidateOrFn<FeatureSchema>
+    }
+  })
+
+// Component using withForm
+import { withForm } from '@/components/form'
+import { FeatureDV } from './form-options'
+
+export const BasicInfoFields = withForm({
+  defaultValues: FeatureDV, // ✅ Use exported default values constant directly (not calling function/hook)
+  props: {}, // ✅ Empty props object
+  render: function Render({ form }) {
+    // ✅ Can use hooks (useTranslations, useQuery, etc.) inside render function when needed
+    // When translations are requested, add: const t = useTranslations('feature.forms.basic')
+    return (
+      <div className="space-y-5">
+        <form.AppField name="name">
+          {(field) => <field.Input label="Name" />}
+        </form.AppField>
+        <form.AppField name="email">
+          {(field) => <field.Input label="Email" type="email" />}
+        </form.AppField>
+        {/* When translations are requested, use: label={t('nameLabel')} and label={t('emailLabel')} */}
+      </div>
+    )
+  }
+})
+```
+
+**❌ WRONG Pattern - Spreading Form Options or Calling Function/Hook:**
+
+```typescript
+// ❌ DON'T: Spread form options that require props
+export const BasicInfoFields = withForm({
+  ...FeatureFormOptions({ t: () => '', tPhone: () => '' }), // ❌ Wrong: Dummy functions
+  render: function Render({ form }) {
+    // ...
+  }
+})
+
+// ❌ DON'T: Call form options function/hook in withForm
+export const BasicInfoFields = withForm({
+  defaultValues: FeatureFormOptions({}).defaultValues, // ❌ Wrong: Don't call function/hook
+  render: function Render({ form }) {
+    // ...
+  }
+})
+
+// ❌ DON'T: Use hook in withForm defaultValues
+export const BasicInfoFields = withForm({
+  defaultValues: useFeatureFormOptions({}).defaultValues, // ❌ Wrong: Hooks can't be called here
+  render: function Render({ form }) {
+    // ...
+  }
+})
+```
+
+**Key Points:**
+
+- ✅ Extract `defaultValues` from form options and export as a constant (`{Feature}DV`)
+- ✅ Use exported `defaultValues` constant directly in `withForm` (not calling function/hook)
+- ✅ `defaultValues` type must match the parent form's `defaultValues` type
+- ✅ Omit `validators` when parent form handles validation
+- ✅ Can use hooks (useTranslations, useQuery, etc.) inside render function
+- ✅ **NEVER call form options function/hook in `withForm`** - only use the exported constant
+
+#### Complete Form Options Pattern (Real-World Example - Space Type)
+
+```typescript
+// app/(Dashboard)/settings/space-configurations/_space-configurations/form-options/space-type-form-options.tsx
+'use client'
+
+import { formOptions, FormValidateOrFn } from '@tanstack/react-form-nextjs'
+import { z } from 'zod'
+import { SpaceTypeById } from '@/query/space-types'
+import { ZeroOrOneEnum } from '@/types/enums'
+
+// 1. Define validation schema (as function that returns zod schema)
+export const SpaceTypeFormSchema = () =>
+  z.object({
+    description_ar: z.string().optional(),
+    description_en: z.string().optional(),
+    image: z.instanceof(File).optional().nullable(),
+    mobile_booking_visibility: z.boolean().default(true),
+    name_ar: z.string().min(1, { message: 'Name (Arabic) is required' }),
+    name_en: z.string().min(1, { message: 'Name (English) is required' }),
+    shared: z.boolean().default(false),
+    status: z.boolean().default(true),
+    templates: z.array(z.string()).optional()
+  })
+
+// 2. Export schema type
+export type SpaceTypeFormSchema = z.infer<
+  ReturnType<typeof SpaceTypeFormSchema>
+>
+
+// 3. Declare default values in separate exported constant
+// ⚠️ NAMING CONVENTION: Use SpaceTypeDV (not SpaceTypeFormDefaultValues)
+export const SpaceTypeDV: SpaceTypeFormSchema = {
+  description_ar: '',
+  description_en: '',
+  image: null, // ✅ Use null when schema uses .nullable()
+  mobile_booking_visibility: true,
+  name_ar: '',
+  name_en: '',
+  shared: false,
+  status: true,
+  templates: []
+}
+
+// 4. Create form options hook (supports both create and edit modes)
+export const useSpaceTypeFormOptions = (spaceType?: SpaceTypeById) => {
+  const arTranslation = spaceType?.translations?.find((t) => t.locale === 'ar')
+  const enTranslation = spaceType?.translations?.find((t) => t.locale === 'en')
+
+  return formOptions({
+    defaultValues: {
+      ...SpaceTypeDV,
+      // ✅ CORRECT - Use defaultValues object as fallback
+      description_ar: arTranslation?.description || SpaceTypeDV.description_ar,
+      description_en: enTranslation?.description || SpaceTypeDV.description_en,
+      image: null, // ✅ Use null when schema uses .nullable()
+      mobile_booking_visibility:
+        spaceType?.is_bookable_in_mobile === ZeroOrOneEnum.ONE,
+      name_ar: arTranslation?.name || SpaceTypeDV.name_ar,
+      name_en: enTranslation?.name || SpaceTypeDV.name_en,
+      shared: spaceType?.is_shared === ZeroOrOneEnum.ONE,
+      status: spaceType?.status === ZeroOrOneEnum.ONE,
+      templates: []
+    } as SpaceTypeFormSchema,
+    validators: {
+      onChange: SpaceTypeFormSchema() as FormValidateOrFn<SpaceTypeFormSchema>
+    }
+  })
+}
+```
+
+#### Complete Form Options Pattern (Real-World Example - Tenants)
+
+```typescript
+// app/(app)/tenants/_tenants/form-options/tenants-form-options.tsx
+import { formOptions, FormValidateOrFn } from '@tanstack/react-form-nextjs'
+import { z } from 'zod'
+import { TenantType } from '@/types/enums'
+import { TenantById } from '@/query/tenants'
+import { StatusEnum } from '@/types/enums'
+
+// 1. Define validation schema (as function that returns zod schema)
+export const createTenantSchema = () =>
+  z.object({
+    ar: z.object({
+      name: z.string().min(1, { message: 'Arabic name is required' })
+    }),
+    email: z.string().email({ message: 'Invalid email format' }),
+    en: z.object({
+      name: z.string().min(1, { message: 'English name is required' })
+    }),
+    image: z.instanceof(File).optional(),
+    phone: z.string().min(1, { message: 'Phone number is required' }),
+    status: z.boolean(),
+    type: z.nativeEnum(TenantType)
+  })
+
+// 2. Export schema type
+export type CreateTenantSchema = z.infer<ReturnType<typeof createTenantSchema>>
+
+// 3. Declare default values in separate variable
+// ⚠️ NAMING CONVENTION: Use TenantsDV (not TenantsFormDefaultValues)
+export const TenantsDV: CreateTenantSchema = {
+  ar: {
+    name: ''
+  },
+  email: '',
+  en: {
+    name: ''
+  },
+  image: undefined,
+  phone: '',
+  status: true,
+  type: TenantType.CORPORATE
+}
+
+// 4. Create form options function (supports both create and edit)
+export const TenantsFormOptions = (tenant?: TenantById) =>
+  formOptions({
+    defaultValues: {
+      ...TenantsDV,
+      // ✅ CORRECT - Use defaultValues object as fallback
+      ar: {
+        name:
+          tenant?.translations.find(
+            (translation) => translation.locale === 'ar'
+          )?.name || TenantsDV.ar.name
+      },
+      email: tenant?.email || TenantsDV.email,
+      en: {
+        name:
+          tenant?.translations.find(
+            (translation) => translation.locale === 'en'
+          )?.name || TenantsDV.en.name
+      },
+      image: undefined,
+      phone: tenant?.phone || TenantsDV.phone,
+      // ✅ CORRECT - Convert numeric status (0/1) to boolean using nullish coalescing
+      status: (tenant?.status ?? 0) === StatusEnum.ACTIVE,
+      type:
+        tenant?.type.toString() === TenantType.CORPORATE
+          ? TenantType.CORPORATE
+          : TenantType.SCHOOL
+    } as CreateTenantSchema,
+    validators: {
+      onChange: createTenantSchema() as FormValidateOrFn<CreateTenantSchema>
+    }
+  })
+
+// Usage in main form component
+const form = useAppForm({
+  ...TenantsFormOptions(tenant), // Spread form options
+  onSubmit: async ({ formApi, value }) => {
+    // Handle submission
+  },
+  validators: {
+    onChange: createTenantSchema // Validation can be defined here or in formOptions
+  }
+})
+```
+
+#### Advanced Type Safety Pattern for defaultValues
+
+**⚠️ NOTE**: The standard pattern using the schema type directly is recommended. The `satisfies` pattern below is optional for advanced use cases.
+
+For enhanced type safety when working with complex default values, you can use the `satisfies` operator combined with a type assertion:
+
+```typescript
+import { formOptions, FormValidateOrFn } from '@tanstack/react-form-nextjs'
+import { z } from 'zod'
+
+// 1. Define validation schema
+export const createRiderSchema = z.object({
+  name: z.string().min(1, { message: 'Name is required' }),
+  email: z.string().email({ message: 'Invalid email format' })
+  // ... other fields
+})
+
+// 2. Export schema type
+export type RiderSchema = z.infer<typeof createRiderSchema>
+
+// 3. Declare default values with satisfies pattern (optional advanced pattern)
+// ⚠️ NAMING CONVENTION: Use RidersDV (not RidersFormDefaultValues)
+export const RidersDV = {
+  name: '',
+  email: ''
+  // ... other fields
+} satisfies RiderSchema
+
+// 4. Create form options
+export const RidersFormOptions = (rider?: RiderById) =>
+  formOptions({
+    defaultValues: {
+      ...RidersDV,
+      // ✅ CORRECT - Use defaultValues object as fallback
+      name: rider?.name ?? RidersDV.name,
+      email: rider?.email ?? RidersDV.email
+      // ... other fields
+    } as RiderSchema,
+    validators: {
+      onChange: createRiderSchema(!!rider)
+    }
+  })
+```
+
+**Benefits of this pattern:**
+
+- ✅ **`satisfies RiderSchema`** - Ensures the object structure matches the schema at compile time, catching structural errors
+- ✅ **Type safety** - The schema type provides type checking for default values
+- ✅ **Double type safety** - Both structural validation (satisfies) and type assertion (as) provide comprehensive type checking
+
+**When to use:**
+
+- Use when you have complex default values with many fields
+- Use when you want maximum type safety and compile-time validation
+- Use when integrating with libraries that expect specific default value types
+
+**Note:** This pattern is optional and more advanced. The standard schema type pattern is sufficient for most cases and is the project standard.
+
+#### formOptions Best Practices
+
+1. **Always import `FormValidateOrFn` from `@tanstack/react-form-nextjs`** - Required for typing validators in formOptions.
+2. **Follow the standard file structure order**:
+   - Import statements (`formOptions`, `FormValidateOrFn` from `@tanstack/react-form-nextjs`, `z`, types)
+   - Define validation schema as a function that returns zod schema: `export const {Feature}FormSchema = () => z.object({...})`
+   - Export schema type using `z.infer<ReturnType<typeof {Feature}FormSchema>>`
+   - Declare default values in separate exported constant using schema type (not `DefaultValues<SchemaType>`): `export const {Feature}DV: {Feature}FormSchema = {...}`
+   - Create form options function or hook using `formOptions()` with default values constant
+   - Use function pattern when no hooks needed, hook pattern when hooks are needed (e.g., `useTranslations`)
+3. **Always export default values as separate constant** - Declare `{Feature}DV` as exported constant for reuse and type inference. **⚠️ NAMING CONVENTION: Always use `{Feature}DV` format** (e.g., `FloorGarageDV`, `TenantDV`, `CenterDV`, `SpaceTypeDV`) - This is the project standard. Type it with the schema type (not `DefaultValues<SchemaType>`): `export const {Feature}DV: {Feature}FormSchema = {...}`
+4. **Use optional parameters for edit mode** - Accept `entity?: EntityType` in form options functions
+5. **Spread default values in edit mode** - Use `...{Feature}DV` when creating edit form options to ensure all fields are initialized
+6. **Use defaultValues object as fallback** - When overriding with entity data, use `entity?.field || {Feature}DV.field` or `entity?.field ?? {Feature}DV.field` instead of hardcoding fallback values (e.g., `entity?.name || ''` should be `entity?.name || FeatureDV.name`)
+7. **Use type assertions** - Cast `defaultValues` with `as {Feature}FormSchema` for type safety when merging with entity data
+8. **Transform data in form options** - Handle API-to-form data transformations here
+9. **Keep validators in formOptions** - Include `validators.onChange` in formOptions for consistency. Call schema function and type cast: `onChange: {Feature}FormSchema() as FormValidateOrFn<{Feature}FormSchema>`
+10. **Allow validator overrides** - Forms can override validators when needed
+11. **Export both schema and form options** - Export schema for reuse, form options for initialization
+12. **Handle edit mode through defaultValues, NOT useEffect** - Use key prop or useMemo to recreate form with fresh defaultValues when data changes
+13. **Never use useEffect for edit mode** - Always update defaultValues by recreating the form instance
+14. **Never use useEffect to initialize state from initialData** - Always pass `initialData` to form options function and initialize component state from form's `defaultValues` (e.g., `formOptions.defaultValues.fieldName` or `form.state.values.fieldName`)
+15. **Use key prop on form element** - Key based on entity ID ensures form recreates with updated defaultValues
+16. **Use `null` for optional file/image fields** - When the schema uses `.nullable()` for file/image fields, use `null` (not `undefined`) in `defaultValues`. The schema may use `.optional().nullable()` to accept API responses, and `defaultValues` should use `null` for unset file fields to match the schema type.
+
+### useAppForm Pattern (Project Standard)
+
+**Always use `useAppForm`** - This is the project standard that provides:
+
+- Pre-bound form components (`form.AppField`, `form.AppForm`)
+- Access to all custom field components (Input, Password, OTP, Select, etc.)
+- Consistent form composition across the application
+- Type-safe form handling with your custom components
+
+#### Using useAppForm with formOptions
+
+```typescript
+// ✅ Project Standard - Spread formOptions into useAppForm
+const form = useAppForm({
+  ...formOptionsFunction(data), // Spread form options
+  onSubmit: async ({ value, formApi }) => {
+    // Handle form submission
+  },
+  validators: {
+    onChange: schema // Can override or use from formOptions
+  }
+})
+```
+
+```typescript
+import { useAppForm } from '@/components/form'
+import { z } from 'zod'
+
+const form = useAppForm({
+  defaultValues: {
+    email: '',
+    password: ''
+  },
+  validators: {
+    onChange: z.object({
+      email: z.string().email('Invalid email'),
+      password: z.string().min(8, 'Password too short')
+    })
+  },
+  onSubmit: async ({ value }) => {
+    // Handle form submission
+    console.log('Form values:', value)
+  }
+})
+
+// Usage with pre-bound components
+<form.AppField name="email">
+  {(field) => <field.Input placeholder="Email" />}
+</form.AppField>
+
+<form.AppField name="password">
+  {(field) => <field.Password placeholder="Password" />}
+</form.AppField>
+
+<form.AppForm>
+  <form.SubmitButton>Submit</form.SubmitButton>
+</form.AppForm>
+```
+
+**Usage:**
+
+```typescript
+// ✅ Project Standard - Use formOptions + useAppForm pattern
+// 1. Create form options in separate file
+// form-options.ts
+export const FeatureFormOptions = (data?: Feature) =>
+  formOptions({
+    defaultValues: {
+      /* ... */
+    },
+    validators: { onChange: schema }
+  })
+
+// 2. Use in component
+const form = useAppForm({
+  ...FeatureFormOptions(data), // Spread form options
+  onSubmit: async ({ value, formApi }) => {
+    // Handle form submission
+  },
+  validators: {
+    onChange: schema // Can override if needed
+  }
+})
+
+// ✅ Alternative - Direct initialization (for simple forms)
+const form = useAppForm({
+  ...{Feature}FormOptions(existingData),
+  validators: {
+    onChange: create{Feature}Schema
+  },
+  onSubmit: async ({ formApi, value }) => {
+    // Handle submission
+  }
+})
+```
+
+### Handling Edit Mode and Reactive Updates
+
+**CRITICAL**: TanStack Form's `defaultValues` are only used during **initial form creation**. To handle edit mode, **NEVER use useEffect** - instead, update the `defaultValues` by recreating the form instance when data changes. This is done using a `key` prop to force form recreation with fresh `defaultValues`.
+
+#### Pattern 1: Key Prop for Force Remount (Recommended)
+
+Use this pattern for modal/dialog forms that can be opened with different data:
+
+```typescript
+'use client'
+
+import { useAppForm } from '@/components/form'
+import { FeatureFormOptions, FeatureSchema } from './form-options'
+
+interface FeatureModalProps {
+  feature?: Feature
+  isEdit?: boolean
+  isOpen: boolean
+  onClose: () => void
+}
+
+export function FeatureModal({
+  feature,
+  isEdit = false,
+  isOpen,
+  onClose
+}: FeatureModalProps) {
+  // ✅ Form is created with current feature data
+  const form = useAppForm({
+    ...FeatureFormOptions(feature), // This provides defaultValues based on feature
+    onSubmit: async ({ value, formApi }) => {
+      // Handle submission
+    },
+    validators: {
+      onChange: featureSchema
+    }
+  })
+
+  const handleClose = () => {
+    onClose()
+  }
+
+  return (
+    <Dialog onOpenChange={handleClose} open={isOpen}>
+      <DialogContent>
+        {/* ✅ Key forces remount with fresh defaultValues when feature changes */}
+        <form
+          key={feature?.id || 'new'}
+          onSubmit={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            form.handleSubmit()
+          }}
+        >
+          {/* Form fields */}
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+```
+
+**Key Points:**
+
+- ✅ Simple and clean - no useEffect needed
+- ✅ Form is recreated with fresh `defaultValues` when feature changes
+- ✅ Complete remount ensures fresh state
+- ✅ Key should be the entity ID or 'new' for create mode
+
+#### Pattern 2: useMemo for Conditional Form Creation (Alternative)
+
+Use this pattern when you want more control over form recreation:
+
+```typescript
+import { useMemo } from 'react'
+
+export function FeatureModal({
+  feature,
+  isEdit = false,
+  isOpen,
+  onClose
+}: FeatureModalProps) {
+  // ✅ Create new form instance when feature changes
+  const formKey = feature?.id || 'new'
+
+  const form = useMemo(
+    () =>
+      useAppForm({
+        ...FeatureFormOptions(feature), // Re-evaluated when formKey changes
+        onSubmit: async ({ value, formApi }) => {
+          // Handle submission
+        },
+        validators: {
+          onChange: featureSchema
+        }
+      }),
+    [formKey] // Recreate form when key changes
+  )
+
+  return (
+    <Dialog onOpenChange={onClose} open={isOpen}>
+      <DialogContent>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            form.handleSubmit()
+          }}
+        >
+          {/* Form fields */}
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+```
+
+**Key Points:**
+
+- ✅ More control over when form is recreated
+- ✅ Can include additional dependencies if needed
+- ✅ Requires careful dependency management
+
+#### Best Practice: Update defaultValues Through Form Recreation
+
+**Always handle edit mode by updating defaultValues through form recreation, NOT useEffect:**
+
+```typescript
+// ✅ CORRECT - Recreate form with fresh defaultValues
+export function FeatureModal({ feature, isEdit, isOpen, onClose }: Props) {
+  const form = useAppForm({
+    ...FeatureFormOptions(feature), // defaultValues updated when form recreates
+    onSubmit: async ({ value, formApi }) => {
+      // Handle submission
+    },
+    validators: {
+      onChange: featureSchema
+    }
+  })
+
+  return (
+    <Dialog onOpenChange={onClose} open={isOpen}>
+      <DialogContent>
+        {/* Key ensures form recreates with fresh defaultValues */}
+        <form key={feature?.id || 'new'} onSubmit={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          form.handleSubmit()
+        }}>
+          {/* Form fields */}
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ❌ WRONG - Never use useEffect to update form values in edit mode
+export function FeatureModal({ feature, isEdit, isOpen, onClose }: Props) {
+  const form = useAppForm({
+    ...FeatureFormOptions(feature),
+    onSubmit: async ({ value, formApi }) => {
+      // Handle submission
+    }
+  })
+
+  // ❌ DON'T DO THIS - Use form recreation instead
+  useEffect(() => {
+    if (feature) {
+      form.setFieldValue('name', feature.name)
+      form.setFieldValue('email', feature.email)
+    }
+  }, [feature, isOpen])
+
+  return (
+    // ... component JSX
+  )
+}
+```
+
+#### Common Mistakes to Avoid
+
+```typescript
+// ❌ WRONG - Form won't update when feature changes (missing key)
+const form = useAppForm({
+  ...FeatureFormOptions(feature),
+  onSubmit: async ({ value }) => { /* ... */ }
+})
+
+return (
+  <form onSubmit={...}>
+    {/* Missing key prop - form won't recreate when feature changes */}
+  </form>
+)
+
+// ❌ WRONG - Using useEffect to sync form state
+useEffect(() => {
+  if (feature) {
+    form.setFieldValue('name', feature.name)
+    form.setFieldValue('email', feature.email)
+  }
+}, [feature, isOpen])
+// Never use useEffect for edit mode - update defaultValues instead
+
+// ❌ WRONG - Converting numeric status (0/1) to boolean with falsy fallback
+// When status is 0, the ternary condition is falsy, so it returns the fallback (true) instead of false
+status: tenant?.status ? !!tenant.status : true,  // Returns true when status is 0!
+status: defaultValues?.status ? !!defaultValues?.status : true,  // Same issue
+status: shift ? shift.status === StatusEnum.ACTIVE : true,  // Wrong fallback value
+
+// ✅ CORRECT - Converting numeric status (0/1) to boolean
+// Use nullish coalescing to handle 0 correctly, then compare to enum
+status: (tenant?.status ?? 0) === StatusEnum.ACTIVE,  // Best pattern - handles 0, 1, and undefined
+status: tenant?.status === StatusEnum.ACTIVE ? true : false,  // Also correct
+status: tenant?.status !== undefined ? tenant.status === StatusEnum.ACTIVE : false,  // Explicit undefined check
+
+// ✅ CORRECT - Use key prop to recreate form with fresh defaultValues
+const form = useAppForm({
+  ...FeatureFormOptions(feature),
+  onSubmit: async ({ value }) => { /* ... */ }
+})
+
+return (
+  <form key={feature?.id || 'new'} onSubmit={...}>
+    {/* Key ensures form recreates with updated defaultValues */}
+  </form>
+)
+```
+
+#### Data Transformation in Edit Mode
+
+When API data structure differs from form structure, handle transformations in formOptions:
+
+```typescript
+// form-options.ts
+export const BranchFormOptions = (branch?: TenantBranch) =>
+  formOptions({
+    defaultValues: {
+      // Transform API structure to form structure
+      title_en: branch?.name || '', // API has single 'name', form needs 'title_en'
+      title_ar: branch?.name || '', // Same for Arabic
+      address: branch?.address || '',
+      email: branch?.email || '',
+      phone: branch?.phone || '',
+      latitude: branch?.latitude ? parseFloat(branch.latitude) : undefined,
+      longitude: branch?.longitude ? parseFloat(branch.longitude) : undefined
+    } as BranchFormSchema,
+    validators: {
+      onChange: branchFormSchema
+    }
+  })
+
+// component.tsx - No transformations needed here, handled in formOptions
+export function BranchModal({ branch, isOpen, onClose }: Props) {
+  const form = useAppForm({
+    ...BranchFormOptions(branch), // Transformations happen here
+    onSubmit: async ({ value, formApi }) => {
+      // Handle submission
+    },
+    validators: {
+      onChange: branchFormSchema
+    }
+  })
+
+  return (
+    <Dialog onOpenChange={onClose} open={isOpen}>
+      <DialogContent>
+        {/* Key ensures form recreates when branch changes */}
+        <form key={branch?.id || 'new'} onSubmit={...}>
+          {/* Form fields */}
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+```
+
+**Key Points:**
+
+- ✅ All data transformations happen in `formOptions`
+- ✅ No need to repeat transformations elsewhere
+- ✅ Form recreates with fresh transformed data via key prop
+
+### withForm HOC Usage
+
+The `withForm` HOC allows you to create reusable form field group components. **Always use inline `function Render` pattern with proper type inference:**
+
+```typescript
+import { withForm } from '@/components/form'
+import { TenantsFormOptions } from './form-options'
+
+export const BasicInfoFields = withForm({
+  ...TenantsFormOptions({}), // ✅ Use FormOptions() for types
+  render: function Render({ form }) {
+    // ✅ No type annotations needed - withForm provides proper types
+    // ✅ Can use hooks (useQuery, useStore, etc.) inside render function
+    // ✅ TypeScript infers form type correctly
+
+    return (
+      <FormCard id="basic-info" title="Basic Info">
+        <form.AppField name="en.name">
+          {(field) => <field.Input label="Title (English)" />}
+        </form.AppField>
+        <form.AppField name="ar.name">
+          {(field) => <field.Input label="Title (Arabic)" />}
+        </form.AppField>
+        <form.AppField name="status">
+          {(field) => <field.Switch label="Status" />}
+        </form.AppField>
+      </FormCard>
+    )
+  }
+})
+
+// Usage in main form component
+function TenantForm({ tenant }: { tenant?: TenantById }) {
+  const form = useAppForm({
+    ...TenantsFormOptions(tenant),
+    onSubmit: async ({ value, formApi }) => {
+      // Handle submission
+    },
+    validators: {
+      onChange: createTenantSchema
+    }
+  })
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        form.handleSubmit()
+      }}
+    >
+      <BasicInfoFields form={form} />
+      {/* Other field groups */}
+    </form>
+  )
+}
+```
+
+**⚠️ CRITICAL: `defaultValues` in `withForm` is Only for Types**
+
+**The `defaultValues` property in `withForm` is ONLY used for TypeScript type inference. It does NOT need to match the actual runtime values or require props that the form options function needs.**
+
+**⚠️ CRITICAL: Form Sections MUST Use `withForm`**
+
+**ALL form section components (components that render form fields grouped in cards/sections) MUST use `withForm` HOC instead of `useFormContext()`. This ensures proper form context and type safety.**
+
+**⚠️ CRITICAL: Forms with More Than 2 Sections MUST Use Dynamic Imports**
+
+**When a form has more than 2 sections, each section component MUST be dynamically imported using `next/dynamic` for code splitting and performance optimization.**
+
+**✅ CORRECT - Forms with 3+ sections using dynamic imports:**
+
+```typescript
+'use client'
+
+import dynamic from 'next/dynamic'
+
+import { FormCardSkeleton } from '@/components/custom/form-card-skeleton'
+
+// Code splitting: Lazy load form sections
+const BasicInfoFields = dynamic(
+  () =>
+    import('./sections').then((mod) => ({
+      default: mod.BasicInfoFields
+    })),
+  {
+    loading: () => <FormCardSkeleton />,
+    ssr: false
+  }
+)
+
+const LocationFields = dynamic(
+  () =>
+    import('./sections').then((mod) => ({
+      default: mod.LocationFields
+    })),
+  {
+    loading: () => <FormCardSkeleton />,
+    ssr: false
+  }
+)
+
+const DescriptionFields = dynamic(
+  () =>
+    import('./sections').then((mod) => ({
+      default: mod.DescriptionFields
+    })),
+  {
+    loading: () => <FormCardSkeleton />,
+    ssr: false
+  }
+)
+
+// Usage in form component
+export const ResourceForm: React.FC<ResourceFormProps> = ({ ... }) => {
+  const form = useAppForm({ ... })
+
+  return (
+    <form>
+      <BasicInfoFields form={form} />
+      <LocationFields form={form} />
+      <DescriptionFields form={form} />
+    </form>
+  )
+}
+```
+
+**❌ WRONG - Forms with 3+ sections without dynamic imports:**
+
+```typescript
+'use client'
+
+import { BasicInfoFields } from './sections'
+import { LocationFields } from './sections'
+import { DescriptionFields } from './sections'
+
+// ❌ WRONG: Direct imports for forms with 3+ sections
+export const ResourceForm: React.FC<ResourceFormProps> = ({ ... }) => {
+  // ...
+}
+```
+
+**Key Requirements:**
+
+- ✅ **Forms with 3+ sections**: MUST use `dynamic()` imports
+- ✅ **Forms with 2 or fewer sections**: Can use direct imports
+- ✅ **Loading state**: Use `FormCardSkeleton` as loading component
+- ✅ **SSR**: Set `ssr: false` for client-only form sections
+- ✅ **Section organization**: Place all section components in a `sections/` folder with an `index.ts` barrel export
+
+**❌ WRONG - Using `useFormContext()` in sections:**
+
+```typescript
+'use client'
+import { useFormContext } from '@/components/form'
+
+export const BasicInfo: React.FC = () => {
+  const form = useFormContext() // ❌ WRONG: Sections must use withForm
+  return (
+    <FormCard title="Basic Info">
+      <form.AppField name="name">
+        {(field) => <field.Input label="Name" />}
+      </form.AppField>
+    </FormCard>
+  )
+}
+```
+
+**✅ CORRECT - Using `withForm` for sections:**
+
+```typescript
+'use client'
+import { withForm } from '@/components/form'
+import { UsersFormDefaultValues } from './form-options'
+
+export const BasicInfo = withForm({
+  ...UsersFormOptions(),
+  render: function Render({ form }) {
+    return (
+      <FormCard id="basic-info" title="Basic Info">
+        <form.AppField name="name">
+          {(field) => <field.Input label="Name" />}
+        </form.AppField>
+      </FormCard>
+    )
+  }
+})
+```
+
+**⚠️ CRITICAL: Passing Data to `withForm` Components**
+
+**To pass data to `withForm` components, use the `props` object in the `withForm` configuration. Define props with type assertions and access them in the render function.**
+
+**❌ WRONG - Accessing data from form state:**
+
+```typescript
+// ❌ WRONG: Don't store non-form data in form schema
+export const UsersFormSchema = (t: Translations<'forms.validation'>) => {
+  const schema = z.object({
+    image: z.instanceof(File).optional().nullable(),
+    image_url: z.string().optional().nullable() // ❌ WRONG: Not a form field
+    // ... other fields
+  })
+}
+
+// ❌ WRONG: Don't access from form state
+export const BasicInfo = withForm({
+  defaultValues: UsersFormDefaultValues,
+  props: {},
+  render: function Render({ form }) {
+    // ❌ WRONG: Accessing non-form data from form state
+    const existingImageUrl = form.state.values.image_url as
+      | string
+      | null
+      | undefined
+    // ...
+  }
+})
+```
+
+**✅ CORRECT - Passing data through props:**
+
+```typescript
+// form-options.ts - Only include actual form fields
+export const UsersFormSchema = (t: Translations<'forms.validation'>) => {
+  const schema = z.object({
+    image: z.instanceof(File).optional().nullable(),
+    // ✅ CORRECT: Don't include non-form data in schema
+    // ... other form fields
+  })
+}
+
+// basic-info.tsx - Define props type and pass through props object
+type BasicInfoProps = {
+  existingImageUrl?: string | null
+}
+
+export const BasicInfo = withForm({
+  defaultValues: UsersFormDefaultValues,
+  props: {
+    existingImageUrl: undefined as string | null | undefined
+  } as BasicInfoProps,
+  render: function Render({ form, existingImageUrl }) {
+    // ✅ CORRECT: Access prop from render function parameters
+    return (
+      <FormCard title="Basic Info">
+        <form.AppField name="image">
+          {(field) => {
+            const imageSrc =
+              field.state.value instanceof File
+                ? URL.createObjectURL(field.state.value)
+                : existingImageUrl || undefined
+            return <field.ImageComponent src={imageSrc} />
+          }}
+        </form.AppField>
+      </FormCard>
+    )
+  }
+})
+
+// users-form.tsx - Pass props when using the component
+<BasicInfo form={form} existingImageUrl={user?.image_url} />
+```
+
+**Key Pattern:**
+
+- ✅ **Define props type** - Create a type for the props (e.g., `type BasicInfoProps = { existingImageUrl?: string | null }`)
+- ✅ **Type props object** - Use `props: { propName: undefined as Type } as PropsType` pattern
+- ✅ **Access in render** - Destructure props from render function parameters: `render: function Render({ form, propName })`
+- ✅ **Pass when using** - Pass props when using the component: `<BasicInfo form={form} existingImageUrl={value} />`
+- ❌ **Don't store in form schema** - Don't add non-form data to the form schema
+- ❌ **Don't access from form state** - Don't use `form.state.values` for non-form data
+
+**⚠️ CRITICAL: `defaultValues` Parameter Type in Form Options Functions**
+
+**When creating form options functions that accept `defaultValues` parameter, the type MUST be the schema type directly, NOT `Partial<SchemaType>` or a utility type.**
+
+**✅ CORRECT:**
+
+```typescript
+export const useGroupsFormOptions = (defaultValues?: GroupsFormSchema) => {
+  // ✅ CORRECT: Use schema type directly
+  const t = useTranslations('forms.validation')
+  return formOptions({
+    defaultValues: {
+      ...GroupsFormDefaultValues,
+      ...defaultValues
+    },
+    validators: {
+      onChange: GroupsFormSchema(t)
+    }
+  })
+}
+```
+
+**Key Points:**
+
+- ✅ **Always use inline `function Render({ form })` pattern** - no separate function declaration
+- ✅ **No type annotations needed** - `withForm` HOC provides proper TypeScript inference
+- ✅ **No `any` types or eslint-disable comments** - the inline function pattern avoids hooks rule issues
+- ✅ **`defaultValues` type must match parent form** - The `defaultValues` type in `withForm` should match the `defaultValues` type from the original form
+- ✅ **Use exported default values constant** - Use `{Feature}DV` or `{Feature}FormDefaultValues` directly, not `FormOptions({}).defaultValues`
+- ✅ **Always use `form.AppField` for field rendering**
+- ✅ **Can use hooks (useQuery, useStore, etc.) inside render function**
+- ✅ **Form sections MUST use `withForm`** - Never use `useFormContext()` in section components
+- ✅ **Pass data through form state** - Store in `defaultValues` and access via `form.state.values`
+- ✅ **`defaultValues` parameter type** - Always use the schema type directly in form options functions
+
+**✅ CORRECT Pattern - Use Exported Default Values Constant:**
+
+```typescript
+// form-options.ts
+import { formOptions, FormValidateOrFn } from '@tanstack/react-form-nextjs'
+import { z } from 'zod'
+
+// 1. Define validation schema (as function that returns zod schema)
+export const parentsFormSchema = () =>
+  z.object({
+    address: z.string(),
+    address_latitude: z.number(),
+    address_longitude: z.number(),
+    blocked: z.string(),
+    email: z.string(),
+    image: z.instanceof(File).optional(),
+    mode: z.string(),
+    name: z.string(),
+    parent_id: z.string(),
+    password: z.string(),
+    password_confirmation: z.string(),
+    phone: z.string(),
+    preferable_language: z.string(),
+    status: z.string(),
+    tenant_id: z.string()
+  })
+
+// 2. Export schema type
+export type ParentsFormSchema = z.infer<
+  ReturnType<typeof parentsFormSchema>
+>
+
+// 3. Declare default values in separate exported constant
+export const ParentsDV: ParentsFormSchema = {
+  address: '',
+  address_latitude: 0,
+  address_longitude: 0,
+  blocked: '0',
+  email: '',
+  image: undefined,
+  mode: 'create',
+  name: '',
+  parent_id: '',
+  password: '',
+  password_confirmation: '',
+  phone: '',
+  preferable_language: 'en',
+  status: '1',
+  tenant_id: ''
+}
+
+// 4. Create form options function
+type ParentsFormOptionsProps = {
+  tenant?: Tenant
+  t?: Translations<'riders.forms.parent.validation'>
+  tPhone?: Translations<'components.form.validation'>
+}
+
+export const ParentsFormOptions = ({
+  tenant,
+  t,
+  tPhone
+}: ParentsFormOptionsProps = {}) =>
+  formOptions({
+    defaultValues: {
+      ...ParentsDV,
+      tenant_id: tenant?.id.toString() ?? ParentsDV.tenant_id
+    } as ParentsFormSchema,
+    ...(t && tPhone && {
+      validators: {
+        onChange: parentsFormSchema({ t, tPhone }) as FormValidateOrFn<ParentsFormSchema>
+      }
+    })
+  })
+
+// Component using withForm
+import { ParentsDV } from './form-options'
+
+const CreateParentFields = withForm({
+  defaultValues: ParentsDV, // ✅ Use exported default values constant directly (not calling function)
+  props: {}, // ✅ Empty props object
+  render: function Render({ form }) {
+    const t = useTranslations('riders.forms.parent')
+    // ✅ Can use hooks inside render function
+    return (
+      <div className="space-y-6">
+        <form.AppField name="name">
+          {(field) => <field.Input label={t('fullNameLabel')} />}
+        </form.AppField>
+        {/* ... other fields */}
+      </div>
+    )
+  }
+})
+```
+
+**❌ WRONG Pattern - Passing Props to Form Options:**
+
+```typescript
+// ❌ DON'T: Pass dummy functions to form options in withForm
+const CreateParentFields = withForm({
+  ...ParentsFormOptions({
+    t: () => '', // ❌ Wrong: Dummy function doesn't match Translations type
+    tPhone: () => '' // ❌ Wrong: Dummy function doesn't match Translations type
+  }),
+  render: function Render({ form }) {
+    // ...
+  }
+})
+
+// ❌ DON'T: Include validators in withForm when validation is handled by parent
+const AssignParentFields = withForm({
+  defaultValues: defaultParentFormValues,
+  validators: {
+    onChange: () => ({}) // ❌ Wrong: Type mismatch, validation handled by parent
+  },
+  props: {
+    /* ... */
+  },
+  render: function Render({ form }) {
+    // ...
+  }
+})
+```
+
+**✅ CORRECT Pattern - No Validators When Parent Handles Validation:**
+
+```typescript
+// ✅ DO: Omit validators when parent form handles validation
+const AssignParentFields = withForm({
+  defaultValues: defaultParentFormValues, // ✅ Only for types
+  props: {
+    parentOptions: [] as User[],
+    parentsLoading: false as boolean,
+    tenant: {} as Tenant
+  },
+  render: function Render({ form, parentOptions, parentsLoading, tenant }) {
+    // Validation is handled by parent form, this is just for structure
+    return (
+      <div>
+        <form.AppField name="parent_id">
+          {(field) => (
+            <field.Combobox
+              data={parentOptions}
+              label="Parent"
+              // ...
+            />
+          )}
+        </form.AppField>
+      </div>
+    )
+  }
+})
+```
+
+**❌ Avoid These Anti-Patterns:**
+
+```typescript
+// ❌ DON'T: Separate function declaration with any types
+function Render({ form }: { form: any }) {
+  // ...
+}
+export const Component = withForm({
+  ...FormOptions(),
+  render: Render
+})
+
+// ❌ DON'T: Using any types or eslint-disable comments
+export const Component = withForm({
+  ...FormOptions(),
+  render: ({ form }: { form: any }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const value = useStore(form.store, (state: any) => state.values.field)
+  }
+})
+
+// ✅ DO: Inline function Render with type inference
+export const Component = withForm({
+  ...FormOptions(),
+  render: function Render({ form }) {
+    const value = useStore(form.store, (state) => state.values.field)
+    // TypeScript infers types correctly
+  }
+})
+```
+
+### State Subscription (for Debugging)
+
+```typescript
+import { useStore } from '@tanstack/react-form'
+
+// Subscribe to specific form state for debugging
+const form = useAppForm({
+  /* ... */
+})
+
+useStore(form.store, (state) => {
+  console.log('Form errors:', state.errors)
+  console.log('Form values:', state.values)
+})
+```
+
+### Form Section Code Splitting Pattern (REQUIRED)
+
+**⚠️ CRITICAL: ALL form section components MUST be lazy-loaded using Next.js `dynamic` imports for code splitting.**
+
+**Why:**
+
+- **Reduces initial bundle size** - Form sections are split into separate chunks
+- **Improves page load performance** - Only loads form sections when needed
+- **Better user experience** - Faster initial page renders
+
+**✅ CORRECT - Using dynamic imports for form sections:**
+
+```typescript
+'use client'
+
+import dynamic from 'next/dynamic'
+
+import { FormCardSkeleton } from '@/components/custom/form-card-skeleton'
+
+// Code splitting: Lazy load form sections
+const BasicInfoFields = dynamic(
+  () =>
+    import('@/components/forms/profile').then((mod) => ({
+      default: mod.BasicInfoFields
+    })),
+  {
+    loading: () => <FormCardSkeleton  />,
+    ssr: false
+  }
+)
+
+const PermissionsFields = dynamic(
+  () =>
+    import('@/components/forms/profile').then((mod) => ({
+      default: mod.PermissionsFields
+    })),
+  {
+    loading: () => <FormCardSkeleton  />,
+    ssr: false
+  }
+)
+
+export function AdminForm() {
+  const form = useAppForm({
+    // ... form configuration
+  })
+
+  return (
+    <form>
+      <BasicInfoFields form={form} />
+      <PermissionsFields form={form} />
+    </form>
+  )
+}
+```
+
+**For local form sections (same feature folder):**
+
+```typescript
+'use client'
+
+import dynamic from 'next/dynamic'
+
+import { FormCardSkeleton } from '@/components/custom/form-card-skeleton'
+
+// Code splitting: Lazy load form sections from local feature folder
+const BasicInfoFields = dynamic(
+  () =>
+    import('./basic-info').then((mod) => ({
+      default: mod.BasicInfoFields
+    })),
+  {
+    loading: () => <FormCardSkeleton  />,
+    ssr: false
+  }
+)
+
+const PermissionsFields = dynamic(
+  () =>
+    import('./permissions').then((mod) => ({
+      default: mod.PermissionsFields
+    })),
+  {
+    loading: () => <FormCardSkeleton  />,
+    ssr: false
+  }
+)
+```
+
+**❌ WRONG - Direct imports (no code splitting):**
+
+```typescript
+// ❌ WRONG: Direct imports prevent code splitting
+import { BasicInfoFields } from './basic-info'
+import { PermissionsFields } from './permissions'
+
+export function AdminForm() {
+  // ...
+}
+```
+
+**Key Requirements:**
+
+1. **✅ Use `dynamic` from `next/dynamic`** - Required for lazy loading
+2. **✅ Use `.then((mod) => ({ default: mod.ComponentName }))` pattern** - Required for named exports
+3. **✅ Set `ssr: false`** - Form sections are client-only components
+4. **✅ Import `FormCardSkeleton` at top level** - Needed for loading component
+
+**Pattern Breakdown:**
+
+```typescript
+const ComponentName = dynamic(
+  () =>
+    import('./path/to/module').then((mod) => ({
+      default: mod.ComponentName // Named export becomes default export
+    })),
+  {
+    loading: () => <FormCardSkeleton  />, // Loading state
+    ssr: false // Disable SSR for client-only components
+  }
+)
+```
+
+**Benefits:**
+
+- Smaller initial JavaScript bundles
+- Faster Time to Interactive (TTI)
+- Better Core Web Vitals scores
+- Improved performance on slower devices/networks
+- Components load on-demand when form sections are rendered
+
+## Field Component Usage
+
+### Label Prop Pattern (CRITICAL - Always Use Label Props)
+
+**NEVER use hardcoded labels with custom HTML structure** - Always use the `label` prop provided by form field components. This ensures consistent styling, alignment, and accessibility across all form fields.
+
+#### ✅ CORRECT - Use Label Prop
+
+```typescript
+// ✅ CORRECT - Use label prop on field components
+<form.AppField name="name">
+  {(field) => (
+    <field.Input label="Name" placeholder="Enter name" />
+  )}
+</form.AppField>
+
+<form.AppField name="email">
+  {(field) => (
+    <field.Input label="Email Address" placeholder="Enter email" type="email" />
+  )}
+</form.AppField>
+
+<form.AppField name="tenant_type">
+  {(field) => (
+    <field.Select
+      label="Tenant Type"
+      optionKey="key"
+      options={tenantTypeOptions}
+      optionValue="label"
+      placeholder="Select tenant type..."
+    />
+  )}
+</form.AppField>
+
+<form.AppField name="tenant_id">
+  {(field) => (
+    <field.Combobox
+      label="Tenant"
+      data={tenants}
+      labelKey="name"
+      valueKey="id"
+      placeholder="Select tenant..."
+    />
+  )}
+</form.AppField>
+
+<form.AppField name="password">
+  {(field) => (
+    <field.Password label="New Password" placeholder="Enter new password" />
+  )}
+</form.AppField>
+```
+
+#### ❌ WRONG - Never Use Hardcoded Labels
+
+```typescript
+// ❌ WRONG - Never create custom label structure
+<form.AppField name="name">
+  {(field) => (
+    <div className="flex items-start gap-8">
+      <label
+        className="text-muted-foreground w-24 pt-3 text-sm font-medium"
+        htmlFor={field.name}
+      >
+        Name
+      </label>
+      <div className="flex-1">
+        <field.Input className="w-full" placeholder="Enter name" />
+      </div>
+    </div>
+  )}
+</form.AppField>
+
+// ❌ WRONG - Never wrap fields in custom flex containers for labels
+<form.AppField name="email">
+  {(field) => (
+    <div className="flex items-start gap-8">
+      <label className="text-muted-foreground w-24 pt-3 text-sm font-medium">
+        Email
+      </label>
+      <div className="flex-1">
+        <field.Input className="w-full" placeholder="Enter email" />
+      </div>
+    </div>
+  )}
+</form.AppField>
+```
+
+#### Why Use Label Props?
+
+1. **Consistent Alignment** - All form components use the same label structure (`w-full flex-shrink-0 lg:w-1/6`) ensuring perfect vertical and horizontal alignment
+2. **Responsive Design** - Labels automatically adapt to screen size (stacked on mobile, side-by-side on desktop)
+3. **Accessibility** - Proper `htmlFor` attributes and label associations are handled automatically
+4. **Maintainability** - Changes to label styling only need to be made in one place (the component)
+5. **Type Safety** - Label prop is typed and validated by TypeScript
+
+#### Available Form Field Components with Label Props
+
+All form field components support the `label` prop:
+
+- `field.Input` - Text input fields
+- `field.Password` - Password input with visibility toggle
+- `field.Select` - Dropdown select fields
+- `field.Combobox` - Autocomplete/combobox fields
+- `field.PhoneInput` - Phone number input with country selector
+- `field.TextArea` - Multi-line text input
+- `field.DatePicker` - Date picker fields
+- `field.MapSelector` - Map-based location selector
+- `field.SingleImageUpload` - Image upload component
+- `field.MultiSelect` - Multi-select dropdown
+- `field.Switch` - Toggle switch (uses different structure)
+
+#### Special Cases
+
+**Switch Component** - Uses a different structure but still supports `label` prop:
+
+```typescript
+<form.AppField name="status">
+  {(field) => (
+    <field.Switch label="Status" />
+  )}
+</form.AppField>
+```
+
+**SingleImageUpload** - Supports `label` prop for consistent alignment:
+
+```typescript
+<form.AppField name="image">
+  {(field) => (
+    <field.SingleImageUpload
+      label="Photo"
+      isAvatar={true}
+      allowedTypes={['image/jpg', 'image/jpeg']}
+    />
+  )}
+</form.AppField>
+```
+
+**Phone Number Fields** - **CRITICAL: Always use standardized phone validation and PhoneInput component**
+
+**⚠️ REQUIRED PATTERN**: All phone/mobile fields MUST follow this standardized pattern:
+
+1. **Schema Validation**: Always use `zodPhoneNumberSchema` from `@/components/form` for phone field validation
+2. **Optional Fields**: Use `.optional()` for optional phone fields (e.g., `zodPhoneNumberSchema.optional()`)
+3. **Component Usage**: Always use `field.PhoneInput` component (never use `field.Input` for phone fields)
+
+**✅ CORRECT - Required Phone Field:**
+
+```typescript
+// form-options.ts
+import { zodPhoneNumberSchema } from '@/components/form'
+import { z } from 'zod'
+
+export const createFeatureSchema = z.object({
+  phone: zodPhoneNumberSchema // Required field
+  // ... other fields
+})
+```
+
+```typescript
+// form.tsx
+<form.AppField name="phone">
+  {(field) => (
+    <field.PhoneInput
+      label="Phone Number"
+      placeholder="Enter phone number"
+    />
+  )}
+</form.AppField>
+```
+
+**✅ CORRECT - Optional Phone Field:**
+
+```typescript
+// form-options.ts
+import { zodPhoneNumberSchema } from '@/components/form'
+import { z } from 'zod'
+
+export const createFeatureSchema = z.object({
+  phone: zodPhoneNumberSchema.optional(), // Optional field
+  alternate_phone: zodPhoneNumberSchema.optional(), // Optional alternate phone
+  emergency_contact: zodPhoneNumberSchema.optional() // Optional emergency contact
+  // ... other fields
+})
+```
+
+```typescript
+// form.tsx
+<form.AppField name="phone">
+  {(field) => (
+    <field.PhoneInput
+      label="Phone Number"
+      placeholder="Enter phone number"
+    />
+  )}
+</form.AppField>
+```
+
+**❌ WRONG - Never use custom validation or Input component:**
+
+```typescript
+// ❌ DON'T: Custom phone validation
+phone: z.string().min(10, 'Phone number must be at least 10 characters'),
+phone: z.string().min(5, 'Phone number is required'),
+phone: z.string().optional().refine((val) => {
+  if (!val || val === '') return true
+  return val.length >= 10 && val.length <= 15
+}, {
+  message: 'Phone number must be between 10 to 15 characters if provided'
+}),
+
+// ❌ DON'T: Using Input component for phone fields
+<form.AppField name="phone">
+  {(field) => (
+    <field.Input label="Phone Number" type="tel" />
+  )}
+</form.AppField>
+```
+
+**Phone Field Schema Details:**
+
+The `zodPhoneNumberSchema` from `@/components/form` provides:
+
+- Minimum 13 digits validation
+- Regex pattern validation (`/^\+?\d+$/`)
+- Consistent error messages across all forms
+- International phone number format support
+
+**Import Pattern:**
+
+```typescript
+import { zodPhoneNumberSchema } from '@/components/form'
+```
+
+**Field Names That Should Use This Pattern:**
+
+- `phone` - Primary phone number
+- `mobile` - Mobile phone number
+- `alternate_phone` - Alternate phone number
+- `alternate_number` - Alternate number
+- `emergency_contact` - Emergency contact phone number
+
+**Complete Example:**
+
+```typescript
+// form-options.ts
+import { formOptions } from '@tanstack/react-form'
+import { z } from 'zod'
+import { zodPhoneNumberSchema } from '@/components/form'
+import { FeatureById } from '@/query/features'
+
+export const createFeatureSchema = z.object({
+  name: z.string().min(1, { message: 'Name is required' }),
+  phone: zodPhoneNumberSchema, // Required phone
+  alternate_phone: zodPhoneNumberSchema.optional(), // Optional phone
+  email: z.string().email({ message: 'Invalid email format' })
+})
+
+export type CreateFeatureSchema = z.infer<typeof createFeatureSchema>
+
+export const FeatureFormOptions = (feature?: FeatureById) =>
+  formOptions({
+    defaultValues: {
+      name: feature?.name || '',
+      phone: feature?.phone || '',
+      alternate_phone: feature?.alternate_phone || '',
+      email: feature?.email || ''
+    } as CreateFeatureSchema,
+    validators: {
+      onChange: createFeatureSchema
+    }
+  })
+```
+
+```typescript
+// form.tsx
+<form.AppField name="phone">
+  {(field) => (
+    <field.PhoneInput
+      label="Phone Number"
+      placeholder="Enter phone number"
+    />
+  )}
+</form.AppField>
+
+<form.AppField name="alternate_phone">
+  {(field) => (
+    <field.PhoneInput
+      label="Alternate Phone"
+      placeholder="Enter alternate phone number"
+    />
+  )}
+</form.AppField>
+```
+
+#### Migration from Hardcoded Labels
+
+If you find existing code with hardcoded labels, migrate it to use label props:
+
+```typescript
+// Before (❌ WRONG)
+<form.AppField name="name">
+  {(field) => (
+    <div className="flex items-start gap-8">
+      <label className="text-muted-foreground w-24 pt-3 text-sm font-medium">
+        Name
+      </label>
+      <div className="flex-1">
+        <field.Input className="w-full" placeholder="Enter name" />
+      </div>
+    </div>
+  )}
+</form.AppField>
+
+// After (✅ CORRECT)
+<form.AppField name="name">
+  {(field) => (
+    <field.Input label="Name" placeholder="Enter name" />
+  )}
+</form.AppField>
+```
+
+## Common Patterns
+
+### Form Submission with Permissions
+
+```typescript
+import { usePermissions } from '@/hooks/use-permissions'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+
+// ✅ Project Standard - Use formOptions pattern with permissions
+// form-options.ts
+export const FeatureFormOptions = (data?: Feature) =>
+  formOptions({
+    defaultValues: { /* ... */ },
+    validators: { onChange: schema }
+  })
+
+// Component
+export const FeatureForm: React.FC<{ isEdit?: boolean; feature?: Feature }> = ({
+  isEdit = false,
+  feature
+}) => {
+  const { hasPermission } = usePermissions()
+  const { isPending: isCreating, mutateAsync: createFeature } =
+    useCreateFeatureMutation()
+  const { isPending: isUpdating, mutateAsync: updateFeature } =
+    useUpdateFeatureMutation()
+
+  const form = useAppForm({
+    ...FeatureFormOptions(feature), // Spread form options
+    onSubmit: async ({ value, formApi }) => {
+      // Handle submission with apiFormValidation helper
+      apiFormValidation(
+        () =>
+          isEdit
+            ? updateFeature({ ...value, id: feature?.id })
+            : createFeature(value),
+        formApi
+      )
+    }
+  })
+
+  return (
+    <form onSubmit={(e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      form.handleSubmit()
+    }}>
+      {/* Form fields */}
+
+      <form.AppForm>
+        <form.SubmitButton
+          disabled={
+            isEdit
+              ? !hasPermission(PERMISSIONS.FEATURES_UPDATE)
+              : !hasPermission(PERMISSIONS.FEATURES_CREATE)
+          }
+          isLoading={isEdit ? isUpdating : isCreating}
+        >
+          {isEdit ? 'Update Feature' : 'Create Feature'}
+        </form.SubmitButton>
+      </form.AppForm>
+    </form>
+  )
+}
+```
+
+### Form Layout Pattern (Required Structure)
+
+**⚠️ CRITICAL: Follow this exact structure based on component type**
+
+**For Page Components (direct PageHeader + form):**
+
+```tsx
+<>
+  <PageHeader description="..." title="...">
+    <form.AppForm>
+      <form.SubmitButton form="form-id">Submit</form.SubmitButton>
+    </form.AppForm>
+  </PageHeader>
+  <div className="m-5">
+    <form
+      className="w-full flex-1 space-y-5 px-5"
+      id="form-id"
+      onSubmit={(e) => {
+        e.preventDefault()
+        form.handleSubmit()
+      }}
+    >
+      <Section1Fields form={form} />
+      <Section2Fields form={form} />
+    </form>
+  </div>
+</>
+```
+
+**For Form Components (reusable form components):**
+
+**Pattern A: PageHeader outside form (standard pattern):**
+
+```tsx
+<div className="mb-10 flex flex-col gap-5">
+  <PageHeader description="..." title="...">
+    <form.AppForm>
+      <form.SubmitButton form="form-id">Submit</form.SubmitButton>
+    </form.AppForm>
+  </PageHeader>
+  <form
+    className="w-full flex-1 space-y-5 px-5"
+    id="form-id"
+    onSubmit={(e) => {
+      e.preventDefault()
+      form.handleSubmit()
+    }}
+  >
+    <Section1Fields form={form} />
+    <Section2Fields form={form} />
+  </form>
+</div>
+```
+
+**Pattern B: PageHeader inside form (centers-form pattern):**
+
+```tsx
+<form id="form-id">
+  <PageHeader description="..." title="...">
+    <form.AppForm>
+      <form.SubmitButton form="form-id" isLoading={form.state.isSubmitting}>
+        Submit
+      </form.SubmitButton>
+    </form.AppForm>
+  </PageHeader>
+  <div className="space-y-5">
+    <Section1Fields form={form} />
+    <Section2Fields form={form} />
+  </div>
+</form>
+```
+
+**When to use Pattern B:**
+
+- When the form component is self-contained and manages its own PageHeader
+- When the form is used in pages that don't need separate PageHeader
+- Follows the centers-form.tsx pattern for consistency
+
+#### Form Layout Requirements
+
+**⚠️ CRITICAL**: The layout pattern depends on component type:
+
+**For Page Components:**
+
+```tsx
+// ✅ CORRECT - Page component pattern
+<>
+  <PageHeader title="..." description="...">
+    {/* Header actions */}
+  </PageHeader>
+  <div className="m-5">
+    <form className="w-full flex-1 space-y-5 px-5">{/* Form sections */}</form>
+  </div>
+</>
+```
+
+**For Form Components:**
+
+**Pattern A: PageHeader outside form (standard):**
+
+```tsx
+// ✅ CORRECT - Form component pattern (PageHeader outside)
+<div className="mb-10 flex flex-col gap-5">
+  <PageHeader title="..." description="...">
+    {/* Header actions */}
+  </PageHeader>
+  <form className="w-full flex-1 space-y-5 px-5">{/* Form sections */}</form>
+</div>
+```
+
+**Pattern B: PageHeader inside form (centers-form pattern):**
+
+```tsx
+// ✅ CORRECT - Form component pattern (PageHeader inside form)
+<form id="form-id">
+  <PageHeader title="..." description="...">
+    {/* Header actions */}
+  </PageHeader>
+  <div className="space-y-5">{/* Form sections */}</div>
+</form>
+```
+
+**When to use Pattern B:**
+
+- When the form component is self-contained and manages its own PageHeader
+- When the form is used in pages that don't need separate PageHeader
+- Follows the centers-form.tsx pattern for consistency
+
+#### FormCard Wrapper Requirements
+
+**⚠️ CRITICAL**: Each form section MUST be wrapped in a `FormCard` component with the `id` attribute and `title` prop.
+
+**Props**:
+
+- `id: string` - Required. Unique identifier for the form section (must match step IDs in multi-step forms)
+- `title: string` - Required. Section title displayed in the card header
+- `description?: string` - Optional. Description text displayed below the title
+- `actions?: React.ReactNode` - Optional. Action buttons or elements displayed in the header (aligned to the right)
+- `classNames?: { content?, header?, title?, wrapper?, description?, actions? }` - Optional. Custom CSS classes for styling specific parts of the card
+- All `Card` component props are also accepted via spread operator
+
+**Usage Examples**:
+
+```tsx
+// ✅ CORRECT - FormCard inside section component
+// fields/basic-info.tsx
+export const BasicInfoFields = withForm({
+  ...FormOptions(),
+  render: function Render({ form }) {
+    return (
+      <FormCard id="basic-info" title="Basic Info">
+        <form.AppField name="name">
+          {(field) => <field.Input label="Name" />}
+        </form.AppField>
+      </FormCard>
+    )
+  }
+})
+
+// ✅ CORRECT - FormCard with description inside section component
+// fields/contact.tsx
+export const ContactFields = withForm({
+  ...FormOptions(),
+  render: function Render({ form }) {
+    return (
+      <FormCard description="Contact information" id="contact" title="Contact">
+        <form.AppField name="email">
+          {(field) => <field.Input label="Email" />}
+        </form.AppField>
+      </FormCard>
+    )
+  }
+})
+
+// ✅ CORRECT - FormCard with actions in header inside section component
+// fields/items.tsx
+export const ItemsFields = withForm({
+  ...FormOptions(),
+  render: function Render({ form }) {
+    return (
+      <FormCard
+        actions={<Button variant="outline">Add Item</Button>}
+        id="items"
+        title="Items"
+      >
+        <form.AppField name="items">
+          {(field) => <field.Input label="Items" />}
+        </form.AppField>
+      </FormCard>
+    )
+  }
+})
+
+// ✅ CORRECT - FormCard with custom classNames inside section component
+// fields/details.tsx
+export const DetailsFields = withForm({
+  ...FormOptions(),
+  render: function Render({ form }) {
+    return (
+      <FormCard
+        classNames={{
+          content: 'p-6',
+          header: 'border-b',
+          title: 'text-lg'
+        }}
+        id="details"
+        title="Details"
+      >
+        <form.AppField name="details">
+          {(field) => <field.Input label="Details" />}
+        </form.AppField>
+      </FormCard>
+    )
+  }
+})
+
+// ❌ WRONG - Don't use Card, CardHeader, CardTitle, CardContent for form sections
+<Card id="basic-info">
+  <CardHeader>
+    <CardTitle>Basic Info</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <BasicInfoFields form={form} />
+  </CardContent>
+</Card>
+
+// ❌ WRONG - FormCard in main form wrapping section components
+<form>
+  <FormCard id="basic-info" title="Basic Info">
+    <BasicInfoFields form={form} />
+  </FormCard>
+</form>
+```
+
+#### Complete Form Example
+
+```tsx
+'use client'
+
+import { PageHeader } from '@/components/custom/page-header'
+import { FormCard } from '@/components/custom/form-card'
+import { useAppForm } from '@/components/form'
+
+import { usePermissions } from '@/hooks/use-permissions'
+
+import { TenantFormOptions, createTenantSchema } from './form-options'
+import { BasicInfoFields } from './forms/basic-info'
+import { ContactFields } from './forms/contact'
+import { DetailsFields } from './forms/details'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import {
+  useCreateTenantMutation,
+  useUpdateTenantMutation
+} from '@/query/tenants'
+import { apiFormValidation } from '@/utils'
+
+export const TenantForm: React.FC<{
+  isEdit?: boolean
+  tenant?: TenantById
+}> = ({ isEdit = false, tenant }) => {
+  const { hasPermission } = usePermissions()
+  const { isPending: isCreating, mutateAsync: createTenant } =
+    useCreateTenantMutation()
+  const { isPending: isUpdating, mutateAsync: updateTenant } =
+    useUpdateTenantMutation()
+
+  const form = useAppForm({
+    ...TenantFormOptions(tenant),
+    onSubmit: async ({ formApi, value }) => {
+      apiFormValidation(
+        () =>
+          isEdit
+            ? updateTenant({
+                ...value,
+                id: tenant?.id,
+                status: value.status ? 1 : 0
+              })
+            : createTenant({ ...value, status: value.status ? 1 : 0 }),
+        formApi
+      )
+    },
+    validators: {
+      onChange: createTenantSchema
+    }
+  })
+
+  return (
+    <div className="mb-10 flex flex-col gap-5">
+      <PageHeader
+        description="Add a new tenant to the system"
+        title={isEdit ? 'Edit Tenant' : 'Create Tenant'}
+      >
+        <form.AppForm>
+          <form.SubmitButton
+            disabled={
+              isEdit
+                ? !hasPermission(PERMISSIONS.TENANTS_UPDATE)
+                : !hasPermission(PERMISSIONS.TENANTS_CREATE)
+            }
+            form="create-tenant-form"
+            isLoading={isEdit ? isUpdating : isCreating}
+          >
+            {isEdit ? 'Update Tenant' : 'Create Tenant'}
+          </form.SubmitButton>
+        </form.AppForm>
+      </PageHeader>
+      <form
+        className="w-full flex-1 space-y-5 px-5"
+        id="create-tenant-form"
+        onSubmit={(e) => {
+          e.preventDefault()
+          form.handleSubmit()
+        }}
+      >
+        <BasicInfoFields
+          form={form}
+          imageUrl={tenant?.image_url ?? undefined}
+        />
+        <DetailsFields form={form} />
+        <ContactFields form={form} />
+      </form>
+    </div>
+  )
+}
+```
+
+#### Common Mistakes to Avoid
+
+```tsx
+// ❌ WRONG - Steps order doesn't match form sections
+const steps = [
+  { id: 'contact', label: 'Contact' },
+  { id: 'basic-info', label: 'Basic Info' }
+]
+<form>
+  <Card id="basic-info">...</Card>  {/* First in form */}
+  <Card id="contact">...</Card>     {/* Second in form */}
+</form>
+
+// ❌ WRONG - Missing FormCard wrapper in section component
+// fields/basic-info.tsx
+export const BasicInfoFields = withForm({
+  ...FormOptions(),
+  render: function Render({ form }) {
+    return (
+      // ❌ WRONG: Missing FormCard wrapper
+      <div id="basic-info">
+        <form.AppField name="name">
+          {(field) => <field.Input label="Name" />}
+        </form.AppField>
+      </div>
+    )
+  }
+})
+
+// ❌ WRONG - FormCard in main form instead of section component
+<form>
+  <FormCard id="basic-info" title="Basic Info">
+    <BasicInfoFields form={form} />
+  </FormCard>
+</form>
+
+// ❌ WRONG - Using Card instead of FormCard
+<Card id="basic-info">
+  <CardHeader>
+    <CardTitle>Basic Info</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <BasicInfoFields form={form} />
+  </CardContent>
+</Card>
+
+// ❌ WRONG - ID mismatch between step and FormCard
+const steps = [{ id: 'basic-info', label: 'Basic Info' }]
+<FormCard id="basic-information" title="Basic Info">  {/* Doesn't match step.id */}
+  ...
+</FormCard>
+
+// ❌ WRONG - Missing required classes on form
+<form className="w-full space-y-5">  {/* Missing flex-1 px-5 */}
+  ...
+</form>
+
+// ❌ WRONG - Missing m-5 wrapper for form in page component
+<>
+  <PageHeader>...</PageHeader>
+  <form className="w-full flex-1 space-y-5 px-5">...</form>
+</>
+
+// ✅ CORRECT - Page component pattern
+<>
+  <PageHeader title="..." description="...">
+    <form.AppForm>
+      <form.SubmitButton form="form-id">Submit</form.SubmitButton>
+    </form.AppForm>
+  </PageHeader>
+  <div className="m-5">
+    <form className="w-full flex-1 space-y-5 px-5" id="form-id" onSubmit={...}>
+      <BasicInfoFields form={form} />
+      <ContactFields form={form} />
+    </form>
+  </div>
+</>
+
+// ✅ CORRECT - Form component pattern (reusable components)
+<div className="mb-10 flex flex-col gap-5">
+  <PageHeader title="..." description="...">
+    <form.AppForm>
+      <form.SubmitButton form="form-id">Submit</form.SubmitButton>
+    </form.AppForm>
+  </PageHeader>
+  <form className="w-full flex-1 space-y-5 px-5" id="form-id" onSubmit={...}>
+    <BasicInfoFields form={form} />
+    <ContactFields form={form} />
+  </form>
+</div>
+```
+
+#### Form Layout Checklist
+
+When creating forms, verify:
+
+- ✅ **Page components**: PageHeader and form wrapped in fragment `<>...</>`, form inside `<div className="m-5">`
+- ✅ **Form components**: PageHeader and form wrapped in `<div className="mb-10 flex flex-col gap-5">`
+- ✅ Form element has `w-full flex-1 space-y-5 px-5` classes
+- ✅ PageHeader is included (if form has header)
+- ✅ Each form section is wrapped in a `FormCard` component with `id` and `title` props
+- ✅ Form has unique `id` attribute matching the `form` prop on SubmitButton
+- ✅ Form onSubmit handler prevents default and calls `form.handleSubmit()`
+
+### Form Submission (Simple)
+
+```typescript
+// ✅ Project Standard - Use formOptions pattern
+// form-options.ts
+export const FeatureFormOptions = (data?: Feature) =>
+  formOptions({
+    defaultValues: { /* ... */ },
+    validators: { onChange: schema }
+  })
+
+// Component
+const form = useAppForm({
+  ...FeatureFormOptions(data), // Spread form options
+  onSubmit: async ({ value, formApi }) => {
+    // Handle submission with apiFormValidation helper
+    apiFormValidation(
+      async () => await mutation.mutateAsync(value),
+      formApi
+    )
+  }
+})
+
+<>
+  <div className="m-5">
+    <form
+      className="w-full flex-1 space-y-5 px-5"
+      onSubmit={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        form.handleSubmit()
+      }}
+    >
+      {/* Use form.AppField for pre-bound components */}
+      <form.AppField name="fieldName">
+        {(field) => <field.Input placeholder="..." />}
+      </form.AppField>
+    </form>
+  </div>
+</>
+```
+
+### Modal/Dialog Form Pattern (Complete Example)
+
+**When creating forms in modals/dialogs with edit mode, always follow this complete pattern:**
+
+```typescript
+'use client'
+
+import { AnyFormApi } from '@tanstack/react-form'
+import { Save, X } from 'lucide-react'
+import { toast } from 'sonner'
+
+import { useAppForm } from '@/components/form'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  FeatureFormOptions,
+  FeatureFormSchema,
+  featureFormSchema
+} from './form-options'
+import { Feature, useCreateFeatureMutation, useUpdateFeatureMutation } from '@/query/features'
+import { apiFormValidation } from '@/utils'
+
+interface FeatureModalProps {
+  feature?: Feature
+  isEdit?: boolean
+  isOpen: boolean
+  onClose: () => void
+}
+
+export function FeatureModal({
+  feature,
+  isEdit = false,
+  isOpen,
+  onClose
+}: FeatureModalProps) {
+  const { isPending: isCreating, mutateAsync: createFeature } =
+    useCreateFeatureMutation()
+  const { isPending: isUpdating, mutateAsync: updateFeature } =
+    useUpdateFeatureMutation()
+
+  const isPending = isCreating || isUpdating
+
+  // ✅ Step 1: Initialize form with formOptions (contains defaultValues based on feature)
+  const form = useAppForm({
+    ...FeatureFormOptions(feature), // Spread formOptions - handles defaultValues transformation
+    onSubmit: async ({ formApi, value }: { formApi: AnyFormApi; value: FeatureFormSchema }) => {
+      // Transform form data to API format if needed
+      const apiData = {
+        // ... transform value to API format
+      }
+
+      await apiFormValidation(
+        () =>
+          isEdit && feature
+            ? updateFeature({ ...apiData, id: feature.id })
+            : createFeature(apiData),
+        formApi
+      )
+
+      toast.success(isEdit ? 'Feature updated successfully' : 'Feature created successfully')
+      onClose()
+    },
+    validators: {
+      onChange: featureFormSchema // Can be defined here or in formOptions
+    }
+  })
+
+  return (
+    <Dialog onOpenChange={onClose} open={isOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'Edit Feature' : 'Create Feature'}</DialogTitle>
+        </DialogHeader>
+
+        {/* ✅ Step 2: Key prop ensures form recreates with fresh defaultValues when feature changes */}
+        <form
+          className="w-full space-y-5"
+          key={feature?.id || 'new'} // CRITICAL: Forces form recreation with updated defaultValues
+          onSubmit={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            form.handleSubmit()
+          }}
+        >
+          <form.AppField name="name">
+            {(field) => <field.Input placeholder="Name" />}
+          </form.AppField>
+
+          <form.AppField name="email">
+            {(field) => <field.Input placeholder="Email" type="email" />}
+          </form.AppField>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              <X className="h-4 w-4" />
+              Cancel
+            </Button>
+            <form.AppForm>
+              <form.SubmitButton disabled={isPending}>
+                {isEdit ? (
+                  <>
+                    <Save className="h-4 w-4" />
+                    {isPending ? 'Updating...' : 'Update'}
+                  </>
+                ) : (
+                  <>
+                    {isPending ? 'Creating...' : 'Create'}
+                  </>
+                )}
+              </form.SubmitButton>
+            </form.AppForm>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+```
+
+**Key Checklist for Modal Forms:**
+
+1. ✅ Use `formOptions` for initial form setup - spread into `useAppForm`
+2. ✅ Use `key` prop on form element to force recreation when data changes
+3. ✅ Key should be entity ID or 'new' for create mode
+4. ✅ Handle all data transformations in formOptions (not in component)
+5. ✅ Use `apiFormValidation` for error handling
+6. ✅ Never use `useEffect` to sync form values - update defaultValues through form recreation instead
+
+### Form Reset
+
+```typescript
+<button onClick={() => form.reset()}>
+  Reset Form
+</button>
+```
+
+## File Organization
+
+### Recommended Structure (Project Standard)
+
+```
+app/(app)/{feature}/
+  form-options/
+    {feature}-form-options.ts   # Form options, schemas, and types
+  forms/                         # Sub-form components (optional)
+    basic-info.tsx              # Field groups using withForm
+    contact.tsx
+    details.tsx
+  {feature}-form.tsx            # Main form component
+```
+
+## Inter-Rule References
+
+- Place files according to the `feature-structure` rule.
+- Submit using mutation hooks from the `react-query` rule (e.g., `useCreate{Feature}Mutation`).
+- When the form lives alongside a table/list, align with the `data-table` rule for list behavior.
+- Protect submit buttons and sensitive fields using the `permission-system` rule.
+
+**Example - Tenants Feature:**
+
+```
+app/(app)/tenants/_tenants/
+  form-options/
+    tenants-form-options.tsx    # TenantsFormOptions, createTenantSchema
+    contract-form-options.ts    # contractFormOptions, contractFormSchema
+  forms/
+    basic-info.tsx              # BasicInfoFields (uses withForm)
+    contact.tsx                 # ContactFields (uses withForm)
+    details.tsx                 # DetailsFields (uses withForm)
+  tenant-form.tsx               # Main TenantForm component
+```
+
+**Alternative Structure (Co-located):**
+
+```
+app/(app)/{feature}/
+  form-options.ts               # Form options and schemas
+  {feature}-form.tsx            # Main form component
+  forms/                        # Sub-form components
+    basic-info.tsx
+    contact.tsx
+```
+
+### File Naming Conventions
+
+- **Form options files**: `{feature}-form-options.ts` or `form-options.ts`
+- **Form components**: `{feature}-form.tsx`
+- **Sub-form components**: Use descriptive names like `basic-info.tsx`, `contact.tsx`
+- **Validation schemas**: Define in same file as form options, export with descriptive names
+
+## Permission Patterns
+
+### Form Action Permissions (Project Standard)
+
+**Always protect form actions with permission checks** - This ensures users can only perform actions they're authorized for.
+
+#### Setup
+
+```typescript
+import { usePermissions } from '@/hooks/use-permissions'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+
+// Use the hook in your component
+const { hasPermission } = usePermissions()
+```
+
+#### Permission Check Pattern for Submit Buttons
+
+```typescript
+// ✅ Project Standard - Disable submit button based on permissions
+<form.AppForm>
+  <form.SubmitButton
+    disabled={
+      isEdit
+        ? !hasPermission(PERMISSIONS.FEATURES_UPDATE)
+        : !hasPermission(PERMISSIONS.FEATURES_CREATE)
+    }
+    isLoading={isEdit ? isUpdating : isCreating}
+  >
+    {isEdit ? 'Update Feature' : 'Create Feature'}
+  </form.SubmitButton>
+</form.AppForm>
+```
+
+#### Complete Form with Permissions Example
+
+```typescript
+import { usePermissions } from '@/hooks/use-permissions'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { useCreateFeatureMutation, useUpdateFeatureMutation } from '@/query/features'
+import { FeatureFormOptions } from './form-options'
+
+export const FeatureForm: React.FC<{
+  isEdit?: boolean
+  feature?: Feature
+}> = ({ isEdit = false, feature }) => {
+  const { hasPermission } = usePermissions()
+  const { isPending: isCreating, mutateAsync: createFeature } =
+    useCreateFeatureMutation()
+  const { isPending: isUpdating, mutateAsync: updateFeature } =
+    useUpdateFeatureMutation()
+
+  const form = useAppForm({
+    ...FeatureFormOptions(feature),
+    onSubmit: async ({ formApi, value }) => {
+      apiFormValidation(
+        () =>
+          isEdit
+            ? updateFeature({ ...value, id: feature?.id })
+            : createFeature(value),
+        formApi
+      )
+    }
+  })
+
+  return (
+    <>
+      <PageHeader title={isEdit ? 'Edit Feature' : 'Create Feature'}>
+        <form.AppForm>
+          <form.SubmitButton
+            disabled={
+              isEdit
+                ? !hasPermission(PERMISSIONS.FEATURES_UPDATE)
+                : !hasPermission(PERMISSIONS.FEATURES_CREATE)
+            }
+            form="feature-form"
+            isLoading={isEdit ? isUpdating : isCreating}
+          >
+            {isEdit ? 'Update Feature' : 'Create Feature'}
+          </form.SubmitButton>
+        </form.AppForm>
+      </PageHeader>
+      <div className="m-5">
+        <form
+          className="w-full flex-1 space-y-5 px-5"
+          id="feature-form"
+          onSubmit={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            form.handleSubmit()
+          }}
+        >
+          {/* Form fields */}
+        </form>
+      </div>
+    </>
+  )
+}
+```
+
+#### ⚠️ CRITICAL: Mutation onSuccess Callback Pattern
+
+**🚨 IMPORTANT: ALWAYS use `onSuccess` callback in mutation calls for navigation and post-submission actions. NEVER check form errors after mutation to determine success.**
+
+**✅ CORRECT: Use `onSuccess` callback in mutation call**
+
+```typescript
+import { useRouter } from 'next/navigation'
+import { useMutation } from '@tanstack/react-query'
+import { apiFormValidation } from '@/utils'
+
+export const UsersForm: React.FC = () => {
+  const router = useRouter()
+  const { isPending, mutateAsync: createUser } = useMutation(
+    createUserMutationOptions
+  )
+  const { isPending: isUpdating, mutateAsync: updateUser } = useMutation(
+    updateUserMutationOptions
+  )
+
+  const form = useAppForm({
+    ...formOptions,
+    onSubmit: async ({ formApi, value }) => {
+      const payload: CreateUserInput = {
+        // ... payload construction
+      }
+
+      await apiFormValidation(async () => {
+        if (isEdit && user) {
+          await updateUser(
+            { ...payload, id: user.id },
+            {
+              onSuccess: () => {
+                router.push('/customers/user')
+              }
+            }
+          )
+        } else {
+          await createUser(payload, {
+            onSuccess: () => {
+              router.push('/customers/user')
+            }
+          })
+        }
+      }, formApi)
+    }
+  })
+
+  // ... rest of component
+}
+```
+
+**❌ WRONG: Checking form errors after mutation**
+
+```typescript
+// ❌ WRONG: Never check formApi.state.errors after mutation
+await apiFormValidation(async () => {
+  if (isEdit && user) {
+    await updateUser({ ...payload, id: user.id })
+  } else {
+    await createUser(payload)
+  }
+}, formApi)
+
+// ❌ WRONG: This pattern is incorrect and unreliable
+if (!formApi.state.errors || Object.keys(formApi.state.errors).length === 0) {
+  router.push('/customers/user')
+}
+```
+
+**Why this pattern is wrong:**
+
+- ❌ **Unreliable** - Form errors may not reflect mutation success/failure accurately
+- ❌ **Race conditions** - Error state may not be updated synchronously
+- ❌ **Incorrect logic** - Success should be determined by mutation completion, not form error state
+- ❌ **Breaks error handling** - If mutation succeeds but form has unrelated errors, navigation won't happen
+
+**Why `onSuccess` callback is correct:**
+
+- ✅ **Reliable** - Only executes when mutation actually succeeds
+- ✅ **Type-safe** - TanStack Query ensures callback only runs on success
+- ✅ **Clear intent** - Explicitly shows what happens on successful mutation
+- ✅ **Proper error handling** - Navigation only happens when mutation succeeds, regardless of form state
+
+**Key Requirements:**
+
+1. **Always use `onSuccess` in mutation call** - Pass as second parameter to `mutateAsync`
+2. **Handle navigation in `onSuccess`** - Use `router.push()` or other navigation inside callback
+3. **Works for both create and update** - Apply pattern to both `createUser` and `updateUser` calls
+4. **No error checking needed** - `onSuccess` only runs when mutation succeeds, so no need to check errors
+
+**Pattern for both create and update:**
+
+```typescript
+await apiFormValidation(async () => {
+  if (isEdit && user) {
+    await updateUser(
+      { ...payload, id: user.id },
+      {
+        onSuccess: () => {
+          router.push('/customers/user')
+        }
+      }
+    )
+  } else {
+    await createUser(payload, {
+      onSuccess: () => {
+        router.push('/customers/user')
+      }
+    })
+  }
+}, formApi)
+```
+
+#### Single Action Permission (No Edit Mode)
+
+```typescript
+// For forms that only have one action (e.g., contract update)
+const { hasPermission } = usePermissions()
+
+<form.AppForm>
+  <form.SubmitButton
+    disabled={!hasPermission(PERMISSIONS.TENANTS_UPDATE_CONTRACT)}
+    isLoading={isUpdating}
+  >
+    Save Changes
+  </form.SubmitButton>
+</form.AppForm>
+```
+
+#### Permission Constants Pattern
+
+Permissions follow a consistent naming pattern:
+
+- `{FEATURE}_CREATE` - For create operations
+- `{FEATURE}_UPDATE` - For update operations
+- `{FEATURE}_UPDATE_{SPECIFIC_ACTION}` - For specific update actions
+- `{FEATURE}_DESTROY` - For delete operations
+- `{FEATURE}_SHOW` - For view operations
+
+Examples:
+
+- `PERMISSIONS.TENANTS_CREATE`
+- `PERMISSIONS.TENANTS_UPDATE`
+- `PERMISSIONS.TENANTS_UPDATE_CONTRACT`
+- `PERMISSIONS.DRIVERS_CREATE`
+- `PERMISSIONS.DRIVERS_UPDATE`
+
+#### Permission Best Practices
+
+1. **Always check permissions on submit buttons** - Disable buttons when user lacks permission
+2. **Use conditional logic for create/edit** - Different permissions for different actions
+3. **Combine with loading states** - Include `isLoading` prop alongside `disabled`
+4. **Import from centralized location** - Use `PERMISSIONS` from `@/lib/auth/permissions`
+5. **Use the usePermissions hook** - Always use `hasPermission` from the hook
+6. **Follow naming conventions** - Permission names match feature and action patterns
+7. **Protect server-side too** - Client-side checks are UX only; always validate server-side
+
+## Integration Notes
+
+### With React Query
+
+- Use TanStack Form for form state management
+- Use TanStack Query for server state and mutations
+- Combine both for optimal data flow
+- Use mutation `isPending` state for loading indicators
+
+### With Validation Libraries
+
+- TanStack Form has built-in validation
+- Can integrate with Zod, Yup, or other validation libraries
+- Use `validators.onChange` for client-side validation
+
+### With Permissions System
+
+- Always check permissions before allowing form submission
+- Disable submit buttons when user lacks required permissions
+- Use different permissions for create vs update operations
+- Combine permission checks with loading states
+- Remember: client-side checks are for UX only; always validate server-side
+
+## Debugging Tips
+
+### Form State Inspection
+
+```typescript
+// Log form state for debugging
+const form = useAppForm({
+  /* ... */
+})
+console.log('Form state:', form.state)
+console.log('Form values:', form.state.values)
+
+// Subscribe to form state changes
+import { useStore } from '@tanstack/react-form'
+
+useStore(form.store, (state) => {
+  console.log('Form errors:', state.errors)
+  console.log('Form values:', state.values)
+})
+```
+
+This cursor rule provides comprehensive guidance for working with TanStack Form, covering all patterns used in the codebase for building performant, type-safe forms with proper composition and state management.

@@ -1,0 +1,317 @@
+---
+description: Practical internationalization (i18n) and translation workflow for EDGE Admin Dashboard. Applies only when translation/localization is explicitly requested.
+alwaysApply: false
+globs: lib/i18n/**/*.json, app/**/*.tsx, components/**/*.tsx, hooks/**/*.ts
+---
+
+# Internationalization (i18n) & Translation Guide
+
+## Scope
+
+This rule applies only when the user explicitly asks for translation/localization work.
+
+By default (feature work without translation request):
+
+- Use hard-coded English UI strings.
+- Do not create or modify translation files.
+
+Apply this rule when the request includes terms like:
+
+- `translate`, `translation`, `i18n`, `localization`, `localisation`, `Arabic`, `multilingual`
+
+## Current Localization Setup (Project Reality)
+
+The project has two localization layers:
+
+1. **UI copy via next-intl**
+- Translation files live in `lib/i18n/en/*.json` and `lib/i18n/ar/*.json`.
+- Files are feature-based and merged in `lib/i18n/messages.ts`.
+- Locale is resolved from `NEXT_LOCALE` cookie in `lib/i18n/request.ts`.
+- Default locale is `en`.
+- Direction is set from locale (`rtl` for `ar`, `ltr` for `en`) in `app/layout.tsx` and `lib/providers/direction-provider.tsx`.
+
+2. **Entity content translations returned by API**
+- Many entities return `translations` arrays (with `locale` field).
+- Use helpers from `utils/translations.ts` (`getTranslatedName`, `getTranslation`, `getTranslatedField`) for localized entity names/content.
+
+## Type Safety and Generation
+
+- `next-intl` message declaration files are generated from `lib/i18n/en/*.json` (configured in `next.config.ts`).
+- Global translation type is declared in `lib/i18n/next-intl.d.ts`.
+- Use `Translations<NestedKey>` for typed translation functions.
+- Never type translation callbacks as `(key: string) => string`.
+- Do **not** edit `lib/i18n/next-intl.d.ts` manually.
+- All params passed to translation functions must be strings.
+- For interpolation objects, coerce every value to string with template literals (for example `id: \`${id}\``).
+
+## Business Context (Use This Vocabulary)
+
+EDGE Admin Dashboard is an operations platform for managing innovation/workspace centers and related business operations.
+
+### Core Domains
+
+- Administration: admins, roles, permissions
+- Organization: companies, customers/users, groups
+- Physical structure: centers, floors, spaces, doors, access logs
+- Operations: requests, bookings, participants (members/visitors)
+- Purchases: vendors, products, categories, orders
+- Finance: invoices, payments, transactions
+- Support: tickets, FAQ
+- Settings: locations, currencies, nationalities, taxes, news, notifications, configs
+
+### Arabic Glossary (Standardized)
+
+Use these terms consistently unless a feature already has intentional approved wording.
+
+- Company: `شركة` / `الشركات`
+- Customer: `عميل` / `العملاء`
+- User: `مستخدم` / `المستخدمون`
+- Group (User Group): `مجموعة` / `مجموعات المستخدمين`
+- Center: `مركز` / `المراكز`
+- Floor: `طابق` / `الطوابق`
+- Space: `مساحة` / `المساحات`
+- Space Type: `نوع المساحة`
+- Space Layout: `مخطط المساحة`
+- Amenity: `مرفق` / `المرافق`
+- Booking: `حجز` / `الحجوزات`
+- Request (operations): `طلب` / `الطلبات`
+- Order (purchases): `طلب شراء` / `طلبات الشراء`
+- Participant: `مشارك`
+- Member: `عضو`
+- Visitor: `زائر`
+- Door: `باب` / `الأبواب`
+- Door Access: `صلاحية وصول`
+- Vendor: `مورّد` / `المورّدون`
+- Product: `منتج` / `المنتجات`
+- Invoice: `فاتورة` / `الفواتير`
+- Payment: `دفعة` / `المدفوعات`
+- Transaction: `معاملة` / `المعاملات`
+- Support Ticket: `تذكرة دعم`
+- FAQ: `الأسئلة الشائعة`
+- Settings: `الإعدادات`
+
+### Legacy Term Handling
+
+This codebase contains legacy names from earlier domains (for example `tenant` in some UI/component names).
+
+When translating legacy labels:
+
+- Translate by current business meaning, not the legacy variable name.
+- Do **not** translate legacy `tenant` as `مستأجر`.
+- In most current screens, legacy `tenant` labels map to either `company` (`شركة`) or `customer` (`عميل`) depending on context.
+
+## Translation Quality Standards
+
+- Use Modern Standard Arabic (MSA), product tone, concise and clear.
+- Prioritize meaning and UX over literal word-for-word translation.
+- Keep UI text short and actionable.
+- Keep terminology stable across features.
+- Avoid dialect/slang and overly legal or archaic phrasing.
+
+## Namespace Rules
+
+### 1) `enums.*` is the single source of truth
+
+- Enum labels must stay in `lib/i18n/*/enums.json`.
+- Do not duplicate enum labels in feature namespaces.
+- Use enum values as keys (stringified when needed).
+- **Mandatory pattern:** create a dedicated translator at the enum namespace, not a generic `tEnums('...')` call.
+- **Mandatory key coercion:** always pass enum values as string with template interpolation: ```${value}```.
+- Do not map enum labels with `switch`/`if` when a matching enum namespace exists.
+
+Example:
+
+```tsx
+const tBookingStatus = useTranslations('enums.booking_status.enum')
+const label = tBookingStatus(`${booking.status}`)
+```
+
+Correct:
+
+```tsx
+const tType = useTranslations('enums.door_type.enum')
+return <Column.Chip label={`${tType(`${types}`)}`} />
+```
+
+Interpolation params must be strings:
+
+```tsx
+tDoors('floorLabel', { number: `${floor.floor_number}` })
+```
+
+Incorrect:
+
+```tsx
+const tEnums = useTranslations('enums')
+// Avoid switch-based enum mapping when enums namespace exists
+return tEnums('door_type.enum.1')
+```
+
+### 2) Shared namespaces
+
+- `common.*`: global actions, shared errors, generic messages
+- `components.*`: reusable component copy
+- `layout.*`: sidebar/header/breadcrumbs
+- `tables.columns.*`: shared table column titles
+
+### 3) Feature namespaces
+
+- Feature-specific copy belongs in feature files such as:
+  - `administration.*`
+  - `area.*`
+  - `centers.*`
+  - `groups.*`
+  - `products.*`
+  - `settings.*`
+  - `space-configurations.*`
+  - `support.*`
+  - `users.*`
+  - `vendors.*`
+
+## Translation File Structure
+
+Each translation file must have a root wrapper key matching its feature name.
+
+Correct example (`lib/i18n/en/vendors.json`):
+
+```json
+{
+  "vendors": {
+    "list": {
+      "title": "Vendors"
+    }
+  }
+}
+```
+
+The Arabic file must mirror the same structure exactly.
+
+## When Adding a New Feature Translation File
+
+If a new feature file is created:
+
+1. Add both files:
+- `lib/i18n/en/{feature}.json`
+- `lib/i18n/ar/{feature}.json`
+
+2. Import and spread both in `lib/i18n/messages.ts`.
+
+Note: type declaration discovery in `next.config.ts` is automatic for English files, but runtime still depends on `messages.ts` imports.
+
+## Implementation Patterns
+
+### A) Use translations in components
+
+```tsx
+import { useTranslations } from 'next-intl'
+
+export function Example() {
+  const t = useTranslations('support.faq')
+
+  return <h1>{t('list.title')}</h1>
+}
+```
+
+### B) Type translation callbacks correctly
+
+```ts
+interface FormOptionsProps {
+  t: Translations<'vendors.forms'>
+}
+```
+
+### C) Handle API-returned `translations` arrays
+
+```ts
+import { getTranslatedName } from '@/utils'
+
+const displayName = getTranslatedName(entity?.translations, isRTL, '-')
+```
+
+## Translation Workflow
+
+1. Identify feature and namespace based on file location and existing i18n structure.
+2. Extract user-facing strings only (labels, headers, placeholders, actions, dialogs, empty states, validation text).
+3. Map keys to the right namespace (`enums`, `common`, `components`, `tables`, `layout`, feature).
+4. Update both `en` and `ar` JSON files with matching structure.
+5. Replace hard-coded strings with `useTranslations(...)` in the target code.
+6. If new translation files were added, update `lib/i18n/messages.ts`.
+7. Validate and regenerate types.
+
+## Required Commands (Use Bun)
+
+Run after translation changes:
+
+```bash
+bun run i18n:audit
+bun t:validate
+bun t:generate
+```
+
+Do not use `npm` in this repository.
+- If lint reports ordering/formatting issues (including object key ordering), use `bun lint:fix` instead of manual reordering edits.
+
+## Hardcoded Copy Audit Gate
+
+Use the audit gate whenever translation work is requested:
+
+- Script: `scripts/i18n-audit.ts`
+- Allowlist: `scripts/i18n-audit-allowlist.txt`
+- Command: `bun run i18n:audit`
+
+### What the audit scans
+
+- In-scope directories: `app`, `components`, `hooks`, `lib`, `utils`
+- In-scope file types: `.ts`, `.tsx`
+- Detection types:
+  - JSX text nodes
+  - User-facing prop strings (`title`, `label`, `placeholder`, `description`, `message`, `subtitle`, `aria-label`, `alt`, ...)
+  - User-facing object keys (`label`, `title`, `placeholder`, `description`, `searchPlaceholder`, `emptyMessage`, ...)
+  - `toast.*(...)` messages
+  - Zod inline and object `message` strings
+
+### What the audit excludes by default
+
+- `app/playground/**`
+- `lib/i18n/**`
+- `lib/map/example.tsx`
+- `node_modules`, `.next`, `.git`
+- test/spec files, `*.d.ts`, `*.json`, styles, markdown, svg, and paths containing `deprecated`
+
+### Allowlist usage (`scripts/i18n-audit-allowlist.txt`)
+
+Use allowlist only for justified technical false positives, never for real user-facing copy.
+
+Supported entries:
+
+- `file/path.tsx:*` -> ignore entire file
+- `file/path.tsx:42` -> ignore one line
+- `file/path.tsx:42:prop-text` -> ignore one finding kind on one line
+
+### Required audit workflow
+
+1. Run `bun run i18n:audit`.
+2. Translate/fix all findings.
+3. If a finding is technical (not user-facing), add the narrowest possible allowlist entry.
+4. Re-run `bun run i18n:audit` until it returns zero findings.
+
+## RTL and Locale Verification
+
+If the app is already running:
+
+1. Verify English (`en`) text renders correctly.
+2. Switch to Arabic (`ar`) via language switcher.
+3. Verify translated text, direction (`rtl`), and layout behavior.
+
+If the app is not running, do not start dev/build unless explicitly requested.
+
+## Do / Don’t
+
+- Do keep Arabic terminology consistent with the glossary.
+- Do keep `en` and `ar` JSON shapes identical.
+- Do use `tables.columns.*` for shared column labels.
+- Do keep enum copy inside `enums.*` only.
+- Don’t create duplicate status/enum labels in feature files.
+- Don’t translate by stale variable names when business meaning differs.
+- Don’t use `(key: string) => string` for translation typing.
+- Don’t use npm scripts in this codebase.

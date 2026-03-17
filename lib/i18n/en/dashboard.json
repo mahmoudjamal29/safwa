@@ -21,5 +21,17 @@
   "loading": "Loading...",
   "customPeriod": "Custom",
   "to": "To",
-  "limit": "Min"
+  "limit": "Min",
+  "noInvoices": "No invoices",
+  "columns": {
+    "product": "Product",
+    "unit": "Unit",
+    "qty": "Qty",
+    "minQty": "Min Qty",
+    "invoiceNumber": "Invoice No.",
+    "customer": "Customer",
+    "date": "Date",
+    "status": "Status",
+    "total": "Total"
+  }
 }

@@ -51,6 +51,8 @@
     "title": "Create New Invoice",
     "customer": "Customer",
     "customerSearch": "Search for a customer...",
+    "unknownCustomer": "Unknown",
+    "invoiceRef": "Invoice",
     "date": "Date",
     "invoiceDate": "Invoice Date",
     "status": "Status",
@@ -66,7 +68,7 @@
     "notes": "Notes",
     "notesPlaceholder": "Any additional notes...",
     "discount": "Discount",
-    "paid": "Paid",
+    "paid": "Paid Amount",
     "save": "Save Invoice",
     "cancel": "Cancel",
     "reset": "Reset",
@@ -75,6 +77,25 @@
     "piece": "piece",
     "piecesFrom": "from {count} pieces",
     "lockedItem": "This item cannot be edited"
+  },
+  "picker": {
+    "title": "Select Product",
+    "search": "Search products...",
+    "empty": "No products found",
+    "available": "Stock",
+    "piecesPerUnit": "pcs/unit",
+    "sellPiece": "Piece",
+    "sellUnit": "Unit",
+    "add": "Add",
+    "allCategories": "All Categories",
+    "columns": {
+      "name": "Product",
+      "unit": "Unit",
+      "stock": "Stock",
+      "price": "Price",
+      "sellBy": "Sell By",
+      "actions": ""
+    }
   },
   "view": {
     "title": "Invoice No.",

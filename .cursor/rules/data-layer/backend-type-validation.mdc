@@ -1,0 +1,699 @@
+# Backend Type Validation Guide
+
+**Purpose**: Standardized workflow for validating frontend TypeScript types against backend Laravel API resources to ensure type accuracy and prevent runtime errors.
+
+**Scope**: Type validation for API response types, nested resources, relationships, and database schema alignment.
+
+## Backend Folder Location
+
+**Backend folder path**: `/backend` in project root directory
+
+```
+{project-root}/
+├── backend/
+│   ├── Modules/
+│   │   └── {Module}/
+│   │       ├── App/
+│   │       │   ├── Http/
+│   │       │   │   └── Controllers/
+│   │       │   │       └── Api/
+│   │       │   │           └── {Resource}Controller.php
+│   │       │   ├── Models/
+│   │       │   │   └── {Model}.php
+│   │       │   └── resources/
+│   │       │       └── Api/
+│   │       │           └── {Resource}/
+│   │       │               ├── {Resource}Resource.php
+│   │       │               ├── Base{Resource}Resource.php
+│   │       │               └── {Resource}Collection.php
+│   │       └── database/
+│   │           └── migrations/
+│   │               └── *_{resource}_table.php
+```
+
+### Finding Backend Files
+
+**⚠️ CRITICAL: Always use `find backend` command to locate backend files. Do NOT use glob patterns or file search tools that may fail.**
+
+**Command Pattern**:
+
+```bash
+# Find controllers
+find backend -type f -name "*{Resource}*Controller.php" 2>/dev/null | head -10
+
+# Find resources
+find backend -type f -name "*{Resource}*Resource.php" 2>/dev/null | head -10
+
+# Find models
+find backend -type f -name "{Model}.php" 2>/dev/null | head -10
+
+# Find migrations
+find backend -type f -name "*_{resource}_table.php" 2>/dev/null | head -10
+```
+
+**Examples**:
+
+```bash
+# Find User controller
+find backend -type f -name "*User*Controller.php" 2>/dev/null | head -10
+
+# Find User resources
+find backend -type f -name "*User*Resource.php" 2>/dev/null | head -10
+
+# Find Space model
+find backend -type f -name "Space.php" -path "*/Models/*" 2>/dev/null | head -10
+
+# Find nested resources (e.g., Country, State, City)
+find backend -name "BaseCountryResource.php" -o -name "BaseStateResource.php" -o -name "BaseCityResource.php" 2>/dev/null | head -10
+```
+
+**Why use `find backend`**:
+
+- ✅ **Reliable**: Works even when backend folder structure is complex
+- ✅ **Fast**: Directly searches the backend directory
+- ✅ **Flexible**: Supports wildcards and multiple patterns
+- ✅ **Error handling**: `2>/dev/null` suppresses permission errors
+- ✅ **Limited results**: `| head -10` prevents overwhelming output
+
+**❌ DON'T use**:
+
+- ❌ `glob_file_search` with `backend/**/*.php` patterns (may fail)
+- ❌ `codebase_search` for file paths (slower, less reliable)
+- ❌ Manual path guessing (error-prone)
+
+## Resource Location Patterns
+
+### API Resources
+
+**Location**: `backend/Modules/{Module}/App/resources/Api/{Resource}/`
+
+**Common resource files**:
+
+- `{Resource}Resource.php` - Used in detail views (show endpoint)
+- `Base{Resource}Resource.php` - Used in list views and nested resources
+- `{Resource}Collection.php` - Used for paginated collections
+
+**Example**: Space resources
+
+- `backend/Modules/Space/App/resources/Api/Space/SpaceResource.php`
+- `backend/Modules/Space/App/resources/Api/Space/BaseSpaceResource.php`
+- `backend/Modules/Space/App/resources/Api/Space/SpaceCollection.php`
+
+### Models
+
+**Location**: `backend/Modules/{Module}/App/Models/{Model}.php`
+
+**What to check**:
+
+- `$fillable` - Fields that can be mass-assigned
+- `$casts` - Type casting for fields
+- `$appends` - Computed/accessor fields
+- Relationships - `belongsTo`, `hasMany`, `belongsToMany`, etc.
+- Traits - `Translatable`, `HasActiveScope`, etc.
+
+**Example**: `backend/Modules/Space/App/Models/Space.php`
+
+### Controllers
+
+**Location**: `backend/Modules/{Module}/App/Http/Controllers/Api/{Resource}Controller.php`
+
+**What to check**:
+
+- Which resource is used in each endpoint (`index`, `show`, etc.)
+- Which relationships are loaded (`$with` array)
+- Which resource collection is used
+
+**Example**: `backend/Modules/Space/App/Http/Controllers/Api/SpaceController.php`
+
+### Migrations
+
+**Location**: `backend/Modules/{Module}/database/migrations/*_{resource}_table.php`
+
+**What to check**:
+
+- Database schema fields
+- Field types and constraints
+- Timestamps (`created_at`, `updated_at`)
+- Soft deletes (`deleted_at`)
+
+## Validation Workflow
+
+### Step 1: Identify the Frontend Type
+
+**Locate the type file**:
+
+- Usually in `query/{feature}/{feature}-types.ts`
+- Or in `types/` directory
+
+**Identify which query uses the type**:
+
+- Check `query/{feature}/{feature}-query.ts`
+- Identify the endpoint being called
+- Confirm the exact TypeScript symbol used by that query (`Booking`, `BookingById`, `BookingInvoice`, etc.)
+- Confirm whether the endpoint is from Admin dashboard or User API flow
+
+### Step 2: Find the Backend Controller
+
+**⚠️ CRITICAL: Use `find backend` command to locate controllers.**
+
+**Command**:
+
+```bash
+# Find controller by resource name
+find backend -type f -name "*{Resource}*Controller.php" 2>/dev/null | head -10
+```
+
+**Path pattern**: `backend/Modules/{Module}/App/Http/Controllers/{Api|Admin}/{Resource}Controller.php`
+
+**Example**: For `getSpaceByIdQuery`, find:
+
+```bash
+# Find Space controller
+find backend -type f -name "*Space*Controller.php" 2>/dev/null | head -10
+# Returns: backend/Modules/Space/App/Http/Controllers/Api/SpaceController.php
+```
+
+**Note**: Controllers may be in `Api/` or `Admin/` subdirectories. Check both:
+
+```bash
+# Find in Api directory
+find backend -type f -path "*/Api/*{Resource}*Controller.php" 2>/dev/null | head -10
+
+# Find in Admin directory
+find backend -type f -path "*/Admin/*{Resource}*Controller.php" 2>/dev/null | head -10
+```
+
+**⚠️ CRITICAL: Match the route namespace used by frontend endpoint**
+
+- If frontend calls Admin routes, validate against `Admin/*Controller.php` and `resources/Admin/*`
+- If frontend calls User routes, validate against `Api/*Controller.php` and `resources/Api/*`
+- Never mix Admin resource output with Api resource output
+
+**Check the controller method**:
+
+- `index()` - List endpoint (usually uses BaseResource)
+- `show($id)` - Detail endpoint (usually uses Resource)
+
+### Step 3: Identify Which Resource is Used
+
+**Check the controller method return statement**:
+
+```php
+// List endpoint
+return $this->successResponse(new SpaceCollection($data));
+// SpaceCollection uses BaseSpaceResource
+
+// Detail endpoint
+return $this->successResponse(new SpaceResource($data));
+// SpaceResource is used directly
+```
+
+**Check the Collection file**:
+
+```php
+// SpaceCollection.php
+return [
+    'data' => BaseSpaceResource::collection($this->collection),
+    // ...
+];
+```
+
+### Step 4: Read the Resource `toArray()` Method
+
+**⚠️ CRITICAL: Use `find backend` command to locate resource files.**
+
+**Command**:
+
+```bash
+# Find resource files
+find backend -type f -name "*{Resource}*Resource.php" 2>/dev/null | head -10
+```
+
+**Open the resource file**:
+
+- `{Resource}Resource.php` for detail views
+- `Base{Resource}Resource.php` for list views
+
+**Example**:
+
+```bash
+# Find User resources
+find backend -type f -name "*User*Resource.php" 2>/dev/null | head -10
+# Returns:
+# - backend/Modules/User/App/resources/Admin/User/UserResource.php
+# - backend/Modules/User/App/resources/Admin/User/BaseUserResource.php
+```
+
+**Read the `toArray()` method** - This defines the exact API response structure:
+
+```php
+public function toArray($request): array
+{
+    return [
+        'id' => $this->id,
+        'name' => $this->name,
+        // ... all fields returned by API
+    ];
+}
+```
+
+### Step 5: Trace Nested Resources
+
+**For nested relationships, check `whenLoaded()` calls**:
+
+```php
+'center' => $this->whenLoaded('center', function () {
+    return new BaseCenterResource($this->center);
+}),
+```
+
+**Action**: Find and read the nested resource file using `find backend`:
+
+```bash
+# Find nested resource (e.g., Center)
+find backend -type f -name "*Center*Resource.php" 2>/dev/null | head -10
+# Returns: backend/Modules/Center/App/resources/Api/Center/BaseCenterResource.php
+```
+
+**Example**: For User resources with nested Country, State, City:
+
+```bash
+# Find all nested area resources
+find backend -name "BaseCountryResource.php" -o -name "BaseStateResource.php" -o -name "BaseCityResource.php" 2>/dev/null | head -10
+```
+
+**Repeat** for all nested resources until you have the complete structure.
+
+### Step 6: Check Model for Relationships and Accessors
+
+**⚠️ CRITICAL: Use `find backend` command to locate model files.**
+
+**Command**:
+
+```bash
+# Find model by name
+find backend -type f -name "{Model}.php" -path "*/Models/*" 2>/dev/null | head -10
+```
+
+**Open the model file**:
+
+- `backend/Modules/{Module}/App/Models/{Model}.php`
+
+**Example**:
+
+```bash
+# Find User model
+find backend -type f -name "User.php" -path "*/Models/*" 2>/dev/null | head -10
+# Returns: backend/Modules/User/App/Models/User.php
+```
+
+**Check**:
+
+- Relationships - Verify relationship names match `whenLoaded()` calls
+- `$appends` - Computed fields (e.g., `image_url`)
+- Accessor methods - Custom getters that add fields
+
+**Example**:
+
+```php
+protected $appends = ['image_url'];
+
+protected function getImageUrlAttribute()
+{
+    return $this->image ? $this->getFileUrl($this->image) : null;
+}
+```
+
+### Step 7: Verify Database Schema (if needed)
+
+**⚠️ CRITICAL: Use `find backend` command to locate migration files.**
+
+**Command**:
+
+```bash
+# Find migration by resource name
+find backend -type f -name "*_{resource}_table.php" 2>/dev/null | head -10
+```
+
+**If a field is unclear, check the migration**:
+
+- `backend/Modules/{Module}/database/migrations/*_{resource}_table.php`
+
+**Example**:
+
+```bash
+# Find users table migration
+find backend -type f -name "*_users_table.php" 2>/dev/null | head -10
+```
+
+**Verify**:
+
+- Field exists in database
+- Field type matches TypeScript type
+- Nullable fields vs required fields
+
+## Common Patterns
+
+### Pattern 1: Timestamps in Resources
+
+**BaseResource** (used in lists):
+
+- Usually includes `created_at` and `updated_at`
+
+**Resource** (used in detail):
+
+- Usually does NOT include `created_at` and `updated_at`
+
+**Frontend type handling**:
+
+- Make `created_at` and `updated_at` optional
+- They're present in list responses but not detail responses
+
+**Example**:
+
+```typescript
+export type Space = {
+  // ... other fields
+  created_at?: string // Only in list responses
+  updated_at?: string // Only in list responses
+}
+```
+
+### Pattern 2: Translatable Models
+
+**Models using `Translatable` trait**:
+
+- Check if translations are explicitly included in resources
+- If not in `toArray()`, translations are likely NOT in API response
+- Keep as optional in frontend type if unsure
+
+**Example**:
+
+```php
+// Model
+use Astrotomic\Translatable\Translatable;
+
+public $translatedAttributes = ['name', 'description'];
+
+// Resource - check if translations are included
+public function toArray($request): array
+{
+    return [
+        'name' => $this->name,  // Translated field
+        // translations not explicitly included
+    ];
+}
+```
+
+### Pattern 3: Relationships with `whenLoaded()`
+
+**All relationships use `whenLoaded()`**:
+
+- Fields are optional in API response
+- Only included when relationship is loaded in controller
+
+**Frontend type handling**:
+
+- Make relationship fields optional
+- Match the structure of the nested resource
+
+**Example**:
+
+```php
+'center' => $this->whenLoaded('center', function () {
+    return new BaseCenterResource($this->center);
+}),
+```
+
+```typescript
+export type Space = {
+  center?: {
+    id: number
+    name: string
+    // ... BaseCenterResource fields
+  }
+}
+```
+
+### Pattern 4: Collections vs Single Resources
+
+**Collections** (lists):
+
+- Use `Base{Resource}Resource` for items
+- Wrapped in `{Resource}Collection` with pagination
+
+**Single resources** (detail):
+
+- Use `{Resource}Resource` directly
+
+**Frontend type handling**:
+
+- List queries return `PaginatedResponse<Resource[]>`
+- Detail queries return `Resource`
+
+### Pattern 5: Nested Resources (Recursive Types)
+
+**When resources reference themselves**:
+
+- Use `Pick<>` utility type to avoid circular references
+- Only include essential fields in nested structure
+
+**Example**:
+
+```typescript
+export type Space = {
+  extendables?: Array<
+    Pick<Space, 'id' | 'name' | 'slug' | 'created_at' | 'updated_at'>
+  >
+  extended_by?: Array<
+    Pick<Space, 'id' | 'name' | 'slug' | 'created_at' | 'updated_at'>
+  >
+}
+```
+
+### Pattern 6: Computed Fields (Accessors)
+
+**Fields added via `$appends` or accessor methods**:
+
+- Check model for `$appends` array
+- Check for `get{Field}Attribute()` methods
+- These fields ARE in API response even if not in database
+
+**Example**:
+
+```php
+protected $appends = ['image_url'];
+
+protected function getImageUrlAttribute()
+{
+    return $this->image ? $this->getFileUrl($this->image) : null;
+}
+```
+
+```typescript
+export type Space = {
+  image_url: null | string // Computed field, not in database
+}
+```
+
+### Pattern 7: Polymorphic Relations and Raw `whenLoaded()` Values
+
+**When resource returns a relation directly** (example: `'invoiceable' => $this->whenLoaded('invoiceable')`):
+
+- It may return raw model attributes, not a dedicated resource shape
+- Check model casts/accessors to detect `string | number` decimal fields
+- For polymorphic data, use a union or a broad typed object with nullable fields
+
+**Frontend type handling**:
+
+- Model relation key as optional only if `whenLoaded()` is used
+- Keep key required but nullable when backend always returns key with `null`
+- Prefer `null | number | string` for decimal-like fields unless cast is guaranteed
+
+### Pattern 8: Heterogeneous Arrays and Null Variants
+
+**Array items can vary within one response**:
+
+- Do not infer item shape from first element only
+- Validate at least first, middle, and last items from real payload
+- Convert varying fields to unions (`null | number`, `null | Record<string, unknown>`, etc.)
+
+**Example pitfalls**:
+
+- `item.id` may be `number` in some rows and `null` in others
+- `metadata` may be object in some rows and `null` in others
+
+## Validation Checklist
+
+When validating a type, ensure:
+
+- [ ] Frontend type symbol matches the actual endpoint payload (not just same file/module name)
+- [ ] Correct namespace is used (`resources/Admin/*` vs `resources/Api/*`)
+- [ ] All fields in resource `toArray()` are in frontend type
+- [ ] No fields in frontend type that aren't in resource
+- [ ] Optional fields match `whenLoaded()` conditions
+- [ ] Keys returned with explicit `null` are typed as nullable (not optional-only)
+- [ ] Nested resources match their resource structure
+- [ ] Polymorphic/raw relations are validated from model casts and real payload
+- [ ] Timestamps are optional if detail endpoint doesn't include them
+- [ ] Computed fields (accessors) are included if in `$appends`
+- [ ] Field types match (string, number, boolean, null, etc.)
+- [ ] Arrays are typed using all observed variants, not first element only
+- [ ] Recursive types use `Pick<>` to avoid circular references
+- [ ] Validation sample compiles with `const _: Type = sample` in a temporary file, then removed
+
+## Common Mistakes to Avoid
+
+### ❌ DON'T: Validate the wrong type symbol for the endpoint
+
+```typescript
+// ❌ WRONG: Endpoint returns Invoice payload, but validated against Booking type
+const payload: Booking = backendInvoiceResponse
+```
+
+### ❌ DON'T: Mix Admin and Api resources
+
+- `resources/Admin/*` and `resources/Api/*` can have different fields
+- Always map endpoint route group to matching resource namespace
+
+### ❌ DON'T: Include fields not in resource
+
+```typescript
+// ❌ WRONG: fallback_rate not in SpaceResource
+export type Space = {
+  fallback_rate: null | number
+}
+```
+
+### ❌ DON'T: Make required fields optional when they're always present
+
+```typescript
+// ❌ WRONG: id is always in response
+export type Space = {
+  id?: number
+}
+```
+
+### ❌ DON'T: Include timestamps in detail response types
+
+```typescript
+// ❌ WRONG: SpaceResource (detail) doesn't include timestamps
+export type SpaceById = Space & {
+  created_at: string // Not in SpaceResource
+  updated_at: string // Not in SpaceResource
+}
+```
+
+### ❌ DON'T: Infer array item field types from one element
+
+```typescript
+// ❌ WRONG: misses null cases from other items
+type InvoiceItem = {
+  metadata: Record<string, unknown>
+  item: { id: number; type: string }
+}
+```
+
+### ✅ DO: Match resource structure exactly
+
+```typescript
+// ✅ CORRECT: Matches SpaceResource.toArray()
+export type Space = {
+  id: number
+  name: string
+  description: string
+  // ... all fields from resource
+}
+```
+
+### ✅ DO: Make relationship fields optional
+
+```typescript
+// ✅ CORRECT: Relationships use whenLoaded()
+export type Space = {
+  center?: {
+    id: number
+    name: string
+  }
+}
+```
+
+### ✅ DO: Check both BaseResource and Resource
+
+```typescript
+// ✅ CORRECT: Timestamps optional (only in BaseResource)
+export type Space = {
+  created_at?: string // In BaseSpaceResource (lists)
+  updated_at?: string // In BaseSpaceResource (lists)
+}
+```
+
+## Examples
+
+### Example 1: Space Type Validation
+
+**Frontend type**: `query/spaces/spaces-types.ts`
+
+**Backend resources**:
+
+1. `backend/Modules/Space/App/Http/Controllers/Api/SpaceController.php`
+   - `index()` uses `SpaceCollection` → `BaseSpaceResource`
+   - `show()` uses `SpaceResource`
+2. `backend/Modules/Space/App/resources/Api/Space/BaseSpaceResource.php`
+   - Includes `created_at`, `updated_at`
+3. `backend/Modules/Space/App/resources/Api/Space/SpaceResource.php`
+   - Does NOT include `created_at`, `updated_at`
+
+**Validation results**:
+
+- ✅ Removed `fallback_rate` (not in model, migration, or resources)
+- ✅ Made `created_at`/`updated_at` optional (only in BaseResource)
+- ✅ Fixed `doors` type (array of Door objects, not IDs)
+- ✅ Fixed `extendables`/`extended_by` (array of Space objects)
+- ✅ Verified all nested resources match their resource structures
+
+### Example 2: SpaceLayout Type Validation
+
+**Frontend type**: `query/space-layouts/space-layouts-types.ts`
+
+**Backend resources**:
+
+1. `backend/Modules/Space/App/resources/Api/SpaceLayout/SpaceLayoutResource.php`
+2. `backend/Modules/Space/App/resources/Api/SpaceLayout/BaseSpaceLayoutResource.php`
+
+**Validation results**:
+
+- ✅ Removed `created_at`/`updated_at` from `SpaceLayout` (not in BaseSpaceLayoutResource)
+- ✅ Added `space` relationship to `SpaceLayoutById` (in SpaceLayoutResource)
+- ✅ Removed `translations` from `SpaceLayoutById` (not in resource)
+
+## Quick Reference
+
+**Backend folder**: `/backend` in project root
+
+**Resource path**: `backend/Modules/{Module}/App/resources/Api/{Resource}/`
+
+**Admin resource path**: `backend/Modules/{Module}/App/resources/Admin/{Resource}/`
+
+**Model path**: `backend/Modules/{Module}/App/Models/{Model}.php`
+
+**Controller path**: `backend/Modules/{Module}/App/Http/Controllers/{Api|Admin}/{Resource}Controller.php`
+
+**Migration path**: `backend/Modules/{Module}/database/migrations/*_{resource}_table.php`
+
+**Key files to read**:
+
+1. Controller → Identify which resource is used
+2. Resource `toArray()` → Exact API response structure
+3. Model → Relationships, accessors, fillable fields
+4. Migration → Database schema (if needed)
+
+**Validation order**:
+
+1. Find controller
+2. Identify resource
+3. Read resource `toArray()`
+4. Trace nested resources
+5. Check model relationships
+6. Verify field types
+7. Update frontend type

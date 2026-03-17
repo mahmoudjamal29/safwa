@@ -1,0 +1,1358 @@
+---
+description: Comprehensive guide for creating feature folder structures following the tenants pattern. Defines the standardized folder organization, naming conventions, component patterns, and integration with queries, forms, tables, and routing. Ensures ALL feature logic is contained within the main feature directory.
+globs: app/(app)/**, query/**, components/data-table/**
+alwaysApply: false
+---
+
+# Feature Structure Pattern
+
+## Overview
+
+This rule defines the standardized folder structure and patterns for creating features in the application, based on the tenants feature architecture. This pattern ensures consistency, maintainability, and scalability across all features.
+
+**⚠️ IMPORTANT: By default, use hard-coded English strings in all examples and implementations. Translations should only be added when explicitly requested by the user.**
+
+**⚠️ CRITICAL: ALL feature logic MUST be contained within `app/(app)/{feature_name}/_{feature_name}/`**
+
+- Pages (`page.tsx`, `create/page.tsx`, etc.) should be **thin wrappers** that import and render components from `_{feature_name}/`
+- All business logic, components, columns, forms, hooks, tables, tabs, and types MUST live in `_{feature_name}/`
+- Only route files (pages) should exist outside the `_{feature_name}/` folder
+- Query layer remains separate in `query/{feature_name}/` (this is the only exception)
+
+**⚠️ CRITICAL: Multi-Resource Features**
+
+When a feature has multiple resources (e.g., `area` feature with `cities`, `states`, `countries`), **ALL resources MUST share the same `_{feature}/` folder**. Resources should **NOT** have their own `_{resource}/` folders within a feature.
+
+**✅ CORRECT Structure (Multi-Resource Feature):**
+
+```
+app/(Dashboard)/area/
+├── _area/                          # ⚠️ ALL FEATURE LOGIC HERE (shared by all resources)
+│   ├── columns/
+│   │   ├── cities-columns.tsx
+│   │   ├── states-columns.tsx
+│   │   └── countries-columns.tsx
+│   ├── form-options/
+│   │   ├── cities-form-options.tsx
+│   │   ├── states-form-options.tsx
+│   │   └── countries-form-options.tsx
+│   ├── forms/
+│   │   ├── cities/                 # Organize forms by resource in subfolders
+│   │   │   ├── basic-info.tsx
+│   │   │   ├── city-form.tsx
+│   │   │   └── location.tsx
+│   │   ├── states/
+│   │   │   ├── basic-info.tsx
+│   │   │   ├── state-form.tsx
+│   │   │   └── location.tsx
+│   │   └── countries/
+│   │       ├── basic-info.tsx
+│   │       ├── country-form.tsx
+│   │       └── location.tsx
+│   ├── hooks/
+│   │   ├── cities-params.ts
+│   │   ├── states-params.ts
+│   │   ├── countries-params.ts
+│   │   └── index.ts
+│   └── tables/
+│       ├── cities-table.tsx
+│       ├── states-table.tsx
+│       └── countries-table.tsx
+├── cities/                         # Route pages for cities
+│   ├── [cityId]/
+│   │   └── edit-city/
+│   │       └── page.tsx
+│   ├── create/
+│   │   └── page.tsx
+│   └── page.tsx
+├── states/                         # Route pages for states
+│   └── ...
+└── countries/                      # Route pages for countries
+    └── ...
+```
+
+**❌ WRONG Structure (DO NOT DO THIS):**
+
+```
+app/(Dashboard)/area/
+├── cities/
+│   ├── _cities/                    # ❌ WRONG: Resource-specific folder
+│   │   └── ...
+│   └── page.tsx
+├── states/
+│   ├── _states/                    # ❌ WRONG: Resource-specific folder
+│   │   └── ...
+│   └── page.tsx
+└── countries/
+    ├── _countries/                 # ❌ WRONG: Resource-specific folder
+    │   └── ...
+    └── page.tsx
+```
+
+**Key Points:**
+
+- **ALL resources share `_{feature}/` folder** - No resource-specific `_{resource}/` folders
+- **Forms organized by resource** - Use subfolders in `forms/` (e.g., `forms/cities/`, `forms/states/`)
+- **Columns, tables, form-options at root** - These files are named by resource (e.g., `cities-columns.tsx`, `states-table.tsx`)
+- **Hooks consolidated** - All resource hooks in same `hooks/` folder with barrel export
+- **Import paths** - Pages import from `@/app/(Dashboard)/{feature}/_{feature}/...` (not from resource-specific folders)
+
+## ⚠️⚠️⚠️ MANDATORY: Date and Time Formatting Requirements ⚠️⚠️⚠️
+
+**🚨 CRITICAL: ALL dates and times in the application MUST use standardized formatting functions. This is a mandatory requirement with NO exceptions.**
+
+### For Table Columns
+
+**ALL date/time values in table columns MUST use `Column.DateColumn` from `@/components/data-table/columns/date`:**
+
+```typescript
+// ✅ CORRECT: Use Column.DateColumn for all date/time columns
+cell: ({ row }) => (
+  <Column.DateColumn value={row.original.created_at} />
+)
+```
+
+### For All Other Components (Outside Tables)
+
+**ALL date/time values displayed outside of table columns MUST use `formatDate` from `@/utils/formatters`:**
+
+```typescript
+import { formatDate } from '@/utils'
+
+// ✅ CORRECT: Use formatDate for all date/time displays
+const { date, time, dateTime } = formatDate(entity.created_at)
+return <div>{date} {time}</div>
+
+// ✅ CORRECT: With custom options
+const { date } = formatDate(entity.created_at, {
+  dateFormat: 'dd MMM yyyy',
+  disableRelativeFormatting: true
+})
+
+// ❌ WRONG: Manual date formatting - STRICTLY FORBIDDEN
+const date = new Date(entity.created_at)
+return <div>{date.toLocaleDateString()}</div>
+
+// ❌ WRONG: Using date-fns directly - STRICTLY FORBIDDEN
+import { format } from 'date-fns'
+return <div>{format(new Date(entity.created_at), 'dd/MM/yyyy')}</div>
+```
+
+**Why this is mandatory:**
+
+- **Consistency**: Ensures all dates are formatted identically across the application
+- **Locale support**: Automatic Arabic/English locale detection and formatting
+- **Timezone handling**: Proper client timezone conversion
+- **RTL support**: Correct right-to-left layout for Arabic
+- **Maintainability**: Single source of truth for date formatting logic
+- **User experience**: Smart formatting (Today/Yesterday) improves readability
+
+**Reference Implementation:**
+
+- Table columns: `@/components/data-table/columns/date.tsx` (uses `formatDate` internally)
+- Formatter function: `@/utils/formatters.ts` (exports `formatDate`)
+
+See [code-comments.mdc](mdc:.cursor/rules/_common/code-comments.mdc) for code commenting standards.
+
+**⚠️ MANDATORY:** See [context7-docs.mdc](mdc:.cursor/rules/_common/context7-docs.mdc) for Context7 MCP requirements and [nextjs-devtools.mdc](mdc:.cursor/rules/_common/nextjs-devtools.mdc) for Next.js DevTools MCP requirements.
+
+## Required Structure
+
+**⚠️ CRITICAL: All feature logic MUST be in `app/(app)/{feature_name}/_{feature_name}/`**
+
+Create the following structure, replacing `{feature}` and `{Feature}` appropriately (e.g., `products`, `Product`):
+
+```
+app/(app)/{feature-name}/
+├── page.tsx                    # Main list/page component (thin wrapper)
+├── create/
+│   └── page.tsx               # Create page (minimal wrapper)
+├── [{resource_info}]/         # Dynamic route for resource details
+│   ├── profile/
+│   │   └── page.tsx           # Profile/detail page (server component)
+│   ├── edit-{resource}/
+│   │   └── page.tsx           # Edit resource page (thin wrapper)
+│   ├── add-{nested-resource}/
+│   │   └── page.tsx           # Add nested resource page (thin wrapper)
+│   └── edit-{nested-resource}/
+│       └── [{nested_id}]/
+│           └── page.tsx       # Edit nested resource page (thin wrapper)
+└── _{feature-name}/           # ⚠️ ALL FEATURE LOGIC GOES HERE
+    ├── columns/               # DataTable column definitions
+    │   └── {resource}-columns.tsx
+    │   # For multi-resource features: cities-columns.tsx, states-columns.tsx, etc.
+    ├── components/            # Shared feature components
+    │   └── {resource}-header-buttons.tsx
+    ├── form-options/          # Form configuration and schemas
+    │   └── {resource}-form-options.ts
+    │   # For multi-resource features: cities-form-options.tsx, states-form-options.tsx, etc.
+    ├── forms/                 # Form components and field groups
+    │   ├── {resource}-form.tsx
+    │   └── {section-name}.tsx
+    │   # For multi-resource features: organize by resource in subfolders
+    │   # forms/cities/, forms/states/, forms/countries/
+    ├── hooks/                 # Custom hooks with barrel export
+    │   ├── index.ts
+    │   └── {feature}-params.ts
+    │   # For multi-resource features: cities-params.ts, states-params.ts, etc.
+    ├── tables/                # Table components
+    │   └── {resource}-table.tsx
+    │   # For multi-resource features: cities-table.tsx, states-table.tsx, etc.
+    ├── tabs/                  # Tab components
+    │   └── {tab-name}-tab.tsx
+    └── types/                 # TypeScript type definitions
+        └── tabs-types.ts
+
+query/{feature-name}/          # Query layer (separate from app folder)
+├── {feature-name}-types.ts    # Entity types (all resources in one file for multi-resource features)
+├── {feature-name}-query.ts    # queryOptions + get/list/detail (all resources)
+├── {feature-name}-mutations.ts # mutationOptions (all resources)
+└── index.ts                   # Barrel exports
+```
+
+## Private Feature Folder (`_{feature-name}/`)
+
+**⚠️ CRITICAL: This folder contains ALL feature logic. Pages are thin wrappers only.**
+
+The private folder (prefixed with underscore) contains all shared components, utilities, and configurations for the feature. **DO NOT** place business logic in page files - always extract to `_{feature_name}/`.
+
+### Directory Purposes:
+
+- **`columns/`**: DataTable column definitions
+  - Each table should have its own column file
+  - Naming: `{resource}-columns.tsx`
+  - Export column hook: `use{Resource}Columns()` (must be a hook, see [data-table.mdc](mdc:.cursor/rules/ui-components/data-table.mdc))
+
+- **`components/`**: Shared feature components
+  - Reusable components specific to the feature
+  - Examples: header buttons, modals, custom UI elements
+  - Naming: `{resource}-{purpose}.tsx`
+  - **⚠️ CRITICAL: For delete dialogs, ALWAYS use `useRowActions` hook which handles delete dialog internally**
+    - **DO NOT manually render `DeleteConfirmationDialog`** - The hook returns `deleteDialog` to pass as prop to `DataTable`
+    - **DO NOT create custom delete dialog wrapper components** - Use `useRowActions` hook pattern
+    - **DO NOT manually manage delete state** - Hook handles `deleteItem` and `deleteOpen` internally
+    - Only create custom delete dialogs if there's specific business logic that cannot be handled by the standard dialog (e.g., deactivate vs delete with different flows)
+    - See [data-table.mdc](mdc:.cursor/rules/ui-components/data-table.mdc) for the standard delete dialog pattern
+
+- **`form-options/`**: Form configuration and validation schemas
+  - Uses `formOptions` from `@tanstack/react-form`
+  - Includes Zod validation schemas
+  - Naming: `{resource}-form-options.tsx` or `{resource}-form-options.ts`
+
+- **`forms/`**: Form components and field groups
+  - Main form component: `{resource}-form.tsx`
+  - Field groups: `{section-name}.tsx` (e.g., `basic-info.tsx`, `contact.tsx`)
+  - Uses `withForm` HOC for field components
+
+- **`hooks/`**: Custom hooks
+  - Must include `index.ts` barrel export
+  - Examples: URL params hooks, feature-specific hooks
+  - Naming: `{purpose}-hook.ts` or `{feature}-{purpose}.ts`
+  - **ALWAYS create query parameters in the `{feature}-params.ts` hook**. The hook must return a `standardQueryParams` object containing **ONLY** `page`, `per_page`, and `search`. Additional filters should be returned separately and combined when needed. **DO NOT** create query params objects inline in components or tabs. See [data-table.mdc](mdc:.cursor/rules/ui-components/data-table.mdc) for the Query Params Hook Pattern.
+
+- **`tables/`**: Table components
+  - Reusable table components for the feature
+  - Naming: `{resource}-table.tsx`
+  - Uses DataTable components
+
+- **`tabs/`**: Tab components
+  - Components used in tabbed interfaces
+  - Naming: `{tab-name}-tab.tsx`
+
+- **`types/`**: TypeScript type definitions
+  - Shared types for the feature
+  - Naming: `{purpose}-types.ts`
+
+## Generation Requirements
+
+- **React Query (required)**
+  - Use `queryOptions` for queries and wrap with `useQuery` in components.
+  - For mutations, create `mutationOptions` exports (e.g., `create{Feature}MutationOptions`, `update{Feature}MutationOptions`, `delete{Feature}MutationOptions`) with `meta.invalidatesQuery` keys for list/detail. See [react-query.mdc](mdc:.cursor/rules/data-layer/react-query.mdc) for pattern.
+  - Use project `fetcher<T>()` and `auth: true` where appropriate.
+  - Use query keys consistent with `query-client/query.d.ts` and existing patterns.
+  - When extending user-related functionality (e.g., riders or their parents), reuse the existing `'users'` query key root. Do **not** add new root keys such as `'riders-*'`; instead append segments (`['users', 'parents', riderId]`).
+  - When types already live in another feature (e.g., `query/users/users-types.ts` provides `Parent`), extend that module instead of introducing a parallel `query/{feature}` directory.
+
+- **TanStack Table (required)**
+  - Create `{feature}-columns.tsx` in `_{feature}/columns/` exporting `use{Resource}Columns()` hook that returns `ColumnDef<{Feature}>[]` with sensible columns and an `actions` column using `DataTableRowActions` and `createRowActions`.
+  - Create `{feature}-table.tsx` in `_{feature}/tables/` that:
+    - Calls `useQuery(get{FeaturePlural}Options(...))` from the query layer.
+    - Uses `useDataTable` to configure pagination, sorting, and pinning; passes data and columns to shared `DataTable`.
+  - Row actions should `router.push` to `/{feature}/{id}/edit` rather than opening in-place modals by default.
+
+- **TanStack Form (required)**
+  - In `form-options/{feature}-form-options.ts`, define a Zod schema and a `formOptions` factory for create/edit.
+  - In `forms/{feature}-form.tsx`, initialize with `useAppForm({ ...{Feature}FormOptions(data), validators: { onChange: schema } })` and wire submit to mutation hooks from query layer.
+
+- **Permissions (recommended)**
+  - Use `usePermissions()` and `PERMISSIONS.{FEATURE}_CREATE|UPDATE|DESTROY` to guard actions (buttons, row actions, submit buttons).
+
+## Inter-Rule References (must follow)
+
+- **Use the react-query rule** for all data fetching and mutations. Do not inline fetch calls in components.
+- **Use the data-table rule** to build columns and table; pass query hook data and `columns` to the shared `DataTable`.
+- **Use the tanstack-form rule** to build form options and form; submit via mutation hooks.
+- **Use the permission-system rule** to wrap or disable UI elements based on required permissions.
+
+## Page Patterns
+
+**⚠️ CRITICAL: Pages should be THIN WRAPPERS. All logic goes in `_{feature_name}/`**
+
+### 1. Main List Page (`page.tsx`)
+
+**⚠️ CRITICAL: Main list pages MUST follow this exact pattern:**
+
+- Page is a **server component** (async function, no `'use client'`)
+- Page MUST include `PageHeader` component with `title` and `description`
+- Client component (table) MUST accept `className` prop
+- **⚠️ CRITICAL: Pass `className="m-5"` to the table component when it's a direct child of PageHeader (no tabs)**
+- **⚠️ CRITICAL: Do NOT pass `className="m-5"` when table is inside TabsContent (tabs handle spacing)**
+- Client component MUST use `cn()` utility to merge `className` with base classes
+
+```tsx
+import { Metadata } from 'next'
+
+import { {Resource}Table } from '@/app/(app)/{feature}/_{feature}/tables/{resource}-table'
+import {PageHeader} from '@/components/custom/page-header'
+
+export default async function {Resource}TablePage() {
+  return (
+    <>
+      <PageHeader description="Manage and view {Resources}" title="{Resources}" />
+      <{Resource}Table className="m-5" />
+    </>
+  )
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Manage and view {Resources}',
+    title: '{Resources}'
+  }
+}
+```
+
+**Client Component Pattern (Table Component):**
+
+The table component MUST accept `className` prop and use `cn()` to merge it. The `toolbar` prop MUST be passed to `DataTable`, and `main` must use `className={cn('relative', className)}`:
+
+```tsx
+'use client'
+
+import { cn } from '@/utils'
+import { DataTable, DataTableToolbar } from '@/components/data-table'
+
+export const {Resource}Table: React.FC<{ className?: string }> = ({
+  className
+}) => {
+  // ... table logic ...
+
+  return (
+    <main className={cn('relative', className)}>
+      <DataTable
+        toolbar={
+          <DataTableToolbar
+            createButtonHref="/{feature}/create"
+            table={table}
+          />
+        }
+        table={table}
+      />
+    </main>
+  )
+}
+```
+
+**OR** if the page needs to handle routing/params directly:
+
+```tsx
+'use client'
+
+import React from 'react'
+import { useQuery } from '@tanstack/react-query'
+
+import {PageHeader} from '@/components/custom/page-header'
+import { DataTable, DataTableToolbar, DataTableViewOptions } from '@/components/data-table'
+import { useDataTable } from '@/hooks/use-data-table'
+import { useRowActions } from '@/hooks/use-row-actions'
+
+import { use{Resource}Columns } from '@/app/(app)/{feature}/_{feature}/columns/{resource}-columns'
+import { use{Feature}Params } from '@/app/(app)/{feature}/_{feature}/hooks'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { getAll{Resource}Query, delete{Resource}MutationOptions } from '@/query/{feature}'
+
+export default function {Resource}TablePage() {
+  const { standardQueryParams, status, type } = use{Feature}Params()
+  const { data: {resources}, isLoading, isError, error, refetch } = useQuery(
+    getAll{Resource}Query({ ...standardQueryParams, ...(type && { type }), ...(status && { status }) })
+  )
+
+  const { deleteDialog, permissions, setRowAction } = useRowActions<{Resource}>({
+    deleteDialogConfig: {
+      description: 'Are you sure you want to delete this {resource}?',
+      getItemName: ({resource}) => {resource}.name,
+      title: 'Delete {Resource}'
+    },
+    deleteMutationOptions: delete{Resource}MutationOptions,
+    permissions: {
+      delete: PERMISSIONS.{FEATURE}_DESTROY,
+      update: PERMISSIONS.{FEATURE}_UPDATE,
+      view: PERMISSIONS.{FEATURE}_SHOW
+    },
+    redirectOnUpdate: ({resource}) => `/{feature}/${resource}.id}/edit`,
+    redirectOnView: ({resource}) => `/{feature}/${resource}.id}/profile`
+  })
+
+  const columns = use{Resource}Columns({
+    permissions,
+    setRowAction
+  })
+
+  const { table } = useDataTable({
+    clearOnDefault: true,
+    columns,
+    data: {resources}?.data?.data || [],
+    getRowId: (originalRow) => `${originalRow.id}`,
+    initialState: {
+      columnPinning: { right: ['actions'] },
+      pagination: {
+        pageIndex: {resources}?.data?.pagination?.current_page || 0,
+        pageSize: {resources}?.data?.pagination?.per_page || 15
+      },
+      sorting: [{ desc: true, id: 'id' }]
+    },
+    pageCount: {resources}?.data?.pagination?.last_page || 0,
+    rowCount: {resources}?.data?.pagination?.total || 0
+  })
+
+  return (
+    <>
+      <PageHeader
+        description="Manage {resource} information"
+        title="{Resources}"
+      />
+      <main className={cn('relative', className)}>
+        <DataTable
+          deleteDialog={deleteDialog}
+          error={error}
+          isError={isError}
+          isLoading={isLoading}
+          refetch={refetch}
+          toolbar={
+            <DataTableToolbar
+              createButtonHref="/{feature}/create"
+              filters={[
+                {
+                  key: 'type',
+                  label: 'Type',
+                  options: [
+                    { key: 'option1', label: 'Option 1', value: '1' },
+                    { key: 'option2', label: 'Option 2', value: '2' }
+                  ]
+                },
+                {
+                  key: 'status',
+                  label: 'Status',
+                  options: [
+                    { key: 'active', label: 'Active', value: '1' },
+                    { key: 'inactive', label: 'Inactive', value: '0' }
+                  ]
+                }
+              ]}
+              permissions={{
+                create: PERMISSIONS.{FEATURE}_CREATE
+              }}
+              searchPlaceholder="Search {resources}"
+              table={table}
+            />
+          }
+          table={table}
+        />
+      </main>
+    </>
+  )
+}
+
+// Note: This example assumes className is passed as prop. For page components, use the pattern shown in the table component example above.
+```
+
+### 2. Create Page (`create/page.tsx`)
+
+Minimal wrapper that renders the form component from `_{feature}/forms/`.
+
+**⚠️ CRITICAL: Form pages MUST pass `className="m-5"` to form components when they are direct children of PageHeader (not inside tabs):**
+
+- **✅ DO**: Pass `className="m-5"` when form is direct child of `PageHeader` (no tabs)
+- **❌ DON'T**: Pass `className="m-5"` when form is inside `TabsContent` (tabs handle spacing)
+
+```tsx
+import { Metadata } from 'next'
+
+import { {Resource}Form } from '@/app/(app)/{feature}/_{feature}/forms/{resource}-form'
+
+export default async function Create{Resource}Page() {
+  return <{Resource}Form className="m-5" />
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Create a new {resource}',
+    title: 'Create {Resource}'
+  }
+}
+```
+
+### 3. Edit Page (`[{resource_info}]/edit-{resource}/page.tsx`)
+
+Thin wrapper that prefetches resource data on the server and lets the client form read it via `useQuery`.
+
+**⚠️ CRITICAL: Form pages MUST pass `className="m-5"` to form components when they are direct children of PageHeader (not inside tabs):**
+
+**⚠️ CRITICAL: Server component MUST use `prefetchQuery` with try-catch for edit pages and pass only identifiers/flags to the client form (not the fetched entity). The client form MUST call `useQuery` directly.**
+
+```tsx
+import { Metadata } from 'next'
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query'
+
+import { getQueryClient } from '@/query-client'
+import { get{Resource}ByIdQuery } from '@/query/{feature}'
+import { {Resource}Form } from '@/app/(app)/{feature}/_{feature}/forms/{resource}-form'
+
+type {Resource}EditPageProps = {
+  params: Promise<{
+    {resource_info}: string
+  }>
+}
+
+export default async function {Resource}EditPage({
+  params
+}: {Resource}EditPageProps) {
+  const { {resource_info} } = await params
+  const id = {resource_info}.split('-').at(-1)
+  const queryClient = getQueryClient()
+
+  // Pre-fetch data on server with error handling
+  try {
+    await queryClient.prefetchQuery(get{Resource}ByIdQuery(id))
+  } catch (error) {
+    console.error(error)
+  }
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <{Resource}Form className="m-5" isEdit {resource}Id={id} />
+    </HydrationBoundary>
+  )
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Edit {resource}',
+    title: 'Edit {Resource}'
+  }
+}
+```
+
+### 4. Profile/Detail Page (`[{resource_info}]/profile/page.tsx`)
+
+Server component that prefetches data and displays tabs. Tab components come from `_{feature}/tabs/`.
+
+**⚠️ CRITICAL: Server component MUST use `prefetchQuery` with try-catch and `HydrationBoundary`**
+
+**⚠️ MANDATORY: Client/child components MUST use `useQuery` directly - they should NOT access data from server prefetch**
+
+**⚠️ IMPORTANT: When using reusable client components that need mutations (e.g., `HeaderActions` with toggle mutations), pass mutation options from the query layer**:
+
+```tsx
+import { Metadata } from 'next'
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query'
+
+import { NotFound } from '@/components/ui/not-found'
+import { getQueryClient } from '@/query-client'
+import { get{Resource}ByIdQuery } from '@/query/{feature}'
+import { {Resource}Tabs } from '@/app/(app)/{feature}/_{feature}/tabs/{resource}-tabs'
+
+type {Resource}InfoPageProps = {
+  params: Promise<{
+    {resource_info}: string
+  }>
+}
+
+export async function generateMetadata({
+  params
+}: {Resource}InfoPageProps): Promise<Metadata> {
+  const { {resource_info} } = await params
+  const id = {resource_info}.split('-').at(-1)
+  const queryClient = getQueryClient()
+  let {resource}
+
+  try {
+    const result = await queryClient.fetchQuery(get{Resource}ByIdQuery(id))
+    {resource} = result.data
+  } catch (error) {
+    console.error(error)
+  }
+
+  return {
+    description: {resource}?.email || 'View {resource} details',
+    title: {resource}?.name || '{Resource} Details'
+  }
+}
+
+export default async function {Resource}InfoPage({ params }: {Resource}InfoPageProps) {
+  const { {resource_info} } = await params
+  const id = {resource_info}.split('-').at(-1)
+
+  if (!id) {
+    return <NotFound title="{Resource} not found" />
+  }
+
+  const queryClient = getQueryClient()
+
+  // Pre-fetch data on server with error handling
+  try {
+    await queryClient.prefetchQuery(get{Resource}ByIdQuery(id))
+  } catch (error) {
+    console.error(error)
+  }
+
+  // Wrap client component with HydrationBoundary to pass dehydrated state
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <{Resource}Tabs {resource}Id={id} />
+    </HydrationBoundary>
+  )
+}
+```
+
+**⚠️ MANDATORY: Client Component Pattern - MUST use `useQuery` directly**
+
+```tsx
+'use client'
+
+import { HeaderActions } from '@/components/custom/header-actions'
+import {PageHeader} from '@/components/custom/page-header'
+import { NotFound } from '@/components/ui/not-found'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useQuery } from '@tanstack/react-query'
+
+import { {NestedResource}Table } from '@/app/(app)/{feature}/_{feature}/tables/{nested-resource}-table'
+import { {Tab}Tab } from '@/app/(app)/{feature}/_{feature}/tabs/{tab-name}-tab'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { get{Resource}ByIdQuery, toggle{Resource}StatusMutationOptions } from '@/query/{feature}'
+
+type {Resource}TabsProps = {
+  {resource}Id: string | number
+}
+
+export const {Resource}Tabs: React.FC<{Resource}TabsProps> = ({ {resource}Id }) => {
+  // ✅ CORRECT: Client component MUST use useQuery directly
+  // The prefetched data from server is automatically used via HydrationBoundary
+  const { data: {resource}, isLoading, isError } = useQuery(get{Resource}ByIdQuery({resource}Id))
+
+  if (!{resource} || isError) {
+    return <NotFound title="{Resource} not found" />
+  }
+
+  return (
+    <>
+      <PageHeader
+        badge={resource?.badge}
+        image={resource?.image_url || undefined}
+        title={resource?.name}
+      >
+        <HeaderActions
+          activeToggleMutation={{
+            mutationFnParam: {resource}Id,
+            mutationOptions: toggle{Resource}StatusMutationOptions
+          }}
+          editPath={`/{feature}/edit/${resource}Id}`}
+          editPermissionKey={PERMISSIONS.{FEATURE}_UPDATE}
+          initialStatus={resource?.status === 1}
+          email={resource?.email}
+          phone={resource?.phone}
+        />
+      </PageHeader>
+      <Tabs defaultValue="profile" useUrlState>
+        <TabsList>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="{tab1}">{Tab1}</TabsTrigger>
+          <TabsTrigger value="{tab2}">{Tab2}</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="profile">
+          <{NestedResource}Table
+            {resource}Id={resource}Id}
+            {resource}Name={resource.name}
+          />
+        </TabsContent>
+
+        <TabsContent value="{tab1}">
+          <{Tab}Tab {resource}Id={resource}Id} />
+        </TabsContent>
+      </Tabs>
+    </>
+  )
+}
+```
+
+**Pattern for reusable mutation components**:
+
+- Export `mutationOptions` from query layer (see [react-query.mdc](mdc:.cursor/rules/data-layer/react-query.mdc) for pattern)
+- Pass `{ mutationFnParam: id, mutationOptions: toggle{Resource}StatusMutationOptions }` to client components
+- Client components use `useMutation(mutationOptions)` internally
+- This allows the same component to work with different mutations across features
+
+### 5. Add Nested Resource Page (`[{resource_info}]/add-{nested-resource}/page.tsx`)
+
+Thin wrapper that extracts parent resource info and renders nested form from `_{feature}/forms/`.
+
+```tsx
+import { NotFound } from '@/components/ui/not-found'
+
+import { {NestedResource}Form } from '@/app/(app)/{feature}/_{feature}/forms/{nested-resource}-form'
+
+type Add{NestedResource}PageProps = {
+  params: Promise<{
+    {resource_info}: string
+  }>
+}
+
+export default async function Add{NestedResource}Page({ params }: Add{NestedResource}PageProps) {
+  const { {resource_info} } = await params
+  const {resource}Id = decodeURIComponent({resource_info}).split('-').at(-1)
+  const {resource}Name = decodeURIComponent({resource_info})
+    .split('-')
+    .slice(0, -2)
+    .join('-')
+
+  if (!{resource}Id) {
+    return <NotFound title="{Resource} not found" />
+  }
+
+  return <{NestedResource}Form {resource}Id={{resource}Id} {resource}Name={{resource}Name} />
+}
+```
+
+## Component Patterns
+
+All components MUST be in `_{feature_name}/`. Pages are thin wrappers only.
+
+### 1. Column Definitions (`_{feature}/columns/{resource}-columns.tsx`)
+
+**⚠️ CRITICAL: Columns MUST be custom hooks. See [data-table.mdc](mdc:.cursor/rules/ui-components/data-table.mdc) for details.**
+
+**⚠️ CRITICAL: ALL cell renderers MUST use `Column.{Component}` from `@/components/data-table/columns`. Never use raw HTML elements (`<div>`, `<span>`) or direct component imports (`<Chip>`, `<Avatar>`) in cell renderers. See [data-table.mdc](mdc:.cursor/rules/ui-components/data-table.mdc) "Column Cell Components" section for complete documentation.**
+
+```tsx
+'use client'
+
+import { useMemo } from 'react'
+import { ColumnDef } from '@tanstack/react-table'
+
+import { Column } from '@/components/data-table/columns'
+import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header'
+import {
+  createRowActions,
+  DataTableRowActions
+} from '@/components/data-table/data-table-row-actions'
+
+import { {Resource} } from '@/query/{feature}/{feature}-types'
+import { DataTableRowAction } from '@/types/data-table'
+
+type {Resource}ColumnsProps = {
+  permissions?: {
+    delete?: boolean
+    edit?: boolean
+    view?: boolean
+  }
+  setRowAction: (rowAction?: DataTableRowAction<{Resource}> | null) => void
+}
+
+export function use{Resource}Columns({
+  permissions = {
+    delete: true,
+    edit: true,
+    view: true
+  },
+  setRowAction
+}: {Resource}ColumnsProps): ColumnDef<{Resource}>[] {
+  return useMemo(
+    () => [
+      {
+        accessorKey: 'id',
+        cell: ({ row }) => (
+          <Column.Text
+            text={row.original.id.toString().padStart(2, '0')}
+            variant="id"
+          />
+        ),
+        enableHiding: true,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="ID" />
+        ),
+        id: 'id',
+        size: 80
+      },
+      {
+        accessorKey: 'name',
+        cell: ({ row }) => <Column.Text text={row.original.name} />,
+        enableColumnFilter: true,
+        enableHiding: true,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Name" />
+        ),
+        id: 'name'
+      },
+      {
+        cell: ({ row }) => (
+          <DataTableRowActions
+            actions={createRowActions({
+              delete: permissions.delete
+                ? {
+                    hidden: () => !permissions.delete,
+                    onClick: () => setRowAction({ row, variant: 'delete' })
+                  }
+                : undefined,
+              edit: permissions.edit
+                ? {
+                    hidden: () => !permissions.edit,
+                    onClick: () => setRowAction({ row, variant: 'update' })
+                  }
+                : undefined,
+              view: permissions.view
+                ? {
+                    hidden: () => !permissions.view,
+                    onClick: () => setRowAction({ row, variant: 'view' })
+                  }
+                : undefined
+            })}
+            row={row}
+          />
+        ),
+        enableHiding: false,
+        header: () => <div className="text-center font-semibold">Actions</div>,
+        id: 'actions',
+        size: 150
+      }
+    ],
+    [permissions, setRowAction]
+  )
+}
+```
+
+### 2. Form Options (`_{feature}/form-options/{resource}-form-options.tsx`)
+
+```tsx
+import { formOptions } from '@tanstack/react-form'
+import { z } from 'zod'
+
+import { {Resource}ById } from '@/query/{feature}'
+
+export const {Resource}FormOptions = ({resource}?: {Resource}ById) =>
+  formOptions({
+    defaultValues: {
+      name: {resource}?.name || '',
+      email: {resource}?.email || '',
+      status: {resource}?.status === 1 ? true : false
+    } as Create{Resource}Schema
+  })
+
+export const create{Resource}Schema = z.object({
+  name: z.string().min(1, { message: 'Name is required' }),
+  email: z.string().email({ message: 'Invalid email format' }),
+  status: z.boolean()
+})
+
+export type Create{Resource}Schema = z.infer<typeof create{Resource}Schema>
+```
+
+### 3. Main Form Component (`_{feature}/forms/{resource}-form.tsx`)
+
+```tsx
+import {PageHeader} from '@/components/custom/page-header'
+import { useAppForm } from '@/components/form'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
+import { usePermissions } from '@/hooks/use-permissions'
+
+import {
+  create{Resource}Schema,
+  {Resource}FormOptions
+} from '@/app/(app)/{feature}/_{feature}/form-options/{resource}-form-options'
+import { BasicInfoFields } from '@/app/(app)/{feature}/_{feature}/forms/basic-info'
+import { ContactFields } from '@/app/(app)/{feature}/_{feature}/forms/contact'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import {
+  useCreate{Resource}Mutation,
+  useUpdate{Resource}Mutation
+} from '@/query/{feature}/{feature}-mutations'
+import { {Resource}ById } from '@/query/{feature}/{feature}-types'
+import { apiFormValidation } from '@/utils'
+
+type {Resource}FormProps = {
+  isEdit?: boolean
+  {resource}?: {Resource}ById
+}
+
+export const {Resource}Form: React.FC<{Resource}FormProps> = ({
+  isEdit = false,
+  {resource}
+}) => {
+  const { hasPermission } = usePermissions()
+  const { isPending: isCreating, mutateAsync: create{Resource} } =
+    useCreate{Resource}Mutation()
+
+  const { isPending: isUpdating, mutateAsync: update{Resource} } =
+    useUpdate{Resource}Mutation()
+
+  const form = useAppForm({
+    ...{Resource}FormOptions({resource}),
+    onSubmit: async ({ formApi, value }) => {
+      apiFormValidation(
+        () =>
+          isEdit
+            ? update{Resource}({
+                ...value,
+                id: {resource}?.id,
+                status: value.status ? 1 : 0
+              })
+            : create{Resource}({ ...value, status: value.status ? 1 : 0 }),
+        formApi
+      )
+    },
+    validators: {
+      onChange: create{Resource}Schema
+    }
+  })
+
+  return (
+    <>
+      <PageHeader
+        description="Add a new {resource} to the system"
+        title={isEdit ? 'Edit {Resource}' : 'Create {Resource}'}
+      >
+        <form.AppForm>
+          <form.SubmitButton
+            disabled={
+              isEdit
+                ? !hasPermission(PERMISSIONS.{FEATURE}_UPDATE)
+                : !hasPermission(PERMISSIONS.{FEATURE}_CREATE)
+            }
+            form="create-{resource}-form"
+            isLoading={isEdit ? isUpdating : isCreating}
+          >
+            {isEdit ? 'Update {Resource}' : 'Create {Resource}'}
+          </form.SubmitButton>
+        </form.AppForm>
+      </PageHeader>
+      <div className="m-5 flex">
+        <form
+          className="w-full flex-1 space-y-5"
+          id="create-{resource}-form"
+          onSubmit={(e) => {
+            e.preventDefault()
+            form.handleSubmit()
+          }}
+        >
+          <Card id="basic-info">
+            <CardHeader>
+              <CardTitle>Basic Info</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <BasicInfoFields form={form} />
+            </CardContent>
+          </Card>
+          <Card id="contact">
+            <CardHeader>
+              <CardTitle>Contact</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ContactFields form={form} />
+            </CardContent>
+          </Card>
+        </form>
+      </div>
+    </>
+  )
+}
+```
+
+### 4. Field Components (`_{feature}/forms/{section-name}.tsx`)
+
+```tsx
+import { withForm } from '@/components/form'
+
+import { {Resource}FormOptions } from '@/app/(app)/{feature}/_{feature}/form-options/{resource}-form-options'
+
+export const BasicInfoFields = withForm({
+  ...{Resource}FormOptions(),
+  render: function Render({ form }) {
+    return (
+      <div className="space-y-5">
+        <form.AppField
+          children={(field) => <field.Input label="Name" />}
+          name="name"
+        />
+        <form.AppField
+          children={(field) => <field.Switch label="Status" />}
+          name="status"
+        />
+      </div>
+    )
+  }
+})
+```
+
+### 5. Table Components (`_{feature}/tables/{resource}-table.tsx`)
+
+```tsx
+'use client'
+
+import React from 'react'
+import { useQuery } from '@tanstack/react-query'
+// When translations are requested, add: import { useTranslations } from 'next-intl'
+
+import { DataTable, DataTableToolbar } from '@/components/data-table'
+import { useDataTable } from '@/hooks/use-data-table'
+import { useRowActions } from '@/hooks/use-row-actions'
+import { cn } from '@/utils'
+
+import { use{Resource}Columns } from '@/app/(app)/{feature}/_{feature}/columns/{resource}-columns'
+import { {Parent}TablesProps } from '@/app/(app)/{feature}/_{feature}/types/tabs-types'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { get{Resource}By{Parent}IdQuery, delete{Resource}MutationOptions } from '@/query/{feature}'
+
+export const {Resource}Table: React.FC<{Parent}TablesProps & { className?: string }> = ({
+  {parent}Id,
+  {parent}Name,
+  className
+}) => {
+  // When translations are requested, add: const tDeleteDialog = useTranslations('{feature}.deleteDialog')
+
+  const { data: {resources}, isLoading, isError, error, refetch } = useQuery(
+    get{Resource}By{Parent}IdQuery({parent}Id)
+  )
+
+  const { deleteDialog, permissions, setRowAction } = useRowActions<{Resource}>({
+    deleteDialogConfig: {
+      description: 'Are you sure you want to delete this {resource}?',
+      getItemName: ({resource}) => {resource}.name,
+      title: 'Delete {Resource}'
+    },
+    deleteMutationOptions: delete{Resource}MutationOptions,
+    permissions: {
+      delete: PERMISSIONS.{FEATURE}_DESTROY,
+      update: PERMISSIONS.{FEATURE}_UPDATE
+    },
+    redirectOnUpdate: ({resource}) =>
+      `/{feature}/${decodeURIComponent({parent}Name.replaceAll(' ', '-').toLowerCase())}-${{parent}Id}/edit-{resource}/${resource}.id`
+  })
+
+  const columns = use{Resource}Columns({
+    permissions,
+    setRowAction
+  })
+
+  const { table } = useDataTable({
+    clearOnDefault: true,
+    columns,
+    data: {resources}?.data?.data || [],
+    getRowId: (originalRow) => `${originalRow.id}`,
+    initialState: {
+      columnPinning: { right: ['actions'] },
+      pagination: {
+        pageIndex: {resources}?.data?.pagination?.current_page || 0,
+        pageSize: {resources}?.data?.pagination?.per_page || 15
+      },
+      sorting: [{ desc: true, id: 'id' }]
+    },
+    pageCount: {resources}?.data?.pagination?.last_page || 0,
+    rowCount: {resources}?.data?.pagination?.total || 0
+  })
+
+  return (
+    <main className={cn('relative', className)}>
+      <DataTable
+        deleteDialog={deleteDialog}
+        error={error}
+        isError={isError}
+        isLoading={isLoading}
+        refetch={refetch}
+        toolbar={
+          <DataTableToolbar
+            createButtonHref={`/{feature}/${decodeURIComponent({parent}Name.replaceAll(' ', '-').toLowerCase())}-${{parent}Id}/add-{resource}`}
+            filters={[
+              {
+                key: 'status',
+                label: 'Status',
+                options: [
+                  { key: 'active', label: 'Active', value: '1' },
+                  { key: 'inactive', label: 'Inactive', value: '0' }
+                ],
+                placeholder: 'Select status'
+              }
+            ]}
+            permissions={{
+              create: PERMISSIONS.{FEATURE}_CREATE
+            }}
+            searchPlaceholder="Search {resources}"
+            table={table}
+          />
+        }
+        table={table}
+      />
+      {/* When translations are requested, replace hard-coded strings in deleteDialogConfig:
+          deleteDialogConfig: {
+            description: tDeleteDialog('description'),
+            title: tDeleteDialog('title')
+          }
+      */}
+    </main>
+  )
+}
+```
+
+### 6. Hooks (`_{feature}/hooks/use-{feature}-params.ts`)
+
+**⚠️ CRITICAL: ALWAYS create query parameters in a custom params hook. DO NOT create query params objects inline in components, tabs, or pages.**
+
+**⚠️ CRITICAL: File naming**: Hook files MUST be named `use-{feature}-params.ts` (e.g., `use-centers-params.ts`, `use-tenants-params.ts`).
+
+**⚠️ CRITICAL: Feature params hooks MUST use `useStandardParams` from `@/hooks/use-standard-params`** as it's shared across all features.
+
+**For tabs and nested components within a feature**: Use the main feature's params hook (e.g., `use{Feature}Params()`) instead of creating separate query state management. If the feature has a main params hook, tabs and components within that feature should import and use it rather than managing query params independently with `useQueryState` or `useQueryStates`.
+
+```tsx
+import { parseAsStringEnum, useQueryState } from 'nuqs'
+import { useStandardParams } from '@/hooks/use-standard-params'
+
+export const use{Feature}Params = () => {
+  const { standardParams, setStandardParams } = useStandardParams()
+
+  // Feature-specific filters (not in useStandardParams)
+  const [status, setStatus] = useQueryState(
+    'status',
+    parseAsStringEnum(['0', '1', '']).withDefault('')
+  )
+  const [type, setType] = useQueryState(
+    'type',
+    parseAsStringEnum(['0', '1', '2', '']).withDefault('')
+  )
+
+  // standardQueryParams MUST only include page, per_page, and search
+  const standardQueryParams = {
+    page: standardParams.page,
+    per_page: standardParams.per_page,
+    search: standardParams.search
+  }
+
+  return {
+    ...standardParams, // Return standardParams as-is (not destructured)
+    setStandardParams,
+    setStatus,
+    setType,
+    standardQueryParams,
+    status,
+    type
+  }
+}
+```
+
+```tsx
+// _{feature}/hooks/index.ts
+export * from './use-{feature}-params'
+```
+
+**Example of WRONG pattern** (DO NOT DO THIS):
+
+```tsx
+// ❌ DON'T: Managing query params directly in tabs/components
+export function SomeTab() {
+  const [search] = useQueryState('search', parseAsString.withDefault(''))
+  const [type] = useQueryState('type', parseAsInteger)
+  const [status] = useQueryState('status', parseAsInteger)
+  const [page] = useQueryState('page', parseAsInteger.withDefault(1))
+  const [perPage] = useQueryState('per_page', parseAsInteger.withDefault(15))
+
+  const queryParams = useMemo(
+    () => ({
+      page,
+      per_page: perPage,
+      ...(search && { search }),
+      ...(type && { type }),
+      ...(status && { status })
+    }),
+    [search, type, status, page, perPage]
+  )
+  // ...
+}
+```
+
+**Example of CORRECT pattern**:
+
+```tsx
+// ✅ DO: Use the main feature params hook
+import { use{Feature}Params } from '@/app/(app)/{feature}/_{feature}/hooks'
+
+export function SomeTab() {
+  const { standardQueryParams, status, type } = use{Feature}Params()
+
+  const queryParams = useMemo(
+    () => ({
+      ...standardQueryParams,
+      ...(type && { type }),
+      ...(status && { status })
+    }),
+    [standardQueryParams, status, type]
+  )
+  // ...
+}
+```
+
+### 7. Types (`_{feature}/types/tabs-types.ts`)
+
+```tsx
+export type {Parent}TablesProps = {
+  {parent}Id: number | string
+  {parent}Name: string
+  {parent}Type?: number | string
+}
+```
+
+## URL Pattern Convention
+
+### Dynamic Route Format
+
+Dynamic routes use a slug-based format: `{resource-name}-{id}`
+
+- **Example**: `/tenants/acme-corporation-123`
+- **Parsing**: Extract ID by splitting on `-` and taking the last element
+- **Encoding**: Use `decodeURIComponent()` when extracting from URL params
+
+### Route Examples
+
+- List: `/{feature}`
+- Create: `/{feature}/create`
+- Profile: `/{feature}/{resource-name}-{id}/profile`
+- Edit: `/{feature}/{resource-name}-{id}/edit-{resource}`
+- Add nested: `/{feature}/{resource-name}-{id}/add-{nested-resource}`
+- Edit nested: `/{feature}/{resource-name}-{id}/edit-{nested-resource}/{nested-id}`
+
+## Integration with Query Layer
+
+### Query Structure
+
+The feature MUST have corresponding query files in `query/{feature-name}/`:
+
+```
+query/{feature-name}/
+├── {feature-name}-types.ts      # Entity types
+├── {feature-name}-query.ts      # Query options
+├── {feature-name}-mutations.ts  # Mutations
+└── index.ts                     # Barrel exports
+```
+
+See the [react-query.mdc](mdc:.cursor/rules/data-layer/react-query.mdc) for details.
+
+## Naming Conventions
+
+### Files and Folders
+
+- **Feature folder**: `{feature-name}` (kebab-case)
+- **Private folder**: `_{feature-name}` (kebab-case with underscore prefix)
+- **Column files**: `{resource}-columns.tsx`
+- **Form files**: `{resource}-form.tsx`, `{section-name}.tsx`
+- **Table files**: `{resource}-table.tsx`
+- **Component files**: `{resource}-{purpose}.tsx`
+- **Hook files**: `{feature}-{purpose}.ts` or `{purpose}-hook.ts`
+- **Type files**: `{purpose}-types.ts`
+
+### Component Names
+
+- **Columns**: `use{Resource}Columns()` (camelCase hook, must be a hook)
+- **Forms**: `{Resource}Form` (PascalCase component)
+- **Tables**: `{Resource}Table` (PascalCase component)
+- **Hooks**: `use{Feature}{Purpose}` (camelCase with use prefix)
+
+## Best Practices
+
+1. **⚠️ CRITICAL: All logic in `_{feature_name}/`** - Pages are thin wrappers only
+2. **Separation of Concerns**: Keep shared components in `_{feature}/` folder
+3. **Barrel Exports**: Use `index.ts` files for clean imports
+4. **Type Safety**: Define types in `types/` folder
+5. **Reusability**: Extract common patterns into components
+6. **Consistency**: Follow the exact folder structure
+7. **Naming**: Use consistent naming conventions throughout
+8. **Permissions**: Always check permissions before rendering actions
+9. **Error Handling**: Include proper loading and error states
+10. **Server Components**: Use server components for data fetching when possible
+11. **Client Components**: Mark interactive components with `'use client'`
+12. **Query Params**: ALWAYS create query parameters in the `{feature}-params.ts` hook. DO NOT create query params objects inline in components or tabs.
+
+## Complete Example Structure
+
+```
+app/(app)/tenants/
+├── page.tsx                    # Thin wrapper
+├── create/
+│   └── page.tsx               # Thin wrapper
+├── [tenant_info]/
+│   ├── profile/
+│   │   └── page.tsx           # Server component
+│   ├── edit-tenant/
+│   │   └── page.tsx           # Thin wrapper
+│   ├── add-admin/
+│   │   └── page.tsx           # Thin wrapper
+│   ├── add-rider/
+│   │   └── page.tsx           # Thin wrapper
+│   ├── edit-admin/
+│   │   └── [admin_id]/
+│   │       └── page.tsx       # Thin wrapper
+│   └── edit-rider/
+│       └── [rider_id]/
+│           └── page.tsx       # Thin wrapper
+└── _tenants/                   # ⚠️ ALL FEATURE LOGIC HERE
+    ├── columns/
+    │   ├── tenants-columns.tsx
+    │   ├── admins-columns.tsx
+    │   ├── riders-columns.tsx
+    │   └── branches-columns.tsx
+    ├── components/
+    │   ├── tenant-header-buttons.tsx
+    │   └── create-branch-modal.tsx
+    ├── form-options/
+    │   ├── tenants-form-options.tsx
+    │   └── contract-form-options.ts
+    ├── forms/
+    │   ├── tenant-form.tsx
+    │   ├── basic-info.tsx
+    │   ├── contact.tsx
+    │   ├── details.tsx
+    │   ├── tenant-admin-form.tsx
+    │   └── tenant-rider-form.tsx
+    ├── hooks/
+    │   ├── index.ts
+    │   └── tenants-params.ts
+    ├── tables/
+    │   ├── tenant-admins-table.tsx
+    │   ├── riders-table.tsx
+    │   └── branches-table.tsx
+    ├── tabs/
+    │   └── contract-tab.tsx
+    └── types/
+        └── tabs-types.ts
+
+query/tenants/                  # Query layer (separate)
+├── tenants-types.ts
+├── tenants-query.ts
+├── tenants-mutations.ts
+└── index.ts
+```
+
+This pattern ensures consistency, maintainability, and scalability across all features in the application.
+
+## References
+
+- See tenants patterns: `.taskmaster/docs/tenants-patterns.md`
+- Use rules: [tanstack-form.mdc](mdc:.cursor/rules/ui-components/tanstack-form.mdc), [data-table.mdc](mdc:.cursor/rules/ui-components/data-table.mdc), [react-query.mdc](mdc:.cursor/rules/data-layer/react-query.mdc), [permissions-system.mdc](mdc:.cursor/rules/feature-development/permissions-system.mdc), [cursor_rules.mdc](mdc:.cursor/rules/core/cursor_rules.mdc)

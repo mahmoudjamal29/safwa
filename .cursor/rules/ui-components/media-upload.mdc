@@ -1,0 +1,510 @@
+---
+description: Complete guide for implementing media/image upload functionality using MediaFields component
+globs: ["**/*form*.tsx", "**/forms/**/*.tsx"]
+---
+
+# Media Upload Pattern
+
+Complete pattern for adding image upload functionality to forms using the `MediaFields` component. This handles image upload, preview, drag-to-reorder, deletion with trash bin, and restoration.
+
+## Overview
+
+The MediaFields component provides:
+- ✅ Image upload with drag & drop
+- ✅ Multiple image support with reordering (drag & drop)
+- ✅ Image preview with thumbnails
+- ✅ Delete with trash bin (allows restoration before submit)
+- ✅ Progress indicators during upload
+- ✅ Validation (file size, count, format)
+- ✅ Automatic S3 upload integration
+- ✅ Edit mode support (loads existing images)
+
+## Quick Start
+
+### 1. Basic Implementation
+
+```tsx
+import { useMediaUploadForm } from '@/lib/media-upload'
+import { MediaFields } from '@/components/forms/media'
+
+export const MyForm = ({ entityId, isEdit }) => {
+  const { processMediaForSubmit } = useMediaUploadForm()
+
+  // Fetch existing data if editing
+  const { data: entityData } = useQuery({
+    ...getEntityByIdQuery(entityId),
+    enabled: isEdit && !!entityId
+  })
+
+  const form = useAppForm({
+    ...MyFormOptions(),
+    onSubmit: async ({ formApi, value }) => {
+      // Process media uploads (handles File[] → {key, position} transformation)
+      const { isUploading, updatedValue } = await processMediaForSubmit({
+        value,
+        model: 'EntityName',
+        existingImages: entityData?.images,
+        isEdit
+      })
+
+      // Check if images are still uploading
+      if (isUploading) {
+        toast.error('Images are still uploading. Please wait.')
+        return
+      }
+
+      // Transform and submit
+      const transformedData = transformMyFormToApi(updatedValue)
+
+      if (entityId) {
+        await updateMutation.mutateAsync({ ...transformedData, id: entityId })
+      } else {
+        await createMutation.mutateAsync(transformedData)
+      }
+    }
+  })
+
+  return (
+    <form>
+      {/* Other form fields */}
+
+      <MediaFields
+        form={form}
+        images={entityData?.images}
+        maxImagesCount={9}
+        maxImageSize={2 * 1024 * 1024}  // 2 MB per image
+        maxImagesSize={20 * 1024 * 1024} // 20 MB total
+        model="EntityName"  // Used for S3 bucket organization
+        width={88}
+      />
+
+      {/* Other form fields */}
+    </form>
+  )
+}
+```
+
+### 2. Form Schema Requirements
+
+Your Zod schema MUST include these fields:
+
+```tsx
+import { z } from 'zod'
+
+export const MyFormSchema = (t: Translations) =>
+  z.object({
+    // Media upload fields (REQUIRED)
+    images: z.array(
+      z.union([
+        z.instanceof(File),                    // New uploads (before S3)
+        z.object({                             // New uploads (after S3)
+          key: z.string(),
+          position: z.number()
+        }),
+        z.object({                             // Existing images
+          id: z.number(),
+          position: z.number()
+        })
+      ])
+    ),
+    deleted_images_ids: z.array(z.number()).optional(),
+    _media_file_positions: z.record(z.string(), z.number()).optional(),
+    _media_upload_group_uuid: z.string().optional(),
+    _media_uploading: z.boolean().optional(),
+    
+    // Your other form fields
+    name: z.string().min(1),
+    // ...
+  })
+```
+
+### 3. Default Values
+
+```tsx
+export const MyFormDV: DefaultValues<MyFormSchema> = {
+  images: [],
+  deleted_images_ids: [],
+  _media_file_positions: undefined,
+  _media_upload_group_uuid: undefined,
+  _media_uploading: false,
+  
+  // Your other defaults
+  name: '',
+  // ...
+}
+```
+
+### 4. Form Submission Handler
+
+Use the `useMediaUploadForm` hook to handle image transformation:
+
+```tsx
+import { useMediaUploadForm } from '@/lib/media-upload'
+import { toast } from 'sonner'
+
+const { processMediaForSubmit } = useMediaUploadForm()
+
+const form = useAppForm({
+  onSubmit: async ({ formApi, value }) => {
+    // Process media uploads - handles all image transformation
+    const { isUploading, updatedValue } = await processMediaForSubmit({
+      value,
+      model: 'EntityName',
+      existingImages: entityData?.images,
+      isEdit,
+      imagesFieldName: 'images' // optional, defaults to 'images'
+    })
+
+    // Check if images are still uploading
+    if (isUploading) {
+      toast.error('Images are still uploading. Please wait.')
+      return
+    }
+
+    // Transform form data to API format
+    const transformedData = transformMyFormToApi(updatedValue)
+
+    // Submit to API
+    await mutation.mutateAsync(transformedData)
+  }
+})
+```
+
+**What `processMediaForSubmit` does:**
+- Handles File[] → {key, position} transformation
+- Merges new uploads with existing images
+- Manages deleted images tracking
+- Returns upload status and updated values
+
+### 5. API Transform Function
+
+Transform the form data to match your API:
+
+```tsx
+export const transformMyFormToApi = (formData: MyFormSchema) => {
+  const apiData = {
+    // Your other fields
+    name: formData.name,
+    // ...
+  }
+
+  // Add images if they exist
+  if (formData.images && formData.images.length > 0) {
+    apiData.images = formData.images as Array<
+      { id: number; position: number } | { key: string; position: number }
+    >
+  }
+
+  // Add deleted images for updates
+  if (formData.deleted_images_ids && formData.deleted_images_ids.length > 0) {
+    apiData.deleted_images_ids = formData.deleted_images_ids
+  }
+
+  return apiData
+}
+```
+
+## MediaFields Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `form` | `any` | **Required** | TanStack Form instance |
+| `images` | `Array<{id: number\|string, image_url?: string}>` | `undefined` | Existing images (edit mode) |
+| `fieldName` | `string` | `'images'` | Form field name |
+| `model` | `string` | `'Space'` | Model name for S3 organization |
+| `title` | `string` | `'Media'` | FormCard title |
+| `description` | `string` | `'Supported formats...'` | Help text |
+| `maxImagesCount` | `number` | `9` | Maximum number of images |
+| `maxImageSize` | `number` | `2 * 1024 * 1024` | Max size per image (bytes) |
+| `maxImagesSize` | `number` | `20 * 1024 * 1024` | Max total size (bytes) |
+| `width` | `number` | `88` | Thumbnail width in pixels |
+
+## Features Explained
+
+### 1. Image Upload Flow
+
+```
+User selects images
+    ↓
+Validation (size, format, count)
+    ↓
+Preview thumbnails shown
+    ↓
+Upload to S3 (automatic)
+    ↓
+Form field updated with S3 keys
+    ↓
+Submit button enabled
+```
+
+### 2. Drag & Drop Reordering
+
+Users can drag images to reorder them. The first image is always the "Main Image" (shown with badge).
+
+### 3. Delete & Restore
+
+**Delete:**
+- Click X on image → Image moves to trash
+- Trash icon appears in header with count badge
+- `deleted_images_ids` field updated
+
+**Restore:**
+- Click trash icon → Popover opens
+- Shows all deleted images with thumbnails
+- Click restore → Image returns to gallery
+- `deleted_images_ids` field updated
+
+**Important:** Images aren't actually deleted until form submission!
+
+### 4. Upload Prevention
+
+Form cannot be submitted while images are uploading:
+- Visual indicator shows "Uploading images..."
+- Submit button respects `canSubmit` state
+- Toast error if user tries to submit early
+
+## Common Patterns
+
+### Pattern 1: Single Image Upload
+
+```tsx
+<MediaFields
+  form={form}
+  images={entityData?.image ? [entityData.image] : undefined}
+  maxImagesCount={1}
+  model="EntityName"
+  title="Cover Image"
+/>
+```
+
+### Pattern 2: Different Image Sizes
+
+```tsx
+// Gallery images
+<MediaFields
+  form={form}
+  images={entityData?.gallery_images}
+  maxImagesCount={20}
+  maxImageSize={5 * 1024 * 1024}  // 5 MB
+  model="Gallery"
+  title="Gallery"
+/>
+
+// Thumbnails
+<MediaFields
+  form={form}
+  fieldName="thumbnails"
+  images={entityData?.thumbnails}
+  maxImagesCount={5}
+  maxImageSize={500 * 1024}  // 500 KB
+  model="Thumbnail"
+  title="Thumbnails"
+  width={64}
+/>
+```
+
+### Pattern 3: Custom Field Name
+
+```tsx
+<MediaFields
+  form={form}
+  fieldName="attachments"  // Field name in schema
+  images={entityData?.attachments}
+  model="Attachment"
+/>
+```
+
+## useMediaUploadForm Hook Benefits
+
+The `useMediaUploadForm` hook provides:
+
+✅ **Reusable** - Works with any form that has image uploads
+✅ **Type-safe** - Full TypeScript support with proper types
+✅ **Simple API** - Single function call handles all transformation
+✅ **Automatic** - Handles File[], new uploads, existing images, and deletions
+✅ **Flexible** - Custom field names, multiple image fields supported
+✅ **Clean** - Reduces form submission code by 90%
+
+**Before (140+ lines of complex logic):**
+```tsx
+// Manual S3 upload, position tracking, existing image handling, etc.
+if (hasFilesToUpload) {
+  const fileToKeyMap = await handlePresignedUpload(...)
+  // 100+ lines of transformation logic
+}
+```
+
+**After (8 lines with hook):**
+```tsx
+const { isUploading, updatedValue } = await processMediaForSubmit({
+  value,
+  model: 'Space',
+  existingImages: spaceData?.images,
+  isEdit
+})
+```
+
+## Integration Checklist
+
+When adding MediaFields to a form:
+
+- [ ] Import `useMediaUploadForm` hook from `@/lib/media-upload`
+- [ ] Import `MediaFields` from `@/components/forms/media`
+- [ ] Add required fields to Zod schema (`images`, `deleted_images_ids`, `_media_*`)
+- [ ] Add default values to form defaults
+- [ ] Call `processMediaForSubmit` in `onSubmit` handler
+- [ ] Check `isUploading` and show error if true
+- [ ] Pass `images` prop in edit mode (from API data)
+- [ ] Handle images in API transform function
+- [ ] Include `deleted_images_ids` for updates
+- [ ] Set appropriate `model` name for S3 organization
+- [ ] Configure size limits (`maxImageSize`, `maxImagesSize`)
+- [ ] Set maximum image count (`maxImagesCount`)
+
+## API Response Format
+
+Your API should return images in this format:
+
+```typescript
+{
+  id: number
+  image_url: string  // Full URL to the image
+}
+```
+
+Example:
+```json
+{
+  "images": [
+    { "id": 1, "image_url": "https://cdn.example.com/images/123.jpg" },
+    { "id": 2, "image_url": "https://cdn.example.com/images/456.jpg" }
+  ]
+}
+```
+
+## API Request Format
+
+### Create Request
+```json
+{
+  "name": "My Entity",
+  "images": [
+    { "key": "uploads/uuid/file1.jpg", "position": 1 },
+    { "key": "uploads/uuid/file2.jpg", "position": 2 }
+  ]
+}
+```
+
+### Update Request
+```json
+{
+  "id": 123,
+  "name": "Updated Entity",
+  "images": [
+    { "id": 1, "position": 1 },           // Existing image kept
+    { "key": "uploads/uuid/new.jpg", "position": 2 }  // New image added
+  ],
+  "deleted_images_ids": [2]  // Image ID 2 deleted
+}
+```
+
+## Troubleshooting
+
+### Images not showing in edit mode
+- Verify `images` prop is passed with correct format
+- Check API response has `id` and `image_url` fields
+- Ensure `useQuery` is enabled in edit mode
+
+### Upload stuck at "Uploading..."
+- Check browser console for errors
+- Verify presigned upload endpoint is working
+- Ensure S3 credentials are configured
+
+### Deleted images still appear after submit
+- Verify `deleted_images_ids` is in API transform
+- Check backend handles `deleted_images_ids` array
+- Ensure form field is properly updated on delete
+
+### Form submits with incomplete uploads
+- Verify `_media_uploading` check in `onSubmit`
+- Check that toast import is correct: `import { toast } from 'sonner'`
+- Ensure submit button uses `canSubmit` state
+
+## Advanced Usage
+
+### Custom Validation
+
+```tsx
+import { toast } from 'sonner'
+
+onSubmit: async ({ value }) => {
+  // Custom image validation
+  if (!value.images || value.images.length === 0) {
+    toast.error('At least one image is required')
+    return
+  }
+
+  // Check if main image (position 1) exists
+  const hasMainImage = value.images.some(img => 
+    'position' in img && img.position === 1
+  )
+  
+  if (!hasMainImage) {
+    toast.error('Please add a main image')
+    return
+  }
+
+  // Proceed with submission
+  await mutation.mutateAsync(transformMyFormToApi(value))
+}
+```
+
+### Pre-transform Image Data
+
+If your API returns images in a different format:
+
+```tsx
+const initialFormData = useMemo(() => {
+  if (!entityData) return undefined
+  
+  return {
+    ...entityData,
+    images: entityData.media?.map(m => ({
+      id: m.media_id,
+      image_url: m.url
+    })) || []
+  }
+}, [entityData])
+```
+
+## Related Files
+
+### Core Utilities (lib/media-upload/)
+- **Hook**: `lib/media-upload/use-media-upload-form.ts` - Form integration hook
+- **Presigned Upload**: `lib/media-upload/presigned-upload.ts` - Presigned URL + S3 upload
+- **S3 Upload**: `lib/media-upload/s3-upload.ts` - Direct S3 upload logic
+- **Index**: `lib/media-upload/index.ts` - Exports all utilities
+- **📚 Documentation**: `lib/media-upload/README.md` - Comprehensive guide with examples
+
+### Components (components/forms/media/)
+- **Wrapper**: `components/forms/media/MediaFields.tsx` - High-level component
+- **Core**: `components/forms/media/MediaUpload.tsx` - Upload logic & UI
+- **State**: `components/forms/media/useMediaUpload.ts` - Upload state management
+- **Types**: `components/forms/media/types.ts` - TypeScript types
+- **Index**: `components/forms/media/index.ts` - Component exports
+
+### API Integration
+- **Query**: `query/media-upload/` - Presigned upload mutations
+
+## Example Implementation
+
+See the complete working implementation in:
+- `app/(Dashboard)/workspaces/_workspace/forms/workspaces-form.tsx` (Clean 294-line form using hook)
+- `app/(Dashboard)/workspaces/_workspace/form-options/spaces-form-options.tsx` (Schema + transform)
+- `app/(Dashboard)/workspaces/_workspace/form-options/transform-space-data.ts` (Data transformation)
+
+## Full Documentation
+
+For complete documentation including troubleshooting, advanced usage, and API integration details, see:
+
+**📖 `lib/media-upload/README.md`**

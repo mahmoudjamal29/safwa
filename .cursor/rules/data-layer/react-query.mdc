@@ -1,0 +1,2122 @@
+---
+description: End-to-end TanStack Query patterns for queries, mutations, endpoints, and fetcher usage across the dashboard
+globs: query/**, query-client/**, lib/fetcher/**
+alwaysApply: true
+---
+
+- **Purpose**: Guarantee consistent, type-safe TanStack Query usage (queries, mutations, endpoints, fetcher integration).
+- **Scope**: Query folder structure, endpoint definitions, query keys, queryOptions patterns, mutation meta, fetcher usage, error handling, and cross-feature alignment.
+
+## Official Documentation & Version Checking
+
+**⚠️ MANDATORY:** See [context7-docs.mdc](mdc:.cursor/rules/_common/context7-docs.mdc) for complete Context7 MCP requirements and [version-checking.mdc](mdc:.cursor/rules/_common/version-checking.mdc) for version checking requirements.
+
+**Current versions** (see [master-guide.mdc](mdc:.cursor/rules/core/master-guide.mdc)):
+
+- TanStack Query: 5.90.3
+- TanStack Table: 8.21.3
+- TanStack Form: via @tanstack/react-form-nextjs 1.27.2
+
+## Core Project Patterns
+
+- **`queryOptions` for every query** with a first-element resource string in the `queryKey`.
+- **Fetcher abstraction**: call `fetcher<T>(endpoint, { auth: true, ... })`; do not wrap responses again.
+- **Mutation meta**: populate `meta.invalidatesQuery` so `MutationCache` can trigger cache invalidation & toasts.
+- **Reuse existing modules**: extend existing directories rather than creating duplicates (e.g., drivers live under `query/drivers`).
+- **Avoid redundant helpers**: the fetcher already returns `API<T>`; supply precise generics, especially for pagination wrappers.
+- **Follow feature structure**: files live under `query/{feature}/` and export from `index.ts`.
+- **Riders belong under users**: implement any rider queries or mutations inside the existing `query/users` feature folder (do not create a separate riders module).
+- **Stick with existing user query keys**: riders _are_ users. Reuse the `'users'` root query key and append segments (e.g., `['users', 'parents', riderId]`) instead of creating new root keys like `'riders-*'`. Do not register additional keys in `query-client/query.d.ts` for riders.
+
+See [code-comments.mdc](mdc:.cursor/rules/_common/code-comments.mdc) for code commenting standards.
+
+Code reference for QueryClient configuration and meta invalidation:
+
+```1:36:query-client/get-query-client.ts
+import { cache } from 'react'
+
+import {
+  defaultShouldDehydrateQuery,
+  isServer,
+  MutationCache,
+  Query,
+  QueryClient
+} from '@tanstack/react-query'
+import { toast } from 'sonner'
+
+const makeQueryClient = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      dehydrate: {
+        // Include pending queries in dehydration for streaming SSR
+        shouldDehydrateQuery: (query: Query) =>
+          defaultShouldDehydrateQuery(query) ||
+          query.state.status === 'pending',
+        // Next.js automatically redacts errors, so we don't need custom redaction
+        shouldRedactErrors: () => false
+      },
+      mutations: {
+        meta: {
+          toastOnError: true,
+          toastOnSuccess: true
+        }
+      },
+      queries: {
+        gcTime: 5 * 60 * 1000, // 5 minutes - unused data stays in cache for 5 minutes
+        refetchOnMount: true, // Refetch if data is stale (staleTime controls freshness)
+        refetchOnReconnect: true, // Refetch on reconnect if data is stale
+        refetchOnWindowFocus: false, // Don't refetch on window focus to reduce unnecessary requests
+        staleTime: 60 * 1000 // 1 minute - data is considered fresh for 1 minute, prevents refetch during this time
+      }
+    },
+```
+
+```49:71:query-client/get-query-client.ts
+      onSettled: async (_data, _error, _variables, _context, mutation) => {
+        if (!mutation.meta?.invalidatesQuery) return
+
+        // Check for special 'all' key to invalidate everything
+        if (
+          mutation.meta.invalidatesQuery.some(
+            (queryKey) => queryKey[0] === 'all'
+          )
+        ) {
+          await queryClient.invalidateQueries()
+          return
+        }
+
+        // Invalidate each query key separately
+        await Promise.all(
+          mutation.meta.invalidatesQuery.map((queryKey) =>
+            queryClient.invalidateQueries({
+              exact: false,
+              queryKey
+            })
+          )
+        )
+      },
+```
+
+```92:105:query-client/get-query-client.ts
+let browserQueryClient: QueryClient | undefined = undefined
+
+// Cache the QueryClient per request on the server
+// This ensures generateMetadata and page component share the same instance
+const getServerQueryClient = cache(() => makeQueryClient())
+
+export function getQueryClient() {
+  if (isServer) {
+    return getServerQueryClient()
+  } else {
+    if (!browserQueryClient) browserQueryClient = makeQueryClient()
+    return browserQueryClient
+  }
+}
+```
+
+Fetcher signature:
+
+```49:52:lib/fetcher/fetcher.ts
+export async function fetcher<T>(
+  path: (() => string) | `${ENDPOINTS}${string}` | ENDPOINTS | string,
+  options?: FetcherOptions
+): Promise<API<T>> {
+```
+
+## QueryClient Configuration
+
+### QueryClient Setup Pattern
+
+**⚠️ MANDATORY: Follow the established QueryClient setup pattern for Next.js App Router with server components.**
+
+The QueryClient is configured in `query-client/get-query-client.ts` with the following pattern:
+
+```12:105:query-client/get-query-client.ts
+const makeQueryClient = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      dehydrate: {
+        // Include pending queries in dehydration for streaming SSR
+        shouldDehydrateQuery: (query: Query) =>
+          defaultShouldDehydrateQuery(query) ||
+          query.state.status === 'pending',
+        // Next.js automatically redacts errors, so we don't need custom redaction
+        shouldRedactErrors: () => false
+      },
+      mutations: {
+        meta: {
+          toastOnError: true,
+          toastOnSuccess: true
+        }
+      },
+      queries: {
+        gcTime: 5 * 60 * 1000, // 5 minutes - unused data stays in cache for 5 minutes
+        refetchOnMount: true, // Refetch if data is stale (staleTime controls freshness)
+        refetchOnReconnect: true, // Refetch on reconnect if data is stale
+        refetchOnWindowFocus: false, // Don't refetch on window focus to reduce unnecessary requests
+        staleTime: 60 * 1000 // 1 minute - data is considered fresh for 1 minute, prevents refetch during this time
+      }
+    },
+    mutationCache: new MutationCache({
+      // ... mutation cache handlers
+    })
+  })
+  return queryClient
+}
+
+let browserQueryClient: QueryClient | undefined = undefined
+
+// Cache the QueryClient per request on the server
+// This ensures generateMetadata and page component share the same instance
+const getServerQueryClient = cache(() => makeQueryClient())
+
+export function getQueryClient() {
+  if (isServer) {
+    return getServerQueryClient()
+  } else {
+    if (!browserQueryClient) browserQueryClient = makeQueryClient()
+    return browserQueryClient
+  }
+}
+```
+
+### Key Configuration Details
+
+**1. Dehydration Configuration (Streaming SSR)**
+
+- **✅ ALWAYS include `dehydrate` configuration** in `defaultOptions`:
+  - `shouldDehydrateQuery`: Includes pending queries for streaming SSR support
+  - `shouldRedactErrors`: Set to `false` (Next.js handles error redaction automatically)
+
+**2. Query Default Options**
+
+- **`staleTime: 60 * 1000`** (1 minute) - Data is considered fresh for 1 minute, prevents refetch during this time
+- **`gcTime: 5 * 60 * 1000`** (5 minutes) - Unused data stays in cache for 5 minutes
+- **`refetchOnMount: true`** - Refetch if data is stale (staleTime controls freshness)
+- **`refetchOnReconnect: true`** - Refetch on reconnect if data is stale
+- **`refetchOnWindowFocus: false`** - Don't refetch on window focus (reduces unnecessary requests for admin dashboards)
+
+**3. Server-Side Caching Pattern**
+
+- **✅ ALWAYS use React's `cache()`** for server-side QueryClient instance:
+  - **Why**: `cache()` ensures that within a single server request, all calls to `getServerQueryClient()` return the same QueryClient instance
+  - **Benefit**: `generateMetadata` and page component share the same QueryClient, allowing them to share prefetched data
+  - **Automatic cleanup**: Cache is automatically invalidated per server request (React behavior), preventing cross-request state leakage
+  - **Best Practice**: This matches the official TanStack Query pattern for Next.js App Router
+
+**Implementation Pattern**:
+
+```typescript
+// ✅ CORRECT: Use cache() to wrap server-side QueryClient creation
+const getServerQueryClient = cache(() => makeQueryClient())
+
+export function getQueryClient() {
+  if (isServer) {
+    return getServerQueryClient() // Returns same instance per request
+  } else {
+    // Browser singleton pattern (not cached)
+    if (!browserQueryClient) browserQueryClient = makeQueryClient()
+    return browserQueryClient
+  }
+}
+```
+
+**Why `cache()` is necessary**:
+
+1. **Shared Instance Within Request**: Without `cache()`, `generateMetadata` and page component would get different QueryClient instances, preventing data sharing
+2. **Automatic Request Isolation**: React's `cache()` automatically clears between server requests, ensuring no cross-request state leakage
+3. **Official Pattern**: This matches TanStack Query's recommended pattern for Next.js App Router with Server Components
+
+**Example Scenario**:
+
+```typescript
+// generateMetadata runs first
+export async function generateMetadata({ params }) {
+  const queryClient = getQueryClient() // Gets QueryClient instance #1
+  await queryClient.fetchQuery(getUserByIdQuery(id)) // Fetches and caches user data
+}
+
+// Page component runs after
+export default async function UserPage({ params }) {
+  const queryClient = getQueryClient() // Gets SAME QueryClient instance #1 (thanks to cache())
+  // ✅ Can use ensureQueryData to read from cache populated by generateMetadata
+  await queryClient.ensureQueryData(getUserByIdQuery(id)) // Uses cached data!
+}
+```
+
+**Without `cache()`** (❌ Wrong):
+
+```typescript
+// ❌ WRONG: No cache() - each call creates new instance
+let serverQueryClient: QueryClient | undefined = undefined
+
+export function getQueryClient() {
+  if (isServer) {
+    if (!serverQueryClient) serverQueryClient = makeQueryClient()
+    return serverQueryClient // ❌ Problem: This persists across requests!
+  }
+  // ...
+}
+```
+
+**Problems without `cache()`**:
+
+- QueryClient instance might leak between requests (if not properly cleared)
+- No automatic request isolation
+- Doesn't match official TanStack Query pattern
+
+**4. Browser Singleton Pattern**
+
+- **✅ ALWAYS use singleton pattern** for browser QueryClient:
+  - Reuses single QueryClient instance in browser
+  - Prevents unnecessary re-initialization during React suspense
+  - Guards against re-creation during initial render
+
+### QueryClientProvider Pattern
+
+**⚠️ MANDATORY: Use direct call pattern in QueryClientProvider (matches official TanStack Query pattern).**
+
+```1:20:lib/providers/query-client.tsx
+'use client'
+
+import { QueryClientProvider as TanstackQueryClientProvider } from '@tanstack/react-query'
+
+import { getQueryClient } from '@/query-client'
+
+export const QueryClientProvider = ({
+  children
+}: {
+  children: React.ReactNode
+}) => {
+  const queryClient = getQueryClient()
+
+  return (
+    <TanstackQueryClientProvider client={queryClient}>
+      {children}
+    </TanstackQueryClientProvider>
+  )
+}
+```
+
+**✅ DO: Use direct call to `getQueryClient()`**
+
+```typescript
+// ✅ CORRECT: Direct call (matches official pattern)
+const queryClient = getQueryClient()
+```
+
+**❌ DON'T: Use `useState` for QueryClient initialization**
+
+```typescript
+// ❌ WRONG: useState is unnecessary (getQueryClient already handles singleton)
+const [queryClient] = useState(getQueryClient())
+```
+
+**Why**: `getQueryClient()` already returns a singleton in the browser and a cached instance on the server. Using `useState` is redundant and doesn't match the official TanStack Query pattern for Next.js App Router.
+
+### Benefits of Current Setup
+
+1. **Streaming SSR Support**: Dehydration configuration enables pending queries to be streamed to client
+2. **Performance**: Optimal cache settings reduce unnecessary network requests
+3. **Server Request Isolation**: React's `cache()` ensures each server request gets a fresh QueryClient
+4. **Browser Efficiency**: Singleton pattern prevents unnecessary QueryClient re-creation
+5. **Type Safety**: Proper TypeScript types throughout (`Query`, `QueryClient`, etc.)
+
+## File Structure Requirements
+
+### 1. Query Folder Structure
+
+Every resource-specific module must follow this structure (create only if the resource is not already represented):
+
+```
+query/{feature}/
+├── {feature}-query.ts      # Query options using queryOptions
+├── {feature}-mutations.ts  # mutationOptions (see Mutation Pattern section)
+├── {feature}-types.ts      # TypeScript types for the feature (or {feature}-type.ts)
+└── index.ts                # Barrel exports
+```
+
+### 2. Required Exports
+
+`index.ts` must re-export queries, types, and mutations:
+
+```typescript
+export * from './{feature}-query'
+export * from './{feature}-types'
+// Add mutation export if it exists
+export * from './{feature}-mutations'
+```
+
+## API Configuration Pattern
+
+### 1. Add Endpoints to `query-client/endpoints.ts`
+
+```typescript
+export const ENDPOINTS = {
+  // ... existing endpoints
+  {FEATURE_NAME}: {
+    GET_ALL: '/{resource}',
+    GET_BY_ID: (id: number | string) => `/{resource}/${id}`,
+    CREATE: '/{resource}',
+    UPDATE: (id: number | string) => `/{resource}/${id}`,
+    DELETE: (id: number | string) => `/{resource}/${id}`,
+    // For nested resources
+    GET_{NESTED}_BY_{PARENT}: (parentId: number | string) => `/{resource}/${parentId}/{nested}`,
+    // For actions
+    TOGGLE_STATUS: (id: number | string) => `/{resource}/${id}/toggle-status`,
+    // For sub-namespaces
+    {SUB_RESOURCE}: {
+      GET_BY_{PARENT}: (parentId: number | string) => `/{resource}/${parentId}/{sub-resource}`,
+      PUT_UPDATE: (parentId: number | string) => `/{resource}/${parentId}/{sub-resource}`
+    }
+  }
+} as const
+```
+
+**Important notes**
+
+- Always import `ENDPOINTS` from `@/query-client`.
+- Dynamic endpoints must accept `number | string`.
+- Use descriptive names (`POST_ADD_TENANT`, `PUT_UPDATE_TENANT`) and group related resources (e.g., `CONTRACT`).
+
+### 2. Register Query Keys in `query-client/query.d.ts`
+
+```typescript
+export type QueryKey = [
+  (
+    | 'admins'
+    | 'tenants'
+    | 'tenants-riders'
+    | '{feature-name}'
+    | '{resource-name}'
+  ),
+  ...ReadonlyArray<unknown>
+]
+```
+
+- Keys must be registered for type safety.
+- Use kebab-case identifiers.
+- Nested keys follow `{parent}-{child}` (e.g., `'tenant-admins'`).
+
+## Template: Feature Module Files
+
+### `{feature}-types.ts`
+
+```typescript
+// Types for API responses and inputs
+export type {Feature} = {
+  id: number
+  name: string
+  status: 0 | 1
+}
+
+export type {Feature}CreateInput = {
+  name: string
+  status?: 0 | 1
+}
+
+export type {Feature}UpdateInput = { id: number } & Partial<{Feature}CreateInput>
+```
+
+### `{feature}-query.ts`
+
+```typescript
+import { queryOptions } from '@tanstack/react-query'
+import { fetcher } from '@/lib/fetcher'
+import { {Feature} } from './{feature}-types'
+
+export const get{FeaturePlural}Options = (params?: Record<string, unknown>) =>
+  queryOptions({
+    queryFn: () => fetcher<{ {Feature}[] }>('PUT_ENDPOINT_HERE', { auth: true, params }),
+    queryKey: ['{feature}', params]
+  })
+
+export const get{Feature}ByIdOptions = (id: number | string) =>
+  queryOptions({
+    queryFn: () => fetcher<{ {Feature} }>(`PUT_ENDPOINT_HERE/${id}`, { auth: true }),
+    queryKey: ['{feature}', id]
+  })
+```
+
+### `{feature}-mutations.ts`
+
+**⚠️ CRITICAL: ALWAYS export `mutationOptions` from query files, NOT `useMutation` hooks.**
+
+**Exception**: Hooks that use other hooks (e.g., `useRouter`, `useAdminStore`, `useTranslations`) may remain as hooks with a concise comment explaining why (e.g., `// Uses useRouter - must remain as hook`).
+
+```typescript
+import { mutationOptions } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
+import { fetcher } from '@/lib/fetcher'
+import { ENDPOINTS } from '@/query-client'
+import { {Feature}, {Feature}CreateInput, {Feature}UpdateInput } from './{feature}-types'
+
+export const create{Feature}MutationOptions = mutationOptions<
+  API,
+  AxiosError<API>,
+  {Feature}CreateInput
+>({
+  meta: {
+    invalidatesQuery: [['{feature}']]
+    // ⚠️ DO NOT add successMessage/errorMessage - messages are handled by backend
+  },
+  mutationFn: async (data) =>
+    fetcher(ENDPOINTS.{FEATURE}.CREATE, {
+      auth: true,
+      body: data,
+      method: 'POST'
+    })
+})
+
+export const update{Feature}MutationOptions = mutationOptions<
+  API,
+  AxiosError<API>,
+  {Feature}UpdateInput & { id?: number | string }
+>({
+  meta: {
+    invalidatesQuery: [['{feature}']]
+  },
+  mutationFn: async (data) =>
+    fetcher(ENDPOINTS.{FEATURE}.UPDATE(data.id!), {
+      auth: true,
+      body: data,
+      method: 'PUT'
+    })
+})
+
+export const delete{Feature}MutationOptions = mutationOptions<
+  API,
+  AxiosError<API>,
+  number | string
+>({
+  meta: {
+    invalidatesQuery: [['{feature}']]
+  },
+  mutationFn: async (id) =>
+    fetcher(ENDPOINTS.{FEATURE}.DELETE(id), {
+      auth: true,
+      method: 'DELETE'
+    })
+})
+
+// ⚠️ EXCEPTION: This hook uses useRouter - must remain as hook
+// export const useCreate{Feature}Mutation = () => {
+//   const router = useRouter()
+//   return useMutation({
+//     ...create{Feature}MutationOptions,
+//     onSuccess: () => router.push('/{feature}')
+//   })
+// }
+```
+
+### `index.ts`
+
+```typescript
+export * from './{feature}-types'
+export * from './{feature}-query'
+export * from './{feature}-mutations'
+```
+
+## Query Options Pattern
+
+### Import Pattern
+
+```typescript
+import { queryOptions } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
+import { fetcher } from '@/lib/fetcher'
+import { ENDPOINTS } from '@/query-client'
+import { {ResourceType} } from './{feature}-types'
+```
+
+### List Query with Pagination
+
+**✅ ALWAYS use `select` to transform the response** - Extract `data.data` and provide `paginationFallback` for non-paginated responses:
+
+```typescript
+import { paginationFallback } from '@/lib/fetcher/utils'
+
+export const getAll{Resource}Query = (params: unknown) =>
+  queryOptions<
+    API<PaginatedResponse<{Resource}[]>>,
+    AxiosError<API>,
+    PaginatedResponse<{Resource}[]>
+  >({
+    queryFn: () =>
+      fetcher(ENDPOINTS.{FEATURE}.GET_ALL, {
+        auth: true,
+        params
+      }),
+    queryKey: ['{resource-name}', params],
+    select: (data) => data.data ?? { data: [], pagination: paginationFallback }
+  })
+```
+
+**In components**, use the transformed data directly (no need for `useMemo` or manual extraction):
+
+```typescript
+// ✅ CORRECT: Query has select, so data is already PaginatedResponse<Resource[]>
+const { data: {resources}Data } = useQuery(getAll{Resource}Query(params))
+
+// Data is already transformed by select - access directly
+const items = {resources}Data?.data ?? []
+const pagination = {resources}Data?.pagination
+```
+
+**⚠️ CRITICAL: Variable Naming**
+
+- **✅ DO**: Use `*Data` suffix when query has `select` (e.g., `centersData`, `{resources}Data`)
+- **❌ DON'T**: Use `*Response` suffix when query has `select` - this implies raw API structure
+- **✅ DO**: Name the data directly in the destructuring (e.g., `data: floorsData`) instead of renaming afterward
+- **❌ DON'T**: Destructure as `data: floorsResponse` and then assign `const floorsData = floorsResponse` - name it correctly in the destructuring
+
+**Example:**
+
+```typescript
+// ✅ CORRECT: Name data directly in destructuring
+const {
+  data: floorsData,
+  error,
+  isLoading
+} = useQuery(getAllFloorsQuery(centerId, params))
+
+// ❌ WRONG: Don't rename afterward
+const {
+  data: floorsResponse, // ❌ Wrong name
+  error,
+  isLoading
+} = useQuery(getAllFloorsQuery(centerId, params))
+
+const floorsData = floorsResponse // ❌ Unnecessary renaming
+```
+
+### Single Resource Query
+
+**✅ ALWAYS use `select` for single resource queries** - Extract `data.data` and provide `undefined` fallback:
+
+```typescript
+export const get{Resource}ByIdQuery = (id?: number | string) =>
+  queryOptions<API<{Resource}ById>, AxiosError<API>, {Resource}ById | undefined>({
+    queryFn: () =>
+      fetcher(ENDPOINTS.{FEATURE}.GET_BY_ID(id!), {
+        auth: true,
+        enabled: !!id
+      }),
+    queryKey: ['{resource-name}', id],
+    select: (data) => data.data ?? undefined
+  })
+```
+
+**In components**, use the transformed data directly:
+
+```typescript
+// ✅ CORRECT: Query has select, so data is already {Resource}ById | undefined
+const { data: {resource} } = useQuery(get{Resource}ByIdQuery(id))
+
+// Data is already transformed by select - {resource} is {Resource}ById | undefined
+if (!{resource}) {
+  return <NotFound />
+}
+```
+
+### Nested Resource Query
+
+**✅ ALWAYS use `select` for paginated nested resources**:
+
+```typescript
+import { paginationFallback } from '@/lib/fetcher/utils'
+
+export const get{NestedResource}By{Parent}IdQuery = (
+  {parent}Id: number | string,
+  params?: unknown
+) =>
+  queryOptions<
+    API<PaginatedResponse<{NestedResource}[]>>,
+    AxiosError<API>,
+    PaginatedResponse<{NestedResource}[]>
+  >({
+    queryFn: () =>
+      fetcher(ENDPOINTS.{FEATURE}.GET_{NESTED}_BY_{PARENT}({parent}Id), {
+        auth: true,
+        params
+      }),
+    queryKey: ['{parent}-{nested}', {parent}Id, params],
+    select: (data) => data.data ?? { data: [], pagination: paginationFallback }
+  })
+```
+
+### Infinite Query Options
+
+**✅ ALWAYS use `infiniteQueryOptions` with 5 type parameters** for infinite/paginated queries:
+
+**Import Pattern:**
+
+```typescript
+import {
+  InfiniteData,
+  infiniteQueryOptions,
+  queryOptions
+} from '@tanstack/react-query'
+import { AxiosError } from 'axios'
+
+import { fetcher } from '@/lib/fetcher'
+import { ENDPOINTS } from '@/query-client'
+import { QueryKey } from '@/query-client/query'
+
+import type { {Resource} } from './{feature}-types'
+```
+
+**Infinite Query Pattern:**
+
+```typescript
+export const getAll{Resource}InfiniteQuery = (
+  params?: Omit<{Resource}ListParams, 'page' | 'per_page'> = {}
+) =>
+  infiniteQueryOptions<
+    API<PaginatedResponse<{Resource}[]>>,
+    AxiosError<API>,
+    InfiniteData<API<PaginatedResponse<{Resource}[]>>>,
+    QueryKey,
+    number
+  >({
+    queryFn: ({ pageParam }) =>
+      fetcher(ENDPOINTS.{FEATURE}.GET_ALL, {
+        auth: true,
+        params: {
+          ...params,
+          page: pageParam as number,
+          per_page: 20
+        }
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const pagination = lastPage.data?.pagination
+      if (!pagination) return undefined
+      if (pagination.current_page < pagination.last_page) {
+        return pagination.current_page + 1
+      }
+      return undefined
+    },
+    queryKey: ['{resource-name}', 'infinite', params]
+  })
+```
+
+**Key Requirements:**
+
+1. **Type Parameters** - MUST include all 5 type parameters:
+   - `API<PaginatedResponse<{Resource}[]>>` - Response type
+   - `AxiosError<API>` - Error type
+   - `InfiniteData<API<PaginatedResponse<{Resource}[]>>>` - Infinite data wrapper
+   - `QueryKey` - Query key type (import from `@/query-client/query`)
+   - `number` - Page parameter type
+
+2. **Function Parameters** - Omit `page` and `per_page` from params type:
+
+   ```typescript
+   params?: Omit<{Resource}ListParams, 'page' | 'per_page'>
+   ```
+
+3. **Query Function** - Use `pageParam` from query function parameter:
+
+   ```typescript
+   queryFn: ({ pageParam }) =>
+     fetcher(ENDPOINTS.{FEATURE}.GET_ALL, {
+       auth: true,
+       params: {
+         ...params,
+         page: pageParam as number,
+         per_page: 20 // Fixed page size
+       }
+     })
+   ```
+
+4. **Initial Page Param** - Always set to `1`:
+
+   ```typescript
+   initialPageParam: 1
+   ```
+
+5. **Get Next Page Param** - Extract pagination from `lastPage.data?.pagination`:
+
+   ```typescript
+   getNextPageParam: (lastPage) => {
+     const pagination = lastPage.data?.pagination
+     if (!pagination) return undefined
+     if (pagination.current_page < pagination.last_page) {
+       return pagination.current_page + 1
+     }
+     return undefined
+   }
+   ```
+
+6. **Query Key** - Include `'infinite'` segment for cache separation:
+   ```typescript
+   queryKey: ['{resource-name}', 'infinite', params]
+   ```
+
+**Reference Implementation:**
+
+```39:68:query/doors/doors-query.ts
+export const getAllDoorsInfiniteQuery = (
+  params?: Omit<DoorsListParams, 'page' | 'per_page'>
+) =>
+  infiniteQueryOptions<
+    API<PaginatedResponse<DoorType[]>>,
+    AxiosError<API>,
+    InfiniteData<API<PaginatedResponse<DoorType[]>>>,
+    QueryKey,
+    number
+  >({
+    queryFn: ({ pageParam }) =>
+      fetcher(ENDPOINTS.DOORS.GET_ALL, {
+        auth: true,
+        params: {
+          ...params,
+          page: pageParam as number,
+          per_page: 20
+        }
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const pagination = lastPage.data?.pagination
+      if (!pagination) return undefined
+      if (pagination.current_page < pagination.last_page) {
+        return pagination.current_page + 1
+      }
+      return undefined
+    },
+    queryKey: ['doors', 'infinite', params]
+  })
+```
+
+### Query with Select Transformation
+
+**For single resources** (non-paginated):
+
+```typescript
+export const get{Resource}ByIdQuery = (id: number | string) =>
+  queryOptions<API<{Resource}>, AxiosError<API>, {Resource} | undefined>({
+    queryFn: () =>
+      fetcher(ENDPOINTS.{FEATURE}.GET_BY_ID(id), {
+        auth: true,
+        enabled: !!id
+      }),
+    queryKey: ['{resource-name}', id],
+    select: (data) => data.data ?? undefined
+  })
+```
+
+**For paginated responses**, **ALWAYS use `select`** to extract `data.data` and provide `paginationFallback`:
+
+```typescript
+import { paginationFallback } from '@/lib/fetcher/utils'
+
+export const get{Resource}By{Parent}IdQuery = (
+  {parent}Id?: number | string,
+  params?: unknown
+) =>
+  queryOptions<
+    API<PaginatedResponse<{Resource}[]>>,
+    AxiosError<API>,
+    PaginatedResponse<{Resource}[]>
+  >({
+    enabled: !!{parent}Id,
+    queryFn: () =>
+      fetcher(ENDPOINTS.{FEATURE}.GET_BY_{PARENT}({parent}Id!), {
+        auth: true,
+        params
+      }),
+    queryKey: ['{resource-name}', {parent}Id, params],
+    select: (data) => data.data ?? { data: [], pagination: paginationFallback }
+  })
+```
+
+**⚠️ CRITICAL: Component Usage Pattern**
+
+**✅ CORRECT: Access transformed data directly after `select`:**
+
+```typescript
+// Query has select: (data) => data.data ?? { data: [], pagination: paginationFallback }
+const { data: centersData } = useQuery(getAllCentersQuery())
+// centersData is PaginatedResponse<Center[]> (already transformed by select)
+const centers = centersData?.data ?? [] // ✅ CORRECT: Access .data for the array
+const pagination = centersData?.pagination
+```
+
+**❌ WRONG: Accessing raw API response structure:**
+
+```typescript
+// ❌ DON'T: Treating data as API<PaginatedResponse<Center[]>>
+const { data: centersResponse } = useQuery(getAllCentersQuery())
+const centers = centersResponse?.data ?? [] // ❌ WRONG: centersResponse is already PaginatedResponse, not API
+```
+
+**Important**:
+
+- **ALWAYS use `select` in query options** - Transform `API<T>` to `T` (or `API<PaginatedResponse<T[]>>` to `PaginatedResponse<T[]>`)
+- **DO NOT** use `useMemo` in components to extract data - the `select` function already handles transformation
+- **DO NOT** access `response?.data?.data` - after `select`, `data` is already transformed, access `response?.data` directly for arrays
+- **DO NOT** name variables `*Response` when query has `select` - use `*Data` instead since it's already transformed
+- **ALWAYS** provide `paginationFallback` for paginated queries to ensure consistent structure
+- **For single resources with `select`**: `data` is the resource directly (e.g., `const { data: center } = useQuery(...)` where `center` is `Center | undefined`)
+
+### Response Type Expectations
+
+- All responses use `API<T>` (`data`, `errors`, `message`, `statusCode`, `success`).
+- Use `API<PaginatedResponse<T[]>>` for lists; `PaginatedResponse` supplies pagination metadata.
+- Use `API<{Resource}>` or `API<{Resource}ById>` for detail views.
+
+### Naming Conventions
+
+- `getAll{Resource}Query` for paginated lists.
+- `get{Resource}ByIdQuery` for detail views.
+- `get{NestedResource}By{Parent}IdQuery` for nested data.
+- `get{Resource}By{Param}Query` for filtered lookups.
+
+### Query Options Extras
+
+- Use `enabled` for conditional fetches.
+- Include filter params in the `queryKey`.
+- Use `select` for data shaping; do not mutate the original response.
+
+## Mutation Pattern
+
+**⚠️ CRITICAL: ALWAYS export `mutationOptions` from query files, NOT `useMutation` hooks.**
+
+**Exception**: Hooks that use other hooks (e.g., `useRouter`, `useAdminStore`, `useTranslations`) may remain as hooks with a concise comment explaining why (e.g., `// Uses useRouter - must remain as hook`).
+
+### Import Pattern
+
+```typescript
+import { mutationOptions } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
+import { fetcher } from '@/lib/fetcher'
+import { ENDPOINTS } from '@/query-client'
+```
+
+### Create Mutation
+
+```typescript
+export const create{Resource}MutationOptions = mutationOptions<
+  API,
+  AxiosError<API>,
+  Create{Resource}Input
+>({
+  meta: {
+    invalidatesQuery: [['{resource-name}']]
+    // ⚠️ DO NOT add successMessage/errorMessage - messages are handled by backend
+  },
+  mutationFn: async (data) =>
+    fetcher(ENDPOINTS.{FEATURE}.CREATE, {
+      auth: true,
+      body: data,
+      method: 'POST'
+    })
+})
+```
+
+### Update / Delete Mutations
+
+```typescript
+export const update{Resource}MutationOptions = mutationOptions<
+  API,
+  AxiosError<API>,
+  Update{Resource}Input & { id?: number | string }
+>({
+  meta: {
+    invalidatesQuery: [['{resource-name}']]
+  },
+  mutationFn: async (data) =>
+    fetcher(ENDPOINTS.{FEATURE}.UPDATE(data.id!), {
+      auth: true,
+      body: data,
+      method: 'PUT'
+    })
+})
+
+export const delete{Resource}MutationOptions = mutationOptions<
+  API,
+  AxiosError<API>,
+  number | string
+>({
+  meta: {
+    invalidatesQuery: [['{resource-name}']]
+  },
+  mutationFn: async (id) =>
+    fetcher(ENDPOINTS.{FEATURE}.DELETE(id), {
+      auth: true,
+      method: 'DELETE'
+    })
+})
+```
+
+### Exception: Hooks That Use Other Hooks
+
+**When a mutation needs to use hooks (e.g., `useRouter`, `useAdminStore`, `useTranslations`), it may remain as a hook:**
+
+```typescript
+import { mutationOptions, useMutation } from '@tanstack/react-query'
+import { useRouter } from 'next/navigation'
+
+export const create{Resource}MutationOptions = mutationOptions<...>({...})
+
+// ⚠️ EXCEPTION: This hook uses useRouter - must remain as hook
+export const useCreate{Resource}Mutation = () => {
+  const router = useRouter()
+  return useMutation({
+    ...create{Resource}MutationOptions,
+    onSuccess: () => {
+      router.push('/{feature}')
+    }
+  })
+}
+```
+
+### Mutation Meta Guidelines
+
+- `meta.invalidatesQuery` supports multiple entries for list/detail caches.
+- **⚠️ DO NOT add `successMessage`/`errorMessage` in mutation meta** - Messages and translations are handled by the backend. The `MutationCache` will automatically display the `message` field from the API response (`data.message` for success, `error.response?.data.message` for errors).
+- Set `toastOnError`/`toastOnSuccess` to `false` when UI handles notifications manually.
+
+### Response Typing
+
+- Prefer `API<unknown>` unless the mutation returns typed payloads.
+- Use `API<{Resource}>`, `API<void>`, or `API<undefined>` when API responses are predictable.
+
+### Reusable Mutation Options for Client Components
+
+**When creating mutations for reusable client components** (e.g., `HeaderActions`, toggle components), use `mutationOptions` helper from `@tanstack/react-query` instead of `useMutation` hooks. This allows passing mutation configuration from server components to client components.
+
+**Pattern**:
+
+1. **Create mutation options in `{feature}-mutations.ts`**:
+
+```typescript
+import { mutationOptions } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
+import { fetcher } from '@/lib/fetcher'
+import { ENDPOINTS } from '@/query-client'
+
+export const toggle{Resource}StatusMutationOptions = mutationOptions<
+  API,
+  AxiosError<API>,
+  number | string
+>({
+  meta: {
+    invalidatesQuery: [['{resource-name}']]
+  },
+  mutationFn: async ({resourceId}) =>
+    fetcher(ENDPOINTS.{FEATURE}.PUT_TOGGLE_{RESOURCE}_STATUS({resourceId}!), {
+      auth: true,
+      enabled: !!{resourceId},
+      method: 'PUT'
+    })
+})
+```
+
+2. **Export from query layer** (included in `index.ts`):
+
+```typescript
+export * from './{feature}-mutations'
+```
+
+3. **Pass from server component to client component**:
+
+**⚠️ NOTE: For both detail and edit pages, use `prefetchQuery` on the server and let client components call `useQuery` directly. Do NOT pass fetched entities as props from the server; pass only identifiers and flags (e.g., `id`, `isEdit`). Reserve `fetchQuery` for server-only contexts like `generateMetadata` where you must synchronously read data.**
+
+```typescript
+// app/(app)/{feature}/[{resource_info}]/info/page.tsx (Server Component - Detail Page)
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query'
+import { getQueryClient } from '@/query-client'
+import { get{Resource}ByIdQuery, toggle{Resource}StatusMutationOptions } from '@/query/{feature}'
+import { {Resource}Tabs } from '@/app/(app)/{feature}/_{feature}/tabs/{resource}-tabs'
+
+export default async function {Resource}InfoPage({ params }) {
+  const id = extractId(params)
+  const queryClient = getQueryClient()
+
+  // Pre-fetch data on server with error handling
+  try {
+    await queryClient.prefetchQuery(get{Resource}ByIdQuery(id))
+  } catch (error) {
+    console.error(error)
+  }
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <{Resource}Tabs {resource}Id={id} />
+    </HydrationBoundary>
+  )
+}
+```
+
+```typescript
+// app/(app)/{feature}/[{resource_info}]/edit-{resource}/page.tsx (Server Component - Edit Page)
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query'
+import { getQueryClient } from '@/query-client'
+import { get{Resource}ByIdQuery } from '@/query/{feature}'
+import { {Resource}Form } from '@/app/(app)/{feature}/_{feature}/forms/{resource}-form'
+
+export default async function {Resource}EditPage({ params }) {
+  const id = extractId(params)
+  const queryClient = getQueryClient()
+
+  // Pre-fetch data on server with error handling
+  try {
+    await queryClient.prefetchQuery(get{Resource}ByIdQuery(id))
+  } catch (error) {
+    console.error(error)
+  }
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <{Resource}Form {resource}Id={id} isEdit />
+    </HydrationBoundary>
+  )
+}
+```
+
+4. **Client form pattern for edit pages (uses `useQuery`)**:
+
+```typescript
+'use client'
+
+import { useQuery } from '@tanstack/react-query'
+
+import { useAppForm } from '@/components/form'
+import { get{Resource}ByIdQuery } from '@/query/{feature}'
+import {
+  create{Resource}Schema,
+  {Resource}FormOptions
+} from '@/app/(app)/{feature}/_{feature}/form-options/{resource}-form-options'
+
+type {Resource}FormProps = {
+  isEdit?: boolean
+  {resource}Id?: number | string
+}
+
+export const {Resource}Form: React.FC<{Resource}FormProps> = ({
+  isEdit = false,
+  {resource}Id
+}) => {
+  const { data: {resource}, isLoading } = useQuery({
+    ...get{Resource}ByIdQuery({resource}Id),
+    enabled: !!isEdit && !!{resource}Id
+  })
+
+  const form = useAppForm({
+    ...{Resource}FormOptions({resource}),
+    validators: {
+      onChange: create{Resource}Schema
+    },
+    onSubmit: async ({ formApi, value }) => {
+      // submit logic
+    }
+  })
+
+  // ... render form fields with loading state
+}
+```
+
+**⚠️ MANDATORY: Client Component for Detail Pages - MUST use `useQuery` directly**
+
+```typescript
+// app/(app)/{feature}/_{feature}/tabs/{resource}-tabs.tsx (Client Component)
+'use client'
+
+import { HeaderActions } from '@/components/custom/header-actions'
+import { PageHeader } from '@/components/custom/page-header'
+import { useQuery } from '@tanstack/react-query'
+import { get{Resource}ByIdQuery, toggle{Resource}StatusMutationOptions } from '@/query/{feature}'
+
+type {Resource}TabsProps = {
+  {resource}Id: string | number
+}
+
+export const {Resource}Tabs: React.FC<{Resource}TabsProps> = ({ {resource}Id }) => {
+  // ✅ CORRECT: Client component MUST use useQuery directly
+  // The prefetched data from server is automatically used via HydrationBoundary
+  const { data: {resource}, isLoading, isError } = useQuery(get{Resource}ByIdQuery({resource}Id))
+
+  if (!{resource} || isError) {
+    return <NotFound title="{Resource} not found" />
+  }
+
+  return (
+    <>
+      <PageHeader title={resource.name}>
+        <HeaderActions
+          activeToggleMutation={{
+            mutationFnParam: {resource}Id,
+            mutationOptions: toggle{Resource}StatusMutationOptions
+          }}
+          editPath={`/{feature}/edit/${resource}Id}`}
+          initialStatus={resource.status === 1}
+        />
+      </PageHeader>
+      {/* ... tabs content ... */}
+    </>
+  )
+}
+```
+
+4. **Use in client component** (for mutations):
+
+```typescript
+// components/custom/header-actions.tsx (Client Component)
+'use client'
+
+import { useMutation, UseMutationOptions } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
+
+type HeaderActionsProps = {
+  activeToggleMutation: {
+    mutationFnParam: number | string
+    mutationOptions: UseMutationOptions<API, AxiosError<API>, number | string>
+  }
+  // ... other props
+}
+
+export const HeaderActions: React.FC<HeaderActionsProps> = ({
+  activeToggleMutation
+  // ... other props
+}) => {
+  const { isPending, mutate: toggleActiveStatus } = useMutation(
+    activeToggleMutation.mutationOptions
+  )
+
+  const handleToggle = () => {
+    toggleActiveStatus(activeToggleMutation.mutationFnParam)
+  }
+
+  // ... render UI
+}
+```
+
+**Benefits**:
+
+- Enables reusable components that accept different mutations
+- Allows passing mutations from server to client components
+- Maintains type safety and proper invalidation patterns
+- Separation of concerns: mutation logic in query layer, UI in components
+
+**When to use**:
+
+- ✅ Creating reusable client components that need mutations (e.g., toggle buttons, action buttons)
+- ✅ Passing mutations from server components to client components
+- ✅ When the same mutation might be used in multiple contexts
+- ✅ **ALL mutations in query files** (except those that use other hooks)
+
+**When NOT to use**:
+
+- ❌ For mutations that use other hooks (e.g., `useRouter`, `useAdminStore`) - these may remain as hooks with concise exception comments
+
+**Reference Implementation**:
+
+- Mutation options: `136:150:query/tenants/tenants-mutations.ts`
+- Server component usage: `47:51:app/(app)/tenants/[tenant_info]/info/page.tsx`
+- Client component implementation: `21:51:components/custom/header-actions.tsx`
+
+## Type Definitions Pattern
+
+```typescript
+// query/{feature}/{feature}-types.ts
+
+export type {Resource} = {
+  id: number
+  created_at: string | null
+  updated_at: string | null
+  // ...
+}
+
+export type {Resource}ById = {Resource} & {
+  translations?: {
+    id: number
+    locale: 'ar' | 'en'
+    name: string
+  }[]
+}
+
+export type Create{Resource}Input = {
+  // form schema fields
+}
+
+export type Update{Resource}Input = {
+  id?: number | string
+  // partial fields
+}
+```
+
+- Match API field names exactly; use `null` for nullable fields.
+- Extend base types for detail views instead of re-declaring overlap.
+- Share nested types across modules when practical (import rather than duplicate).
+
+## Fetcher Usage Guidelines
+
+```typescript
+fetcher(ENDPOINTS.{FEATURE}.GET_ALL, { auth: true })
+fetcher(ENDPOINTS.{FEATURE}.GET_BY_ID(id), { auth: true })
+fetcher(ENDPOINTS.{FEATURE}.CREATE, { auth: true, body: data, method: 'POST' })
+fetcher(ENDPOINTS.{FEATURE}.GET_BY_ID(id), { auth: true, enabled: !!id })
+fetcher(ENDPOINTS.{FEATURE}.GET_ALL, {
+  auth: true,
+  params: { search, status, type }
+})
+fetcher(ENDPOINTS.{FEATURE}.{SUB}.GET_BY_{PARENT}(parentId), { auth: true })
+```
+
+- Always pass `auth: true` for protected routes.
+- Supply `params` for query strings and include them in the `queryKey`.
+- Call dynamic endpoint functions (`ENDPOINTS.FEATURE.GET_BY_ID(id)`).
+
+## Error & Success Handling
+
+### Queries
+
+- `useQuery` error is typed as `AxiosError<API>`.
+- React Query retry defaults can be overridden per-query.
+- Use error boundaries or UI fallbacks for fatal states.
+
+```typescript
+const { data, isLoading, error } = useQuery(getAllTenantsQuery(params))
+
+if (error) {
+  // error.response?.data contains API payload
+}
+```
+
+### Mutations
+
+- `MutationCache` automatically produces toasts using meta.
+- Invalidate related caches by listing them in `meta.invalidatesQuery`.
+- Optional `onSuccess`, `onError`, or `onSettled` callbacks remain available.
+
+```typescript
+const { mutate, isPending, error } = useCreateTenantMutation()
+// Toasts & invalidation handled automatically
+```
+
+## Server Component Patterns
+
+**⚠️⚠️⚠️ CRITICAL: ALL server-side data fetching MUST use `prefetchQuery` with try-catch and HydrationBoundary ⚠️⚠️⚠️**
+
+**🚨 NEVER use `fetchQuery` in main page component - ALWAYS use `prefetchQuery` with `HydrationBoundary`**
+
+**⚠️ MANDATORY: Client/child components MUST use `useQuery` directly - they should NOT access data from server prefetch**
+
+**⚠️ IMPORTANT: Only pre-fetch data that is CRITICAL for initial render. For create pages, avoid blocking prefetches for non-critical data (like dropdown options).**
+
+**⚠️ EXCEPTION: `fetchQuery` is ONLY allowed in `generateMetadata` function - Required for synchronous metadata generation**
+
+### ⚠️⚠️⚠️ CRITICAL: fetchQuery vs prefetchQuery Pattern ⚠️⚠️⚠️
+
+**🚨 NEVER use `fetchQuery` in main page component - ALWAYS use `prefetchQuery` with `HydrationBoundary`**
+
+**❌ WRONG: Using fetchQuery in main page component**
+
+```typescript
+// ❌ WRONG: fetchQuery blocks rendering and prevents proper hydration
+export default async function DetailPage({ params }) {
+  const { id } = await params
+  const queryClient = getQueryClient()
+  const workspace = await queryClient.fetchQuery(getWorkspaceByIdQuery(id)) // ❌ WRONG
+
+  if (!workspace) {
+    return <NotFound title="Workspace not found" />
+  }
+
+  return <WorkspaceTabs workspaceId={id} workspace={workspace} /> // ❌ WRONG: Passing data as prop
+}
+```
+
+**✅ CORRECT: Using prefetchQuery with HydrationBoundary**
+
+```typescript
+// ✅ CORRECT: prefetchQuery is non-blocking, allows proper hydration
+export default async function DetailPage({ params }) {
+  const { id } = await params
+  const queryClient = getQueryClient()
+
+  try {
+    await queryClient.prefetchQuery(getWorkspaceByIdQuery(id)) // ✅ CORRECT
+  } catch (error) {
+    console.error(error)
+  }
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <WorkspaceTabs workspaceId={id} /> {/* ✅ CORRECT: Only pass ID */}
+    </HydrationBoundary>
+  )
+}
+```
+
+**✅ CORRECT: Client component uses useQuery to read prefetched data**
+
+```typescript
+'use client'
+
+export const WorkspaceTabs: React.FC<{ workspaceId: number | string }> = ({ workspaceId }) => {
+  // ✅ CORRECT: useQuery reads prefetched data from HydrationBoundary
+  const { data: workspace, isLoading, isError } = useQuery(getWorkspaceByIdQuery(workspaceId))
+
+  if (!workspace || isError) {
+    return <NotFound title="Workspace not found" />
+  }
+
+  // Use workspace data here
+}
+```
+
+**When to use fetchQuery vs prefetchQuery:**
+
+- **✅ DO use `prefetchQuery`** in main page component - Non-blocking, enables proper hydration
+- **✅ DO use `fetchQuery`** ONLY in `generateMetadata` - Required for synchronous metadata generation
+- **❌ DON'T use `fetchQuery`** in main page component - Blocks rendering, breaks hydration
+- **❌ DON'T pass fetched data as props** - Client component must use `useQuery` to read prefetched data via `HydrationBoundary`
+
+### When to Pre-fetch on Server
+
+**✅ DO pre-fetch when:**
+
+- **Detail pages** - Need entity data for page content (e.g., user detail page, tenant detail page)
+- **Edit pages** - Need existing data to populate form (e.g., `adminByIdOptions` for edit admin page)
+- **Critical data** - Data required for initial render that would cause layout shift if missing
+
+**❌ DON'T pre-fetch when:**
+
+- **Create pages** - No existing data needed, form starts empty
+- **Dropdown options** - Can load on client when dropdown is opened (non-blocking)
+- **Non-critical data** - Data that can be fetched after initial render
+
+### Server Component with Pre-fetching (Detail Pages)
+
+**✅ CORRECT: Use prefetchQuery with try-catch and HydrationBoundary for detail pages**
+
+```typescript
+import { Metadata } from 'next'
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query'
+
+import { NotFound } from '@/components/ui/not-found'
+import { getQueryClient } from '@/query-client'
+import { getUserByIdQuery } from '@/query/users'
+import { UserTabs } from '@/app/(Dashboard)/customers/_customers/tabs/user-tabs'
+
+type UserDetailPageProps = {
+  params: Promise<{
+    userID: string
+  }>
+}
+
+export async function generateMetadata({
+  params
+}: UserDetailPageProps): Promise<Metadata> {
+  const { userID } = await params
+  const queryClient = getQueryClient()
+  let user
+
+  try {
+    const result = await queryClient.fetchQuery(getUserByIdQuery(userID))
+    user = result.data
+  } catch (error) {
+    console.error(error)
+  }
+
+  return {
+    description: user?.email || 'View customer user details',
+    title: user?.name || 'User Details'
+  }
+}
+
+export default async function UserDetailPage({ params }: UserDetailPageProps) {
+  const { userID } = await params
+
+  if (!userID || isNaN(+userID)) {
+    return <NotFound title="User ID is invalid" />
+  }
+
+  const queryClient = getQueryClient()
+
+  // Pre-fetch data on server with error handling
+  try {
+    await queryClient.prefetchQuery(getUserByIdQuery(userID))
+  } catch (error) {
+    console.error(error)
+  }
+
+  // Wrap client component with HydrationBoundary to pass dehydrated state
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <UserTabs userID={userID} />
+    </HydrationBoundary>
+  )
+}
+```
+
+**⚠️ MANDATORY: Client Component Pattern - MUST use `useQuery` directly**
+
+```typescript
+'use client'
+
+import { useQuery } from '@tanstack/react-query'
+import { getUserByIdQuery } from '@/query/users'
+
+type UserTabsProps = {
+  userID: string | number
+}
+
+export const UserTabs: React.FC<UserTabsProps> = ({ userID }) => {
+  // ✅ CORRECT: Client component MUST use useQuery directly
+  // The prefetched data from server is automatically used via HydrationBoundary
+  const { data: user, isLoading, isError } = useQuery(getUserByIdQuery(userID))
+
+  if (!user || isError) return <NotFound title="User not found" />
+
+  return (
+    <>
+      <PageHeader title={user.name} description={user.email}>
+        {/* ... */}
+      </PageHeader>
+      {/* ... */}
+    </>
+  )
+}
+```
+
+### Server Component with Pre-fetching (Edit Pages)
+
+**✅ CORRECT: Use `prefetchQuery` with try-catch and HydrationBoundary for edit pages. Let the client form call `useQuery` directly instead of passing the fetched entity from the server.**
+
+```typescript
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query'
+
+import { getQueryClient } from '@/query-client'
+import { adminByIdOptions } from '@/query/admins/admins-query'
+import { AdminForm } from '@/app/(Dashboard)/administration/_administration/forms/admin-form'
+
+export default async function EditAdminPage({
+  params
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const queryClient = getQueryClient()
+
+  // Pre-fetch data on server with error handling
+  try {
+    await queryClient.prefetchQuery(adminByIdOptions(id))
+  } catch (error) {
+    console.error(error)
+  }
+
+  // Wrap client component with HydrationBoundary to pass dehydrated state
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <AdminForm adminId={id} isEdit />
+    </HydrationBoundary>
+  )
+}
+```
+
+```typescript
+'use client'
+
+import { useQuery } from '@tanstack/react-query'
+
+import { useAppForm } from '@/components/form'
+import { adminByIdOptions } from '@/query/admins/admins-query'
+import { AdminFormOptions, createAdminSchema } from './admin-form-options'
+
+type AdminFormProps = {
+  isEdit?: boolean
+  adminId?: string
+}
+
+export const AdminForm: React.FC<AdminFormProps> = ({ isEdit, adminId }) => {
+  const { data: admin } = useQuery(adminByIdOptions(adminId!), {
+    enabled: !!isEdit && !!adminId
+  })
+
+  const form = useAppForm({
+    ...AdminFormOptions(admin),
+    validators: {
+      onChange: createAdminSchema
+    },
+    onSubmit: async ({ formApi, value }) => {
+      // submit logic
+    }
+  })
+
+  // ... render form fields
+}
+```
+
+### Server Component without Pre-fetching (Create Pages)
+
+**✅ CORRECT: Simple server component for create pages - no blocking prefetch**
+
+```typescript
+import { AdminForm } from '../../_administration/forms/admin-form'
+
+export default function CreateAdminPage() {
+  return <AdminForm />
+}
+```
+
+**Why this pattern for create pages:**
+
+- **Faster TTFB** - No blocking API calls on server
+- **Non-blocking** - Form renders immediately, dropdowns load on client when needed
+- **Better performance** - Client can fetch roles in parallel with form rendering
+- **Matches existing pattern** - See `app/(Dashboard)/administration/roles/create/page.tsx`
+
+**Key Requirements:**
+
+- ✅ **ALWAYS wrap `prefetchQuery` in try-catch** - Prevents server errors from crashing the page
+- ✅ **ALWAYS use `HydrationBoundary`** - When pre-fetching, wrap with HydrationBoundary to pass dehydrated state
+- ✅ **ALWAYS import `dehydrate` and `HydrationBoundary`** from `@tanstack/react-query` when pre-fetching
+- ✅ **⚠️ MANDATORY: Client components MUST use `useQuery` directly** - Do NOT access prefetched data from server, use `useQuery` in client component
+- ✅ **Error handling** - Log errors but don't block page render (client can refetch if needed)
+- ✅ **Only pre-fetch critical data** - Don't block initial render for non-critical data like dropdown options
+
+**❌ WRONG: Using fetchQuery in server component and passing data as props**
+
+```typescript
+// ❌ WRONG: Using fetchQuery in server component (blocks rendering)
+export default async function UserDetailPage({ params }) {
+  const queryClient = getQueryClient()
+  const user = await queryClient.fetchQuery(getUserByIdQuery(userID)) // ❌ WRONG: Use prefetchQuery instead
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <UserTabs userID={userID} user={user} /> {/* ❌ WRONG: Don't pass fetched data as props */}
+    </HydrationBoundary>
+  )
+}
+
+// ❌ WRONG: Client component should NOT receive prefetched data as props
+export const UserTabs = ({ userID, user }) => {
+  // ❌ WRONG: Using prefetched data from props instead of useQuery
+  return <div>{user?.name}</div>
+}
+```
+
+**❌ WRONG: Using fetchQuery in main page component (should only be used in generateMetadata)**
+
+```typescript
+// ❌ WRONG: fetchQuery in main page component blocks rendering
+export default async function DetailPage({ params }) {
+  const queryClient = getQueryClient()
+  const workspace = await queryClient.fetchQuery(getWorkspaceByIdQuery(id)) // ❌ WRONG
+
+  return <WorkspaceTabs workspaceId={id} workspace={workspace} />
+}
+```
+
+**✅ CORRECT: Server component uses prefetchQuery, client component uses useQuery**
+
+```typescript
+// ✅ CORRECT: Server component uses prefetchQuery with try-catch and HydrationBoundary
+export default async function UserDetailPage({ params }) {
+  const queryClient = getQueryClient()
+
+  try {
+    await queryClient.prefetchQuery(getUserByIdQuery(userID)) // ✅ CORRECT: prefetchQuery
+  } catch (error) {
+    console.error(error)
+  }
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <UserTabs userID={userID} /> {/* ✅ CORRECT: Only pass ID, not data */}
+    </HydrationBoundary>
+  )
+}
+
+// ✅ CORRECT: Client component uses useQuery directly to read prefetched data
+export const UserTabs = ({ userID }) => {
+  const { data: user } = useQuery(getUserByIdQuery(userID)) // ✅ CORRECT: useQuery reads prefetched data
+  return <div>{user?.name}</div>
+}
+```
+
+**⚠️ CRITICAL RULE: fetchQuery vs prefetchQuery**
+
+- **✅ DO use `prefetchQuery`** in server component main function - Non-blocking, allows client to use prefetched data
+- **✅ DO use `fetchQuery`** ONLY in `generateMetadata` - Required for synchronous metadata generation
+- **❌ DON'T use `fetchQuery`** in main page component - Blocks rendering, prevents proper hydration
+- **❌ DON'T pass fetched data as props** - Client component must use `useQuery` to read prefetched data
+
+**❌ WRONG: Pre-fetching non-critical data on create pages**
+
+```typescript
+// ❌ WRONG: Blocking prefetch for dropdown options on create page
+export default async function CreateAdminPage() {
+  const queryClient = getQueryClient()
+  await queryClient.prefetchQuery(rolesWithoutPaginationOptions) // ❌ Blocks TTFB
+  return <AdminForm />
+}
+```
+
+**Reference Implementation:**
+
+- Detail page pattern: `app/(Dashboard)/customers/user/[userID]/page.tsx` - Uses `prefetchQuery` with try-catch and `HydrationBoundary`, client component uses `useQuery`
+- Client component pattern: `app/(Dashboard)/customers/_customers/tabs/user-tabs.tsx` - Uses `useQuery` directly in client component
+- Edit page pattern: `app/(Dashboard)/centers/[id]/garages/[garageId]/edit/page.tsx` - Uses `prefetchQuery` with try-catch and `HydrationBoundary`, client form uses `useQuery`
+- Create page pattern: `app/(Dashboard)/administration/roles/create/page.tsx` - Simple server component, no prefetch
+
+## Usage in Components
+
+### Basic Query Usage
+
+```typescript
+'use client'
+
+import { useQuery } from '@tanstack/react-query'
+import { get{FeaturePlural}Options } from '@/query/{feature}'
+
+const { data, isLoading } = useQuery(get{FeaturePlural}Options())
+```
+
+**Note**: For data tables, prefer the `queryOptions` pattern with `useDataTable` (see [Using Queries with useDataTable](#using-queries-with-usedatatable) section below) instead of manually calling `useQuery` and passing `data`/`pageCount`.
+
+### ⚠️ CRITICAL: useQuery with Additional Options
+
+**When you need to add additional options (like `enabled`) to a query, you MUST spread the query options into a single object:**
+
+**✅ CORRECT: Spread query options and add additional options**
+
+```typescript
+const { data: {resource}, isLoading } = useQuery({
+  ...get{Resource}ByIdQuery({resource}Id),
+  enabled: !!isEdit && !!{resource}Id
+})
+```
+
+**❌ WRONG: Passing query options as first parameter and options as second parameter**
+
+```typescript
+// ❌ DON'T: This is the wrong pattern - useQuery doesn't accept two separate objects
+const { data: {resource}, isLoading } = useQuery(
+  get{Resource}ByIdQuery({resource}Id),
+  {
+    enabled: !!isEdit && !!{resource}Id
+  }
+)
+```
+
+**Why**: `useQuery` from TanStack Query accepts a single options object. When using `queryOptions`, you must spread the result into a single object along with any additional options you need to override or add.
+
+Mutations wire into forms/tables; ensure `meta.invalidatesQuery` covers the list/detail keys consumed by UI.
+
+## Using Queries with useDataTable
+
+**⚠️ PREFERRED: Use `queryOptions` pattern for data tables**
+
+The `useDataTable` hook supports two modes:
+
+1. **Data mode**: Pass `data` and `pageCount` directly (for client-side data)
+2. **Query mode**: Pass `queryOptions` function (for server-side queries) - **PREFERRED**
+
+**✅ CORRECT: Using queryOptions pattern**
+
+```typescript
+const {
+  data: usersData,
+  error,
+  isError,
+  isLoading,
+  pagination,
+  refetch,
+  table
+} = useDataTable({
+  columns,
+  getRowId: (originalRow) => `${originalRow.id}`,
+  initialState: {
+    pagination: { pageIndex: 0, pageSize: 15 },
+    sorting: [{ desc: true, id: 'id' }]
+  },
+  queryOptions: (params) =>
+    getAllUsersQuery({
+      ...params,
+      ...(groupId && { user_group_id: groupId })
+    })
+})
+
+// Query state is available directly from useDataTable
+<DataTable
+  error={error}
+  isError={isError}
+  isLoading={isLoading}
+  pagination={pagination}
+  refetch={refetch}
+  table={table}
+  totalItems={usersData?.pagination?.total}
+/>
+```
+
+**Key Benefits:**
+
+- ✅ Automatic URL parameter detection (page, per_page, search, sort, filters)
+- ✅ No manual `useQuery` calls needed
+- ✅ Query state (`data`, `error`, `isLoading`, etc.) returned directly
+- ✅ Filter parameters automatically passed to query
+- ✅ Type-safe with discriminated unions (cannot use both `data` and `queryOptions`)
+
+**Query Options Function Signature:**
+
+```typescript
+queryOptions: (params: Record<string, unknown>) =>
+  UseQueryOptions<
+    API<PaginatedResponse<TData[]>>,
+    AxiosError<API>,
+    PaginatedResponse<TData[]>
+  >
+```
+
+The `params` object includes:
+
+- `page`, `per_page`, `search`, `sort` (standard params)
+- All URL query parameters except standard ones (custom filters)
+
+**Examples:**
+
+**Simple query:**
+
+```typescript
+queryOptions: (params) => getAllUsersQuery(params)
+```
+
+**Query with additional params:**
+
+```typescript
+queryOptions: (params) =>
+  getAllUsersQuery({
+    ...params,
+    ...(groupId && { user_group_id: groupId })
+  })
+```
+
+**Query with parent ID:**
+
+```typescript
+queryOptions: (params) => getAllGaragesQuery(centerId, params)
+```
+
+**Reference Implementation:**
+
+- `app/(Dashboard)/customers/_customers/tables/users-table.tsx` - Users table with queryOptions
+- `app/(Dashboard)/centers/_centers/tables/garages-table.tsx` - Garages table with queryOptions
+
+### queryOptions Function Pattern
+
+**✅ CORRECT: Use inline functions for queryOptions**
+
+```typescript
+const { error, isError, isLoading, pagination, refetch, table } = useDataTable({
+  columns,
+  queryOptions: (params) => getAllUsersQuery(params) // ✅ Inline function
+})
+```
+
+**✅ CORRECT: Inline function with props**
+
+```typescript
+const { error, isError, isLoading, pagination, refetch, table } = useDataTable({
+  columns,
+  queryOptions: (params) => getAllFloorsByCenterIdQuery(centerId, params) // ✅ Inline function with prop
+})
+```
+
+**❌ WRONG: Using useCallback is unnecessary**
+
+```typescript
+// ❌ DON'T: useCallback is not needed - useDataTableQuery handles memoization internally
+const queryOptions = useCallback(
+  (params: Record<string, unknown>) =>
+    getAllFloorsByCenterIdQuery(centerId, params),
+  [centerId]
+)
+
+const { table } = useDataTable({
+  columns,
+  queryOptions // ❌ Unnecessary useCallback
+})
+```
+
+**Why**: `useDataTableQuery` internally memoizes the query options based on `queryParams` (which changes frequently on filter/search/pagination). The `queryOptions` function reference changing on each render is acceptable since `queryParams` changes frequently anyway, making `useCallback` an unnecessary optimization.
+
+**❌ WRONG: Manual useQuery + data/pageCount pattern (legacy)**
+
+```typescript
+// ❌ DON'T: Manual useQuery for tables (use queryOptions instead)
+const { data: usersData, isLoading } = useQuery(getAllUsersQuery(params))
+
+const { table } = useDataTable({
+  columns,
+  data: usersData?.data ?? [],
+  pageCount: usersData?.pagination?.last_page ?? 1
+})
+```
+
+## Best Practices
+
+1. Always use `queryOptions` instead of inline objects in `useQuery`.
+2. Reference endpoints via `ENDPOINTS`; never inline string paths.
+3. Register every new key in `query-client/query.d.ts`.
+4. Keep responses typed via `API<T>` wrappers.
+5. Include filter params in `queryKey` arrays for cache separation.
+6. **ALWAYS export `mutationOptions` from query files, NOT `useMutation` hooks** (except hooks that use other hooks like `useRouter`, `useAdminStore`).
+7. Use `enabled` for conditional fetching and `select` for transformations.
+8. Share types and avoid duplication across features.
+9. Hook into `MutationCache` for consistent invalidation & toasts.
+10. **⚠️ DO NOT add `successMessage`/`errorMessage` in mutation meta** - Messages and translations are handled by the backend.
+11. Align with `tanstack-form`, `data-table`, `feature-structure`, and `permission-system` rules.
+
+## Complete Example: Tenants Feature
+
+```typescript
+// query-client/endpoints.ts
+export const ENDPOINTS = {
+  TENANTS: {
+    GET_ALL: '/tenants',
+    GET_BY_ID: (tenantId: number | string) => `/tenants/${tenantId}`,
+    POST_ADD_TENANT: '/tenants',
+    PUT_UPDATE_TENANT: (tenantId: number | string) =>
+      `/tenants/${tenantId}/toggle-status`,
+    PUT_TOGGLE_TENANT_STATUS: (tenantId: number | string) =>
+      `/tenants/${tenantId}/toggle-status`,
+    DELETE: (tenantId: number | string) => `/tenants/${tenantId}`,
+    GET_TENANT_ADMINS: (tenantId: number | string) =>
+      `tenant-admins/tenant/${tenantId}`,
+    GET_TENANT_ADMIN_BY_ID: (adminId: number | string) =>
+      `/tenant-admins/${adminId}`,
+    POST_ADD_TENANT_ADMIN: '/tenant-admins',
+    PUT_UPDATE_TENANT_ADMIN: (adminId: number | string) =>
+      `/tenant-admins/${adminId}`,
+    CONTRACT: {
+      GET_BY_TENANT: (tenantId: number | string) =>
+        `/tenants/${tenantId}/contract`,
+      PUT_UPDATE_CONTRACT: (tenantId: number | string) =>
+        `/tenants/${tenantId}/contract`
+    }
+  }
+} as const
+```
+
+```typescript
+// query-client/query.d.ts
+export type QueryKey = [
+  'tenants' | 'tenant-admins' | 'tenants-riders',
+  ...ReadonlyArray<unknown>
+]
+```
+
+```typescript
+// query/tenants/tenants-type.ts
+export type Tenant = {
+  code: string
+  created_at: null | string
+  deleted_at: null | string
+  email: null | string
+  id: number
+  image_url: null | string
+  name: string
+  phone: null | string
+  slug: string
+  status: number
+  type: number
+  updated_at: null | string
+  users_count: number
+}
+
+export type TenantById = Tenant & {
+  translations: {
+    id: number
+    locale: 'ar' | 'en'
+    name: string
+    slug: string
+    tenant_id: number
+  }[]
+}
+
+export type TenantAdmin = {
+  blocked: number
+  created_at: null | string
+  email: string
+  id: number
+  image_url: null | string
+  name: string
+  phone: null | string
+  role: TenantAdminRole
+  role_id: number
+  status: number
+  tenant_id: number
+  updated_at: null | string
+}
+
+export type Contract = {
+  created_at: string
+  dynamic_routes: { count: number; vehicle_types: number[] }
+  fixed_destinations: { count: number; vehicle_types: number[] }
+  fixed_routes: { count: number; vehicle_types: number[] }
+  id: number
+  tenant_id: number
+  updated_at: string
+}
+```
+
+```typescript
+// query/tenants/tenants-query.ts
+export const getAllTenantsQuery = (params: unknown) =>
+  queryOptions<API<PaginatedResponse<Tenant[]>>, AxiosError<API>>({
+    queryFn: () =>
+      fetcher(ENDPOINTS.TENANTS.GET_ALL, {
+        auth: true,
+        params
+      }),
+    queryKey: ['tenants', params]
+  })
+
+export const getTenantByIdQuery = (tenantId?: number | string) =>
+  queryOptions<API<TenantById>, AxiosError<API>>({
+    queryFn: () =>
+      fetcher(ENDPOINTS.TENANTS.GET_BY_ID(tenantId!), {
+        auth: true,
+        enabled: !!tenantId
+      }),
+    queryKey: ['tenant-admins', tenantId]
+  })
+
+export const getTenantAdminsByTenantIdQuery = (tenantId: number | string) =>
+  queryOptions<API<PaginatedResponse<TenantAdmin[]>>, AxiosError<API>>({
+    queryFn: () =>
+      fetcher(ENDPOINTS.TENANTS.GET_TENANT_ADMINS(tenantId), {
+        auth: true
+      }),
+    queryKey: ['tenant-admins', tenantId]
+  })
+
+export const getContractByTenantIdQuery = (tenantId: number | string) =>
+  queryOptions<API<Contract>, AxiosError<API>>({
+    queryFn: () =>
+      fetcher(ENDPOINTS.TENANTS.CONTRACT.GET_BY_TENANT(tenantId), {
+        auth: true
+      }),
+    queryKey: ['tenants', tenantId, 'contract']
+  })
+```
+
+```typescript
+// query/tenants/tenants-mutations.ts
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { useMutation } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
+import { fetcher } from '@/lib/fetcher'
+import { ENDPOINTS } from '@/query-client'
+import { CreateTenantSchema } from '@/app/(app)/tenants/_tenants/form-options/tenants-form-options'
+
+export const useCreateTenantMutation = () => {
+  const router = useRouter()
+  return useMutation<
+    API<unknown>,
+    AxiosError<API<unknown>>,
+    Omit<CreateTenantSchema, 'status'> & { status: number }
+  >({
+    meta: { invalidatesQuery: [['tenants']] },
+    mutationFn: async (data) =>
+      fetcher(ENDPOINTS.TENANTS.POST_ADD_TENANT, {
+        auth: true,
+        body: data,
+        method: 'POST'
+      }),
+    onSuccess: () => {
+      router.push('/tenants')
+    }
+  })
+}
+
+export const useDeleteTenantMutation = () =>
+  useMutation<API<unknown>, AxiosError<API<unknown>>, number | string>({
+    meta: { invalidatesQuery: [['tenants']] },
+    mutationFn: async (tenantId) =>
+      fetcher(ENDPOINTS.TENANTS.DELETE(tenantId), {
+        auth: true,
+        method: 'DELETE'
+      })
+  })
+
+export const useUpdateContractMutation = (tenantId: number | string) =>
+  useMutation<API, AxiosError<API>, ContractFormSchema>({
+    meta: { invalidatesQuery: [['tenants', tenantId, 'contract']] },
+    mutationFn: async (data) =>
+      fetcher(ENDPOINTS.TENANTS.CONTRACT.PUT_UPDATE_CONTRACT(tenantId), {
+        auth: true,
+        body: data,
+        method: 'PUT'
+      })
+  })
+```
+
+```typescript
+// query/tenants/index.ts
+export * from './tenants-mutations'
+export * from './tenants-query'
+export * from './tenants-type'
+```
+
+This full example illustrates the required structure, naming conventions, invalidation patterns, and type usage for new resources.
+
+**Example Anti-Pattern: Redundant ById Type Aliases**
+
+**❌ DON'T: Create redundant ById type aliases**
+
+```typescript
+// ❌ WRONG: Redundant alias - no additional fields
+export type Color = {
+  id: number
+  code: string
+  translations: ColorTranslation[]
+}
+
+export type ColorById = Color // ❌ Redundant - just an alias
+```
+
+**✅ DO: Only create ById types when they extend the base type with additional fields**
+
+```typescript
+// ✅ CORRECT: ById extends base type with additional fields
+export type Role = {
+  id: number
+  name: string
+  permission_type: 'all' | 'custom'
+}
+
+export type RoleById = Role & {
+  translations?: {
+    id: number
+    locale: 'ar' | 'en'
+    name: string
+    role_id: number
+  }[]
+}
+```
+
+**✅ DO: Use the base type directly when ById would be redundant**
+
+```typescript
+// ✅ CORRECT: Use base type directly in queries
+export const getColorByIdQuery = (colorId?: number | string) =>
+  queryOptions<API<Color>, AxiosError<API>, Color | undefined>({
+    // ...
+  })
+```
+
+**Why:**
+
+- Redundant type aliases add no value and create unnecessary indirection
+- They increase maintenance burden (need to update both types)
+- They can cause confusion about when to use which type
+- Only create `{Resource}ById` when the detail endpoint returns additional fields not present in the list response
