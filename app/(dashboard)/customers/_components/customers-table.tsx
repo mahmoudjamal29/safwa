@@ -1,18 +1,14 @@
 'use client'
 
 import * as React from 'react'
+
 import { useQuery } from '@tanstack/react-query'
+import { Pencil, Trash2 } from 'lucide-react'
+
 import { getAllCustomersQuery, useDeleteCustomer, type Customer } from '@/query/customers'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+
+import { useDebounce } from '@/hooks/use-debounce'
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,9 +19,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+
 import { CustomerFormDialog } from './customer-form-dialog'
-import { Pencil, Trash2 } from 'lucide-react'
-import { useDebounce } from '@/hooks/use-debounce'
 
 export function CustomersTable() {
   const [search, setSearch] = React.useState('')

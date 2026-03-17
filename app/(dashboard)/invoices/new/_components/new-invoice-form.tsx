@@ -1,8 +1,18 @@
 'use client'
 
-import * as React from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
+import * as React from 'react'
+
+import { useQuery } from '@tanstack/react-query'
+
+import { createClient } from '@/lib/supabase/client'
+
+import { getAllCustomersSimpleQuery } from '@/query/customers'
+import { useCreateMovement } from '@/query/inventory'
+import { useCreateInvoice, type InvoiceStatus } from '@/query/invoices'
+
+import { fmtCurrency } from '@/utils/formatters'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,13 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { getAllCustomersSimpleQuery } from '@/query/customers'
-import { useCreateInvoice, type InvoiceStatus } from '@/query/invoices'
-import { useCreateMovement } from '@/query/inventory'
-import { fmtCurrency } from '@/utils/formatters'
-import { ProductPickerDialog } from './product-picker-dialog'
+
 import { LineItemsTable } from './line-items-table'
-import { createClient } from '@/lib/supabase/client'
+import { ProductPickerDialog } from './product-picker-dialog'
 
 export interface LineItem {
   product_id: string
@@ -31,11 +37,11 @@ export interface LineItem {
   pieces_per_unit: number
 }
 
-const STATUSES: { value: InvoiceStatus; label: string }[] = [
-  { value: 'معلقة', label: 'معلقة' },
-  { value: 'مدفوعة', label: 'مدفوعة' },
-  { value: 'مدفوعة جزئياً', label: 'مدفوعة جزئياً' },
-  { value: 'ملغاة', label: 'ملغاة' },
+const STATUSES: { label: string; value: InvoiceStatus; }[] = [
+  { label: 'معلقة', value: 'معلقة' },
+  { label: 'مدفوعة', value: 'مدفوعة' },
+  { label: 'مدفوعة جزئياً', value: 'مدفوعة جزئياً' },
+  { label: 'ملغاة', value: 'ملغاة' },
 ]
 
 interface FormState {
@@ -70,10 +76,10 @@ export function NewInvoiceForm() {
     customer_id: '',
     customer_name: '',
     invoice_date: todayStr(),
-    status: 'معلقة',
-    tax_percent: '0',
     notes: '',
     paid_amount: '0',
+    status: 'معلقة',
+    tax_percent: '0',
   })
   const [items, setItems] = React.useState<LineItem[]>([])
   const [pickerOpen, setPickerOpen] = React.useState(false)
@@ -113,10 +119,10 @@ export function NewInvoiceForm() {
       customer_id: '',
       customer_name: '',
       invoice_date: todayStr(),
-      status: 'معلقة',
-      tax_percent: '0',
       notes: '',
       paid_amount: '0',
+      status: 'معلقة',
+      tax_percent: '0',
     })
     setItems([])
     setCustomerSearch('')
@@ -129,28 +135,28 @@ export function NewInvoiceForm() {
     const invoiceNumber = await getNextInvoiceNumber()
 
     await createInvoice.mutateAsync({
-      invoice_number: invoiceNumber,
       customer_id: form.customer_id || null,
       customer_name: form.customer_name || 'غير محدد',
       invoice_date: form.invoice_date,
+      invoice_number: invoiceNumber,
+      items: JSON.stringify(items),
+      notes: form.notes || undefined,
+      paid_amount: parseFloat(form.paid_amount) || 0,
       status: form.status,
       subtotal,
-      tax_percent: taxPercent,
       tax_amount: taxAmount,
+      tax_percent: taxPercent,
       total: grandTotal,
-      paid_amount: parseFloat(form.paid_amount) || 0,
-      notes: form.notes || undefined,
-      items: JSON.stringify(items),
     })
 
     // Create inventory movements for each line item
     for (const item of items) {
       await createMovement.mutateAsync({
+        note: `فاتورة ${invoiceNumber}`,
         product_id: item.product_id,
         product_name: item.product_name,
-        type: 'صادر',
         qty: item.sell_by === 'piece' ? item.qty / (item.pieces_per_unit || 1) : item.qty,
-        note: `فاتورة ${invoiceNumber}`,
+        type: 'صادر',
       })
     }
 

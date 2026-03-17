@@ -1,19 +1,18 @@
 'use client'
 
 import * as React from 'react'
+
 import { useQuery, queryOptions } from '@tanstack/react-query'
+import { Pencil, Trash2 } from 'lucide-react'
+
+import { createClient } from '@/lib/supabase/client'
+
 import { getAllProductsQuery, useDeleteProduct, type Product } from '@/query/products'
+
+import { useDebounce } from '@/hooks/use-debounce'
+
 import { fmtCurrency } from '@/utils/formatters'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,10 +23,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+
 import { ProductFormDialog } from './product-form-dialog'
-import { Pencil, Trash2 } from 'lucide-react'
-import { useDebounce } from '@/hooks/use-debounce'
-import { createClient } from '@/lib/supabase/client'
 
 const CATEGORIES_QUERY_KEY = ['product-categories']
 
@@ -56,11 +63,11 @@ export function ProductsTable() {
 
   // Distinct categories from current data
   const { data: allProducts } = useQuery(queryOptions({
-    queryKey: CATEGORIES_QUERY_KEY,
     queryFn: async () => {
       const { data } = await createClient().from('products').select('category').order('category')
       return data ?? []
     },
+    queryKey: CATEGORIES_QUERY_KEY,
     staleTime: 5 * 60 * 1000,
   }))
   const categories = Array.from(new Set((allProducts ?? []).map(p => p.category).filter(Boolean))) as string[]

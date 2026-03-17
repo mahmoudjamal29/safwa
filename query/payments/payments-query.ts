@@ -1,10 +1,12 @@
 import { queryOptions } from '@tanstack/react-query'
+
 import { createClient } from '@/lib/supabase/client'
+
 import type { Payment } from './payments-types'
 
 export const getPaymentsByInvoiceQuery = (invoiceId: string) =>
   queryOptions<Payment[]>({
-    queryKey: ['payments', invoiceId],
+    enabled: !!invoiceId,
     queryFn: async () => {
       const { data, error } = await createClient()
         .from('payments')
@@ -14,5 +16,5 @@ export const getPaymentsByInvoiceQuery = (invoiceId: string) =>
       if (error) throw error
       return data ?? []
     },
-    enabled: !!invoiceId
+    queryKey: ['payments', invoiceId]
   })

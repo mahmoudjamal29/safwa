@@ -1,9 +1,9 @@
 import type { InfiniteQueryOptions, RegularQueryOptions } from '@/types/query'
 
 export type FilterOption = {
+  [key: string]: number | string
   label: string
   value: number | string
-  [key: string]: number | string
 }
 
 // Base filter props shared by all filter variants
@@ -29,22 +29,22 @@ export type InputFilterProps = BaseFilterProps & {
 
 // Date filter
 export type DateFilterProps = BaseFilterProps & {
-  variant: 'date' | 'date-time'
   timeClearable?: boolean
   timePlaceholder?: string
   timeShowNowButton?: boolean
   timeWithSeconds?: boolean
+  variant: 'date' | 'date-time'
 }
 
 // Date range filter
 export type DateRangeFilterProps = BaseFilterProps & {
   align?: 'center' | 'end' | 'start'
   showCompare?: boolean
-  variant: 'date-range' | 'date-range-time'
   timeClearable?: boolean
   timePlaceholder?: string
   timeShowNowButton?: boolean
   timeWithSeconds?: boolean
+  variant: 'date-range' | 'date-range-time'
 }
 
 // Time range filter
@@ -72,9 +72,9 @@ export type ComboboxQueryFilterProps = BaseFilterProps & {
   labelKeys?: string[]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   queryOptions?: RegularQueryOptions<any> | InfiniteQueryOptions<any>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   renderOption?: (item: Record<string, unknown>) => React.ReactNode
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   renderSelected?: (item: Record<string, unknown>) => React.ReactNode
   searchDebounceMs?: number
   valueKey?: string
@@ -95,9 +95,9 @@ export type MultiSelectQueryFilterProps = BaseFilterProps & {
   labelKeys?: string[]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   queryOptions?: RegularQueryOptions<any> | InfiniteQueryOptions<any>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   renderOption?: (item: Record<string, unknown>) => React.ReactNode
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   renderSelected?: (item: Record<string, unknown>) => React.ReactNode
   valueKey?: string
   variant: 'multiselect'

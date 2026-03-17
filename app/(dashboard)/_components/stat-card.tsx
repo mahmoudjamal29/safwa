@@ -11,20 +11,20 @@ interface StatCardProps {
 }
 
 const variantClasses: Record<StatCardVariant, string> = {
+  blue: 'border-blue-400/30 bg-blue-50 dark:bg-blue-950/20',
   gold: 'border-yellow-400/30 bg-yellow-50 dark:bg-yellow-950/20',
   green: 'border-green-400/30 bg-green-50 dark:bg-green-950/20',
-  blue: 'border-blue-400/30 bg-blue-50 dark:bg-blue-950/20',
   red: 'border-red-400/30 bg-red-50 dark:bg-red-950/20',
 }
 
 const valueClasses: Record<StatCardVariant, string> = {
+  blue: 'text-blue-700 dark:text-blue-400',
   gold: 'text-yellow-700 dark:text-yellow-400',
   green: 'text-green-700 dark:text-green-400',
-  blue: 'text-blue-700 dark:text-blue-400',
   red: 'text-red-700 dark:text-red-400',
 }
 
-export function StatCard({ label, value, icon, variant = 'blue', onClick }: StatCardProps) {
+export function StatCard({ icon, label, onClick, value, variant = 'blue' }: StatCardProps) {
   return (
     <div
       className={cn(

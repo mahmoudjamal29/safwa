@@ -1,9 +1,16 @@
 'use client'
 
 import * as React from 'react'
+
 import { useQuery } from '@tanstack/react-query'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+
+import type { Invoice } from '@/query/invoices'
+import { getPaymentsByInvoiceQuery } from '@/query/payments'
+
+import { fmtCurrency, fmtDate } from '@/utils/formatters'
+
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   Table,
   TableBody,
@@ -12,11 +19,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { fmtCurrency, fmtDate } from '@/utils/formatters'
-import { getPaymentsByInvoiceQuery } from '@/query/payments'
+
 import { InvoiceStatusBadge } from './invoice-status-badge'
 import { PaymentDialog } from './payment-dialog'
-import type { Invoice } from '@/query/invoices'
 
 interface InvoiceViewDialogProps {
   open: boolean
@@ -24,7 +29,7 @@ interface InvoiceViewDialogProps {
   invoice: Invoice | null
 }
 
-export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDialogProps) {
+export function InvoiceViewDialog({ invoice, onOpenChange, open }: InvoiceViewDialogProps) {
   const [paymentOpen, setPaymentOpen] = React.useState(false)
 
   const { data: payments } = useQuery({

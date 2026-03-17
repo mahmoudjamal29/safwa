@@ -1,26 +1,32 @@
 import type { Metadata } from 'next'
-import { Tajawal, Noto_Naskh_Arabic } from 'next/font/google'
-import { getLocale } from '@/lib/i18n/request'
-import { RootProviders } from '@/lib/providers/providers-root'
+import { Tajawal, Noto_Naskh_Arabic, Figtree } from 'next/font/google'
+
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages } from 'next-intl/server'
+
+import { getLocale } from '@/lib/i18n/request'
+import { RootProviders } from '@/lib/providers/providers-root'
+
 import './globals.css'
+import { cn } from "@/utils/cn";
+
+const figtree = Figtree({subsets:['latin'],variable:'--font-sans'});
 
 const tajawal = Tajawal({
   subsets: ['arabic'],
-  weight: ['300', '400', '500', '700'],
-  variable: '--font-tajawal'
+  variable: '--font-tajawal',
+  weight: ['300', '400', '500', '700']
 })
 
 const notoNaskh = Noto_Naskh_Arabic({
   subsets: ['arabic'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-naskh'
+  variable: '--font-naskh',
+  weight: ['400', '500', '600', '700']
 })
 
 export const metadata: Metadata = {
-  title: 'الصفوة - نظام الإدارة',
-  description: 'نظام إدارة الأعمال للصفوة لتجارة المنتجات الغذائية'
+  description: 'نظام إدارة الأعمال للصفوة لتجارة المنتجات الغذائية',
+  title: 'الصفوة - نظام الإدارة'
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -29,7 +35,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const dir = locale === 'ar' ? 'rtl' : 'ltr'
 
   return (
-    <html lang={locale} dir={dir} suppressHydrationWarning>
+    <html lang={locale} dir={dir} suppressHydrationWarning className={cn("font-sans", figtree.variable)}>
       <body className={`${tajawal.variable} ${notoNaskh.variable} font-sans antialiased`}>
         <NextIntlClientProvider messages={messages} locale={locale}>
           <RootProviders>{children}</RootProviders>

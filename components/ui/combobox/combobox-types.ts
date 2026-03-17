@@ -12,16 +12,16 @@ export type ComboboxClassNames = {
 type ComboboxBaseProps<T extends object> = {
   classNames?: ComboboxClassNames
   disabled?: boolean
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   getOptionLabel?: (item: T) => string
   label?: string
   labelKey?: keyof T
   labelKeys?: Array<keyof T>
   onChange?: (value: string | undefined) => void
   placeholder?: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   renderOption?: (item: T) => React.ReactNode
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   renderSelected?: (item: T) => React.ReactNode
   required?: boolean
   searchDebounceMs?: number

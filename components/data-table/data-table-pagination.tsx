@@ -22,8 +22,8 @@ import type { Table } from '@tanstack/react-table'
 // Re-exported as a type for use in data-table.tsx
 export type DataTablePagination<TData> = {
   pageCount?: number
-  total?: number
   table?: Table<TData>
+  total?: number
 }
 
 interface DataTablePaginationProps<TData> {

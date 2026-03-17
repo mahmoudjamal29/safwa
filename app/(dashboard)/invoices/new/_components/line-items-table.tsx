@@ -1,6 +1,9 @@
 'use client'
 
+import { Trash2 } from 'lucide-react'
+
 import { fmtCurrency } from '@/utils/formatters'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -11,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Trash2 } from 'lucide-react'
+
 import type { LineItem } from './new-invoice-form'
 
 interface LineItemsTableProps {
@@ -20,7 +23,7 @@ interface LineItemsTableProps {
   onRemoveItem: (index: number) => void
 }
 
-export function LineItemsTable({ items, onUpdateItem, onRemoveItem }: LineItemsTableProps) {
+export function LineItemsTable({ items, onRemoveItem, onUpdateItem }: LineItemsTableProps) {
   const subtotal = items.reduce((sum, item) => sum + item.total, 0)
 
   function handleQtyChange(index: number, value: string) {
@@ -32,7 +35,7 @@ export function LineItemsTable({ items, onUpdateItem, onRemoveItem }: LineItemsT
   function handlePriceChange(index: number, value: string) {
     const unit_price = parseFloat(value) || 0
     const item = items[index]
-    onUpdateItem(index, { unit_price, total: item.qty * unit_price })
+    onUpdateItem(index, { total: item.qty * unit_price, unit_price })
   }
 
   if (items.length === 0) {

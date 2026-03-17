@@ -1,12 +1,26 @@
 'use client'
 
 import * as React from 'react'
+
 import { useQuery } from '@tanstack/react-query'
+
 import { getAllInventoryQuery, type MovementType } from '@/query/inventory'
+
+import { useDebounce } from '@/hooks/use-debounce'
+
+import { cn } from '@/utils/cn'
 import { fmtDate } from '@/utils/formatters'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -15,21 +29,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { useDebounce } from '@/hooks/use-debounce'
-import { cn } from '@/utils/cn'
 
 const typeColors: Record<MovementType, string> = {
-  'وارد': 'bg-green-100 text-green-700 border-green-200',
-  'صادر': 'bg-blue-100 text-blue-700 border-blue-200',
-  'تسوية': 'bg-yellow-100 text-yellow-700 border-yellow-200',
   'تالف': 'bg-red-100 text-red-700 border-red-200',
+  'تسوية': 'bg-yellow-100 text-yellow-700 border-yellow-200',
+  'صادر': 'bg-blue-100 text-blue-700 border-blue-200',
+  'وارد': 'bg-green-100 text-green-700 border-green-200',
 }
 
 const MOVEMENT_TYPES: MovementType[] = ['وارد', 'صادر', 'تسوية', 'تالف']

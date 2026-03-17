@@ -1,9 +1,15 @@
 import { useMutation } from '@tanstack/react-query'
+
 import { createClient } from '@/lib/supabase/client'
+
 import type { CreateMovementPayload } from './inventory-types'
 
 export function useCreateMovement() {
   return useMutation({
+    meta: {
+      invalidatesQuery: [['inventory'], ['products']],
+      successMessage: 'تم تسجيل الحركة بنجاح'
+    },
     mutationFn: async (payload: CreateMovementPayload) => {
       const supabase = createClient()
       const { error: movErr } = await supabase.from('inventory_movements').insert(payload)
@@ -35,10 +41,6 @@ export function useCreateMovement() {
             .eq('id', payload.product_id)
         }
       }
-    },
-    meta: {
-      successMessage: 'تم تسجيل الحركة بنجاح',
-      invalidatesQuery: [['inventory'], ['products']]
     }
   })
 }

@@ -1,9 +1,13 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+
 import { LogOutIcon, UserIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+
 import { createClient } from '@/lib/supabase/client'
+
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +15,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
-import { Button } from '@/components/ui/button'
 
 export function UserDropdown() {
   const router = useRouter()

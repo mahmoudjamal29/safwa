@@ -1,10 +1,11 @@
 import { queryOptions } from '@tanstack/react-query'
+
 import { createClient } from '@/lib/supabase/client'
+
 import type { InventoryMovement } from './inventory-types'
 
 export const getAllInventoryQuery = (params?: Record<string, unknown>) =>
   queryOptions<PaginatedResponse<InventoryMovement[]>>({
-    queryKey: ['inventory', params],
     queryFn: async () => {
       const supabase = createClient()
       const page = Number(params?.page ?? 1)
@@ -20,7 +21,7 @@ export const getAllInventoryQuery = (params?: Record<string, unknown>) =>
       if (params?.search) query = query.ilike('product_name', `%${params.search}%`)
       if (params?.type) query = query.eq('type', params.type as string)
 
-      const { data, count, error } = await query.range(from, to)
+      const { count, data, error } = await query.range(from, to)
       if (error) throw error
 
       const total = count ?? 0
@@ -35,5 +36,6 @@ export const getAllInventoryQuery = (params?: Record<string, unknown>) =>
           total
         }
       }
-    }
+    },
+    queryKey: ['inventory', params]
   })

@@ -12,6 +12,7 @@ export type InfoLinkItem = {
 }
 
 export type InfoItemConfig = {
+  [key: string]: unknown
   label: string
   maxChipsLength?: number
   src?: string
@@ -36,7 +37,6 @@ export type InfoItemConfig = {
     | 'phone'
     | 'status'
     | 'text'
-  [key: string]: unknown
 }
 
 export type InfoSection = {

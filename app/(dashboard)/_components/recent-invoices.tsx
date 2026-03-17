@@ -1,8 +1,15 @@
 'use client'
 
 import { useQuery, queryOptions } from '@tanstack/react-query'
+
 import { createClient } from '@/lib/supabase/client'
+
+import type { InvoiceStatus } from '@/query/invoices'
+
+import { cn } from '@/utils/cn'
 import { fmtCurrency, fmtDate } from '@/utils/formatters'
+
+import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -11,9 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import type { InvoiceStatus } from '@/query/invoices'
-import { cn } from '@/utils/cn'
 
 const statusColors: Record<InvoiceStatus, string> = {
   'مدفوعة': 'bg-green-100 text-green-700 border-green-200',
@@ -32,7 +36,6 @@ interface RecentInvoice {
 }
 
 const recentInvoicesOptions = queryOptions<RecentInvoice[]>({
-  queryKey: ['invoices', 'recent'],
   queryFn: async () => {
     const supabase = createClient()
     const { data } = await supabase
@@ -42,6 +45,7 @@ const recentInvoicesOptions = queryOptions<RecentInvoice[]>({
       .limit(5)
     return (data as RecentInvoice[]) ?? []
   },
+  queryKey: ['invoices', 'recent'],
 })
 
 export function RecentInvoices() {

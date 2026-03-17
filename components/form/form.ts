@@ -13,8 +13,8 @@ export type FieldContextValue<T = any> = {
     meta: {
       errors: string[]
       isDirty: boolean
-      isValid: boolean
       isTouched: boolean
+      isValid: boolean
     }
     value: T
   }
@@ -26,7 +26,7 @@ const FieldContext = createContext<FieldContextValue<any>>({
   handleChange: () => undefined,
   name: '',
   state: {
-    meta: { errors: [], isDirty: false, isValid: true, isTouched: false },
+    meta: { errors: [], isDirty: false, isTouched: false, isValid: true },
     value: undefined
   }
 })

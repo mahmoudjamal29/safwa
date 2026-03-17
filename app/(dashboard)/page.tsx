@@ -1,7 +1,8 @@
 import { getTranslations } from 'next-intl/server'
+
 import { DashboardStats } from './_components/dashboard-stats'
-import { RecentInvoices } from './_components/recent-invoices'
 import { LowStockList } from './_components/low-stock-list'
+import { RecentInvoices } from './_components/recent-invoices'
 
 export default async function DashboardPage() {
   const t = await getTranslations('dashboard')

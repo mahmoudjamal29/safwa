@@ -1,8 +1,11 @@
 'use client'
 
 import * as React from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+
+import { useCreateProduct, useUpdateProduct, type Product } from '@/query/products'
+
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -12,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useCreateProduct, useUpdateProduct, type Product } from '@/query/products'
 
 const UNITS = ['كرتون', 'قطعة', 'كيلو', 'لتر', 'جالون', 'طن', 'حبة'] as const
 
@@ -37,20 +39,20 @@ interface FormState {
 }
 
 const defaultForm: FormState = {
-  name: '',
-  sku: '',
   category: '',
-  unit: 'كرتون',
-  price: '',
   cost: '',
-  qty: '0',
-  min_qty: '',
   max_qty: '',
-  pieces_per_unit: '',
+  min_qty: '',
+  name: '',
   piece_price: '',
+  pieces_per_unit: '',
+  price: '',
+  qty: '0',
+  sku: '',
+  unit: 'كرتون',
 }
 
-export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDialogProps) {
+export function ProductFormDialog({ onOpenChange, open, product }: ProductFormDialogProps) {
   const createMutation = useCreateProduct()
   const updateMutation = useUpdateProduct()
 
@@ -59,17 +61,17 @@ export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDi
   React.useEffect(() => {
     if (product) {
       setForm({
-        name: product.name ?? '',
-        sku: product.sku ?? '',
         category: product.category ?? '',
-        unit: product.unit ?? 'كرتون',
-        price: String(product.price ?? ''),
         cost: String(product.cost ?? ''),
-        qty: String(product.qty ?? '0'),
-        min_qty: product.min_qty != null ? String(product.min_qty) : '',
         max_qty: product.max_qty != null ? String(product.max_qty) : '',
-        pieces_per_unit: product.pieces_per_unit != null ? String(product.pieces_per_unit) : '',
+        min_qty: product.min_qty != null ? String(product.min_qty) : '',
+        name: product.name ?? '',
         piece_price: product.piece_price != null ? String(product.piece_price) : '',
+        pieces_per_unit: product.pieces_per_unit != null ? String(product.pieces_per_unit) : '',
+        price: String(product.price ?? ''),
+        qty: String(product.qty ?? '0'),
+        sku: product.sku ?? '',
+        unit: product.unit ?? 'كرتون',
       })
     } else {
       setForm(defaultForm)
@@ -85,17 +87,17 @@ export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDi
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const payload = {
-      name: form.name,
-      sku: form.sku || null,
       category: form.category || null,
-      unit: form.unit,
-      price: parseFloat(form.price) || 0,
       cost: form.cost ? parseFloat(form.cost) : null,
-      qty: parseFloat(form.qty) || 0,
-      min_qty: form.min_qty ? parseFloat(form.min_qty) : null,
       max_qty: form.max_qty ? parseFloat(form.max_qty) : null,
-      pieces_per_unit: form.pieces_per_unit ? parseInt(form.pieces_per_unit) : null,
+      min_qty: form.min_qty ? parseFloat(form.min_qty) : null,
+      name: form.name,
       piece_price: form.piece_price ? parseFloat(form.piece_price) : null,
+      pieces_per_unit: form.pieces_per_unit ? parseInt(form.pieces_per_unit) : null,
+      price: parseFloat(form.price) || 0,
+      qty: parseFloat(form.qty) || 0,
+      sku: form.sku || null,
+      unit: form.unit,
     }
     if (product) {
       await updateMutation.mutateAsync({ id: product.id, payload })

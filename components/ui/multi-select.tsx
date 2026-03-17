@@ -20,9 +20,9 @@ type MultiSelectBaseProps<T extends object> = {
   getOptionValue?: (item: T) => string
   onValueChange?: (values: string[]) => void
   placeholder?: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   renderOption?: (item: T) => React.ReactNode
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   renderSelected?: (item: T) => React.ReactNode
   searchable?: boolean
   valueKey?: keyof T

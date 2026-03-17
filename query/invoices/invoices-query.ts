@@ -1,10 +1,11 @@
 import { queryOptions } from '@tanstack/react-query'
+
 import { createClient } from '@/lib/supabase/client'
+
 import type { Invoice } from './invoices-types'
 
 export const getAllInvoicesQuery = (params?: Record<string, unknown>) =>
   queryOptions<PaginatedResponse<Invoice[]>>({
-    queryKey: ['invoices', params],
     queryFn: async () => {
       const supabase = createClient()
       const page = Number(params?.page ?? 1)
@@ -24,7 +25,7 @@ export const getAllInvoicesQuery = (params?: Record<string, unknown>) =>
       }
       if (params?.status) query = query.eq('status', params.status as string)
 
-      const { data, count, error } = await query.range(from, to)
+      const { count, data, error } = await query.range(from, to)
       if (error) throw error
 
       // Parse items JSON for each invoice
@@ -45,5 +46,6 @@ export const getAllInvoicesQuery = (params?: Record<string, unknown>) =>
           total
         }
       }
-    }
+    },
+    queryKey: ['invoices', params]
   })

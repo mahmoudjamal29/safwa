@@ -1,11 +1,13 @@
 'use client'
 
 import * as React from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+
+import { useCreateCustomer, useUpdateCustomer, type Customer } from '@/query/customers'
+
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useCreateCustomer, useUpdateCustomer, type Customer } from '@/query/customers'
 
 interface CustomerFormDialogProps {
   open: boolean
@@ -22,14 +24,14 @@ interface FormState {
 }
 
 const defaultForm: FormState = {
-  name: '',
-  phone: '',
   address: '',
-  tax_number: '',
+  name: '',
   notes: '',
+  phone: '',
+  tax_number: '',
 }
 
-export function CustomerFormDialog({ open, onOpenChange, customer }: CustomerFormDialogProps) {
+export function CustomerFormDialog({ customer, onOpenChange, open }: CustomerFormDialogProps) {
   const createMutation = useCreateCustomer()
   const updateMutation = useUpdateCustomer()
 
@@ -38,11 +40,11 @@ export function CustomerFormDialog({ open, onOpenChange, customer }: CustomerFor
   React.useEffect(() => {
     if (customer) {
       setForm({
-        name: customer.name ?? '',
-        phone: customer.phone ?? '',
         address: customer.address ?? '',
-        tax_number: customer.tax_number ?? '',
+        name: customer.name ?? '',
         notes: customer.notes ?? '',
+        phone: customer.phone ?? '',
+        tax_number: customer.tax_number ?? '',
       })
     } else {
       setForm(defaultForm)
@@ -56,11 +58,11 @@ export function CustomerFormDialog({ open, onOpenChange, customer }: CustomerFor
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const payload = {
-      name: form.name,
-      phone: form.phone || null,
       address: form.address || null,
-      tax_number: form.tax_number || null,
+      name: form.name,
       notes: form.notes || null,
+      phone: form.phone || null,
+      tax_number: form.tax_number || null,
     }
     if (customer) {
       await updateMutation.mutateAsync({ id: customer.id, payload })

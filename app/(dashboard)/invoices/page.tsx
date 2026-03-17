@@ -1,5 +1,7 @@
 import Link from 'next/link'
+
 import { Button } from '@/components/ui/button'
+
 import { InvoicesTable } from './_components/invoices-table'
 
 export default function InvoicesPage() {

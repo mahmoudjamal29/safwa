@@ -1,58 +1,33 @@
-'use client'
+"use client"
 
-import * as React from 'react'
+import * as React from "react"
+import { Checkbox as CheckboxPrimitive } from "radix-ui"
 
-import { cn } from '@/utils/cn'
+import { cn } from "@/utils/cn"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Tick02Icon } from "@hugeicons/core-free-icons"
 
-export interface CheckboxProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'checked'> {
-  checked?: 'indeterminate' | boolean
-  onCheckedChange?: (checked: boolean) => void
+function Checkbox({
+  className,
+  ...props
+}: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
+  return (
+    <CheckboxPrimitive.Root
+      data-slot="checkbox"
+      className={cn(
+        "peer relative flex size-4 shrink-0 items-center justify-center rounded-[6px] border border-input transition-shadow outline-none group-has-disabled/field:opacity-50 after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20 aria-invalid:aria-checked:border-primary dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:data-checked:bg-primary",
+        className
+      )}
+      {...props}
+    >
+      <CheckboxPrimitive.Indicator
+        data-slot="checkbox-indicator"
+        className="grid place-content-center text-current transition-none [&>svg]:size-3.5"
+      >
+        <HugeiconsIcon icon={Tick02Icon} strokeWidth={2} />
+      </CheckboxPrimitive.Indicator>
+    </CheckboxPrimitive.Root>
+  )
 }
-
-const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
-  ({ checked, className, onCheckedChange, onChange, ...props }, ref) => {
-    const handleChange = React.useCallback(
-      (e: React.ChangeEvent<HTMLInputElement>) => {
-        onChange?.(e)
-        onCheckedChange?.(e.target.checked)
-      },
-      [onChange, onCheckedChange]
-    )
-
-    const inputRef = React.useRef<HTMLInputElement | null>(null)
-
-    const mergedRef = React.useCallback(
-      (node: HTMLInputElement | null) => {
-        inputRef.current = node
-        if (typeof ref === 'function') ref(node)
-        else if (ref) ref.current = node
-      },
-      [ref]
-    )
-
-    // Set indeterminate via ref effect
-    React.useEffect(() => {
-      if (inputRef.current) {
-        inputRef.current.indeterminate = checked === 'indeterminate'
-      }
-    }, [checked])
-
-    return (
-      <input
-        checked={checked === 'indeterminate' ? false : (checked ?? false)}
-        className={cn(
-          'accent-primary size-4 cursor-pointer rounded border',
-          className
-        )}
-        ref={mergedRef}
-        type="checkbox"
-        {...props}
-        onChange={handleChange}
-      />
-    )
-  }
-)
-Checkbox.displayName = 'Checkbox'
 
 export { Checkbox }

@@ -1,10 +1,11 @@
 import { queryOptions } from '@tanstack/react-query'
+
 import { createClient } from '@/lib/supabase/client'
+
 import type { Customer } from './customers-types'
 
 export const getAllCustomersQuery = (params?: Record<string, unknown>) =>
   queryOptions<PaginatedResponse<Customer[]>>({
-    queryKey: ['customers', params],
     queryFn: async () => {
       const supabase = createClient()
       const page = Number(params?.page ?? 1)
@@ -15,7 +16,7 @@ export const getAllCustomersQuery = (params?: Record<string, unknown>) =>
       let query = supabase.from('customers').select('*', { count: 'exact' }).order('name')
       if (params?.search) query = query.ilike('name', `%${params.search}%`)
 
-      const { data, count, error } = await query.range(from, to)
+      const { count, data, error } = await query.range(from, to)
       if (error) throw error
 
       const total = count ?? 0
@@ -30,16 +31,17 @@ export const getAllCustomersQuery = (params?: Record<string, unknown>) =>
           total
         }
       }
-    }
+    },
+    queryKey: ['customers', params]
   })
 
 export const getAllCustomersSimpleQuery = () =>
   queryOptions<Customer[]>({
-    queryKey: ['customers', 'all'],
     queryFn: async () => {
       const { data, error } = await createClient().from('customers').select('*').order('name')
       if (error) throw error
       return data ?? []
     },
+    queryKey: ['customers', 'all'],
     staleTime: 2 * 60 * 1000
   })

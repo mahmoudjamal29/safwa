@@ -1,9 +1,14 @@
 'use client'
 
 import * as React from 'react'
+
 import { useQuery } from '@tanstack/react-query'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+
+import { useCreateMovement, type MovementType } from '@/query/inventory'
+import { getAllProductsSimpleQuery } from '@/query/products'
+
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -13,14 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { getAllProductsSimpleQuery } from '@/query/products'
-import { useCreateMovement, type MovementType } from '@/query/inventory'
 
-const MOVEMENT_TYPES: { value: MovementType; label: string }[] = [
-  { value: 'وارد', label: 'وارد (استلام)' },
-  { value: 'صادر', label: 'صادر (شحن)' },
-  { value: 'تسوية', label: 'تسوية مخزون' },
-  { value: 'تالف', label: 'تالف / مرتجع' },
+const MOVEMENT_TYPES: { label: string; value: MovementType; }[] = [
+  { label: 'وارد (استلام)', value: 'وارد' },
+  { label: 'صادر (شحن)', value: 'صادر' },
+  { label: 'تسوية مخزون', value: 'تسوية' },
+  { label: 'تالف / مرتجع', value: 'تالف' },
 ]
 
 interface MovementFormDialogProps {
@@ -37,14 +40,14 @@ interface FormState {
 }
 
 const defaultForm: FormState = {
+  note: '',
   product_id: '',
   product_name: '',
-  type: 'وارد',
   qty: '',
-  note: '',
+  type: 'وارد',
 }
 
-export function MovementFormDialog({ open, onOpenChange }: MovementFormDialogProps) {
+export function MovementFormDialog({ onOpenChange, open }: MovementFormDialogProps) {
   const createMutation = useCreateMovement()
   const [form, setForm] = React.useState<FormState>(defaultForm)
   const [productSearch, setProductSearch] = React.useState('')
@@ -76,11 +79,11 @@ export function MovementFormDialog({ open, onOpenChange }: MovementFormDialogPro
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     await createMutation.mutateAsync({
+      note: form.note || null,
       product_id: form.product_id || null,
       product_name: form.product_name,
-      type: form.type,
       qty: parseFloat(form.qty) || 0,
-      note: form.note || null,
+      type: form.type,
     })
     onOpenChange(false)
   }

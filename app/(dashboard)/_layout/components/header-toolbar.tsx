@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+
 import { UserDropdown } from './user-dropdown'
 
 export function HeaderToolbar() {

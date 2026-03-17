@@ -119,6 +119,7 @@ interface UseDataTableWithQueryProps<
 // ============================================================================
 
 export function useDataTable<TData>(props: UseDataTableProps<TData>) {
+  'use no memo'
   const searchParams = useSearchParams()
 
   const isQueryMode =

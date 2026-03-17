@@ -1,8 +1,10 @@
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
-import { QueryClientProvider } from './query-client'
-import { ThemeProvider } from './theme-provider'
-import { Toaster } from './sonner-provider'
+
 import { TooltipProvider } from '@/components/ui/tooltip'
+
+import { QueryClientProvider } from './query-client'
+import { Toaster } from './sonner-provider'
+import { ThemeProvider } from './theme-provider'
 
 export const RootProviders = ({ children }: { children: React.ReactNode }) => (
   <>

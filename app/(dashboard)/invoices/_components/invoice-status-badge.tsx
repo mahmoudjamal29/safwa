@@ -1,6 +1,8 @@
-import { Badge } from '@/components/ui/badge'
-import { cn } from '@/utils/cn'
 import type { InvoiceStatus } from '@/query/invoices'
+
+import { cn } from '@/utils/cn'
+
+import { Badge } from '@/components/ui/badge'
 
 const statusColors: Record<InvoiceStatus, string> = {
   'مدفوعة': 'bg-green-100 text-green-700 border-green-300',

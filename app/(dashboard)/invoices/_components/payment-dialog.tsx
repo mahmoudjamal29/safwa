@@ -1,8 +1,14 @@
 'use client'
 
 import * as React from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+
+import type { Invoice } from '@/query/invoices'
+import { useRecordPayment } from '@/query/payments'
+
+import { fmtCurrency } from '@/utils/formatters'
+
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -12,9 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useRecordPayment } from '@/query/payments'
-import { fmtCurrency } from '@/utils/formatters'
-import type { Invoice } from '@/query/invoices'
 
 interface PaymentDialogProps {
   open: boolean
@@ -22,7 +25,7 @@ interface PaymentDialogProps {
   invoice: Invoice
 }
 
-export function PaymentDialog({ open, onOpenChange, invoice }: PaymentDialogProps) {
+export function PaymentDialog({ invoice, onOpenChange, open }: PaymentDialogProps) {
   const recordPayment = useRecordPayment()
   const [amount, setAmount] = React.useState('')
   const [method, setMethod] = React.useState('نقدي')
@@ -41,10 +44,10 @@ export function PaymentDialog({ open, onOpenChange, invoice }: PaymentDialogProp
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     await recordPayment.mutateAsync({
-      invoice_id: invoice.id,
+      amount: parseFloat(amount) || 0,
       customer_id: invoice.customer_id,
       customer_name: invoice.customer_name,
-      amount: parseFloat(amount) || 0,
+      invoice_id: invoice.id,
       method,
       note: note || null,
     })

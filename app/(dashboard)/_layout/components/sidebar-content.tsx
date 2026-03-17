@@ -2,8 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+
 import { useTranslations } from 'next-intl'
+
 import { cn } from '@/utils/cn'
+
 import { createMenuConfig } from '../sidebar-config'
 
 export function SidebarContent() {

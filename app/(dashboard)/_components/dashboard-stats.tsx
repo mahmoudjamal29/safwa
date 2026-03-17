@@ -1,13 +1,17 @@
 'use client'
 
 import * as React from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { queryOptions } from '@tanstack/react-query'
+
+import { useQuery , queryOptions } from '@tanstack/react-query'
+
 import { createClient } from '@/lib/supabase/client'
+
 import { fmtCurrency } from '@/utils/formatters'
-import { StatCard } from './stat-card'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+
+import { StatCard } from './stat-card'
 
 type Period = 'today' | 'month' | 'all' | 'custom'
 
@@ -49,7 +53,6 @@ function buildDateRange(period: Period, fromDate: string, toDate: string): DateR
 function dashboardStatsOptions(period: Period, fromDate: string, toDate: string) {
   const range = buildDateRange(period, fromDate, toDate)
   return queryOptions<Stats>({
-    queryKey: ['dashboard-stats', period, fromDate, toDate],
     queryFn: async () => {
       const supabase = createClient()
 
@@ -57,7 +60,7 @@ function dashboardStatsOptions(period: Period, fromDate: string, toDate: string)
       let invoiceQuery = supabase.from('invoices').select('total', { count: 'exact' })
       if (range.from) invoiceQuery = invoiceQuery.gte('invoice_date', range.from)
       if (range.to) invoiceQuery = invoiceQuery.lte('invoice_date', range.to)
-      const { data: invoices, count: invoiceCount } = await invoiceQuery
+      const { count: invoiceCount, data: invoices } = await invoiceQuery
       const revenue = (invoices ?? []).reduce((sum, inv) => sum + (inv.total ?? 0), 0)
 
       // Product count
@@ -72,12 +75,13 @@ function dashboardStatsOptions(period: Period, fromDate: string, toDate: string)
       const lowCount = (productsLow ?? []).filter(p => p.min_qty !== null && p.qty <= p.min_qty).length
 
       return {
-        revenue,
         invoiceCount: invoiceCount ?? 0,
-        productCount: productCount ?? 0,
         lowStockCount: lowCount,
+        productCount: productCount ?? 0,
+        revenue,
       }
     },
+    queryKey: ['dashboard-stats', range.from, range.to],
   })
 }
 

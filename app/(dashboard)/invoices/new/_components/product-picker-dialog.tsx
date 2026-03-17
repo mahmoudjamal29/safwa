@@ -1,12 +1,17 @@
 'use client'
 
 import * as React from 'react'
+
 import { useQuery } from '@tanstack/react-query'
+
+import { getAllProductsSimpleQuery, type Product } from '@/query/products'
+
+import { fmtCurrency } from '@/utils/formatters'
+
+import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { getAllProductsSimpleQuery, type Product } from '@/query/products'
-import { fmtCurrency } from '@/utils/formatters'
+
 import type { LineItem } from './new-invoice-form'
 
 interface ProductPickerDialogProps {
@@ -15,7 +20,7 @@ interface ProductPickerDialogProps {
   onSelect: (item: LineItem) => void
 }
 
-export function ProductPickerDialog({ open, onOpenChange, onSelect }: ProductPickerDialogProps) {
+export function ProductPickerDialog({ onOpenChange, onSelect, open }: ProductPickerDialogProps) {
   const [search, setSearch] = React.useState('')
   const { data: products } = useQuery(getAllProductsSimpleQuery())
   const [sellByMap, setSellByMap] = React.useState<Record<string, 'unit' | 'piece'>>({})
@@ -42,13 +47,13 @@ export function ProductPickerDialog({ open, onOpenChange, onSelect }: ProductPic
     const price = sellBy === 'piece' && p.piece_price != null ? p.piece_price : p.price
     const pieces_per_unit = p.pieces_per_unit ?? 1
     onSelect({
+      pieces_per_unit,
       product_id: p.id,
       product_name: p.name,
-      sell_by: sellBy,
       qty: 1,
-      unit_price: price,
+      sell_by: sellBy,
       total: price,
-      pieces_per_unit,
+      unit_price: price,
     })
     onOpenChange(false)
     setSearch('')

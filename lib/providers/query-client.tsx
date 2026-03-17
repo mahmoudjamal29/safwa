@@ -1,14 +1,15 @@
 // template/lib/providers/query-client.tsx
 'use client'
 
-import { QueryClient, QueryClientProvider as TanstackQueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
+
+import { QueryClient, QueryClientProvider as TanstackQueryClientProvider } from '@tanstack/react-query'
 
 export function QueryClientProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
-      queries: { staleTime: 60 * 1000, retry: 1 },
-      mutations: { retry: 0 }
+      mutations: { retry: 0 },
+      queries: { retry: 1, staleTime: 60 * 1000 }
     }
   }))
 

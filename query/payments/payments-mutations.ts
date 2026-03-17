@@ -1,10 +1,17 @@
 import { useMutation } from '@tanstack/react-query'
+
 import { createClient } from '@/lib/supabase/client'
-import type { CreatePaymentPayload } from './payments-types'
+
 import type { InvoiceStatus } from '@/query/invoices'
+
+import type { CreatePaymentPayload } from './payments-types'
 
 export function useRecordPayment() {
   return useMutation({
+    meta: {
+      invalidatesQuery: [['invoices'], ['payments']],
+      successMessage: 'تم تسجيل الدفعة بنجاح'
+    },
     mutationFn: async (payload: CreatePaymentPayload) => {
       const supabase = createClient()
       const { error: payErr } = await supabase.from('payments').insert(payload)
@@ -26,10 +33,6 @@ export function useRecordPayment() {
           .update({ paid_amount: newPaid, status: newStatus })
           .eq('id', payload.invoice_id)
       }
-    },
-    meta: {
-      successMessage: 'تم تسجيل الدفعة بنجاح',
-      invalidatesQuery: [['invoices'], ['payments']]
     }
   })
 }

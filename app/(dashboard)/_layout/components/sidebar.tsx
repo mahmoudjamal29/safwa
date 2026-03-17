@@ -1,8 +1,9 @@
 'use client'
 
+import { cn } from '@/utils/cn'
+
 import { SidebarContent } from './sidebar-content'
 import { SidebarFooter } from './sidebar-footer'
-import { cn } from '@/utils/cn'
 
 export function Sidebar({ className }: { className?: string }) {
   return (

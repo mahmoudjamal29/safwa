@@ -9,7 +9,7 @@ export type QuerySearchParams = {
 }
 
 // Regular (non-infinite) query options
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export type RegularQueryOptions<T extends object = object> = UseQueryOptions<
   API<PaginatedResponse<T[]>> | API<T[]>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

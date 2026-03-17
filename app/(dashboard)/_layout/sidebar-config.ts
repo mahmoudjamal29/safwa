@@ -6,12 +6,13 @@ import {
   ArrowRightLeftIcon,
   UsersIcon
 } from 'lucide-react'
+
 import type { MenuConfig } from '@/types/sidebar'
 
 export const createMenuConfig = (t: (key: string) => string): MenuConfig => [
   {
-    title: t('sections.main'),
-    separator: true
+    separator: true,
+    title: t('sections.main')
   },
   {
     icon: LayoutDashboardIcon,
@@ -19,8 +20,8 @@ export const createMenuConfig = (t: (key: string) => string): MenuConfig => [
     title: t('menu.dashboard')
   },
   {
-    title: t('sections.sales'),
-    separator: true
+    separator: true,
+    title: t('sections.sales')
   },
   {
     icon: FileTextIcon,
@@ -33,8 +34,8 @@ export const createMenuConfig = (t: (key: string) => string): MenuConfig => [
     title: t('menu.newInvoice')
   },
   {
-    title: t('sections.inventory'),
-    separator: true
+    separator: true,
+    title: t('sections.inventory')
   },
   {
     icon: PackageIcon,
@@ -47,8 +48,8 @@ export const createMenuConfig = (t: (key: string) => string): MenuConfig => [
     title: t('menu.inventoryMovements')
   },
   {
-    title: t('sections.clients'),
-    separator: true
+    separator: true,
+    title: t('sections.clients')
   },
   {
     icon: UsersIcon,

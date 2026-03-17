@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+
 import { Button } from '@/components/ui/button'
-import { ProductsTable } from './_components/products-table'
+
 import { ProductFormDialog } from './_components/product-form-dialog'
+import { ProductsTable } from './_components/products-table'
 
 export default function ProductsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
