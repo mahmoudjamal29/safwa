@@ -12,7 +12,16 @@ const loadMessages = async (locale: Locale) => {
       import(`./${locale}/inventory.json`),
       import(`./${locale}/customers.json`)
     ])
-  return { common, auth, layout, dashboard, invoices, products, inventory, customers }
+  return {
+    common: common.default,
+    auth: auth.default,
+    layout: layout.default,
+    dashboard: dashboard.default,
+    invoices: invoices.default,
+    products: products.default,
+    inventory: inventory.default,
+    customers: customers.default
+  }
 }
 
 export const messages: Record<Locale, () => Promise<Record<string, unknown>>> = {
