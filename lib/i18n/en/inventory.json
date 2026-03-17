@@ -1,0 +1,15 @@
+{
+  "title": "Inventory Movements",
+  "newMovement": "New Movement",
+  "product": "Product",
+  "type": "Movement Type",
+  "qty": "Quantity",
+  "note": "Note",
+  "date": "Date",
+  "types": {
+    "incoming": "Incoming (Receive)",
+    "outgoing": "Outgoing (Ship)",
+    "adjustment": "Stock Adjustment",
+    "damaged": "Damaged / Return"
+  }
+}

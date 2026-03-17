@@ -1,0 +1,34 @@
+{
+  "title": "المنتجات",
+  "newProduct": "منتج جديد",
+  "name": "اسم المنتج",
+  "sku": "كود المنتج",
+  "category": "الفئة",
+  "unit": "وحدة القياس",
+  "price": "سعر الوحدة",
+  "cost": "سعر التكلفة",
+  "qty": "الكمية",
+  "minQty": "الحد الأدنى",
+  "maxQty": "الحد الأقصى",
+  "piecesPerUnit": "عدد القطع في الوحدة",
+  "piecePrice": "سعر القطعة",
+  "searchPlaceholder": "بحث في المنتجات...",
+  "allCategories": "كل الفئات",
+  "manageCategories": "إدارة الفئات",
+  "units": {
+    "carton": "كرتون",
+    "piece": "قطعة",
+    "kg": "كيلو",
+    "liter": "لتر",
+    "gallon": "جالون",
+    "ton": "طن",
+    "item": "حبة"
+  },
+  "splitSettings": "اعدادات التقسيم (للمنتجات القابلة للتجزئة)",
+  "piecesHelp": "يحسب تلقائيا",
+  "stockLevel": {
+    "low": "مخزون منخفض",
+    "out": "نفذ المخزون"
+  },
+  "deleteConfirm": "هل تريد حذف هذا المنتج؟"
+}

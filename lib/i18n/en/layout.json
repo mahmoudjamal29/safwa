@@ -1,0 +1,27 @@
+{
+  "sidebar": {
+    "sections": {
+      "main": "Main",
+      "sales": "Sales",
+      "inventory": "Inventory",
+      "clients": "Clients"
+    },
+    "menu": {
+      "dashboard": "Dashboard",
+      "invoices": "Invoices",
+      "newInvoice": "New Invoice",
+      "products": "Products",
+      "inventoryMovements": "Inventory Movements",
+      "customers": "Customers"
+    },
+    "footer": "Safwa Food Trading"
+  },
+  "header": {
+    "toggleSidebar": "Toggle Sidebar",
+    "switchLanguage": "عربي",
+    "userMenu": {
+      "profile": "Profile",
+      "logout": "Logout"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "title": "لوحة التحكم",
+  "stats": {
+    "revenue": "إجمالي المبيعات",
+    "invoices": "إجمالي الفواتير",
+    "products": "المنتجات",
+    "lowStock": "مخزون منخفض"
+  },
+  "periods": {
+    "today": "اليوم",
+    "month": "هذا الشهر",
+    "all": "الكل",
+    "from": "من تاريخ",
+    "to": "إلى تاريخ"
+  },
+  "recentInvoices": "آخر الفواتير",
+  "lowStockAlert": "مخزون منخفض",
+  "viewAll": "عرض الكل",
+  "clickToView": "اضغط للعرض"
+}

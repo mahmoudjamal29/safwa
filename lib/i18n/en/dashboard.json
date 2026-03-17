@@ -1,0 +1,20 @@
+{
+  "title": "Dashboard",
+  "stats": {
+    "revenue": "Total Revenue",
+    "invoices": "Total Invoices",
+    "products": "Products",
+    "lowStock": "Low Stock"
+  },
+  "periods": {
+    "today": "Today",
+    "month": "This Month",
+    "all": "All",
+    "from": "From",
+    "to": "To"
+  },
+  "recentInvoices": "Recent Invoices",
+  "lowStockAlert": "Low Stock Alert",
+  "viewAll": "View All",
+  "clickToView": "Click to view"
+}

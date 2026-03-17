@@ -1,0 +1,15 @@
+{
+  "title": "العملاء",
+  "newCustomer": "عميل جديد",
+  "name": "اسم العميل",
+  "phone": "رقم الهاتف",
+  "address": "العنوان",
+  "taxNumber": "الرقم الضريبي",
+  "notes": "ملاحظات",
+  "balance": "الرصيد",
+  "searchPlaceholder": "بحث في العملاء...",
+  "phonePlaceholder": "01xxxxxxxxx",
+  "addressPlaceholder": "المحافظة، المنطقة",
+  "taxPlaceholder": "اختياري",
+  "deleteConfirm": "هل تريد حذف هذا العميل؟"
+}

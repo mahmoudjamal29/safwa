@@ -1,0 +1,27 @@
+{
+  "sidebar": {
+    "sections": {
+      "main": "الرئيسية",
+      "sales": "المبيعات",
+      "inventory": "المخزون",
+      "clients": "العملاء"
+    },
+    "menu": {
+      "dashboard": "لوحة التحكم",
+      "invoices": "الفواتير",
+      "newInvoice": "فاتورة جديدة",
+      "products": "المنتجات",
+      "inventoryMovements": "حركة المخزون",
+      "customers": "العملاء"
+    },
+    "footer": "الصفوة لتجارة المنتجات الغذائية"
+  },
+  "header": {
+    "toggleSidebar": "تبديل القائمة",
+    "switchLanguage": "English",
+    "userMenu": {
+      "profile": "الملف الشخصي",
+      "logout": "تسجيل الخروج"
+    }
+  }
+}

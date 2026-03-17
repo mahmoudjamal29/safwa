@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+:root {
+  --background: 214 100% 9%; /* #0A1628 navy */
+  --foreground: 220 30% 93%; /* #E8EDF5 */
+  --card: 220 59% 15%; /* #0F1F3D navy2 */
+  --card-foreground: 220 30% 93%;
+  --popover: 220 59% 15%;
+  --popover-foreground: 220 30% 93%;
+  --primary: 42 57% 54%; /* #C9A84C gold */
+  --primary-foreground: 214 100% 9%;
+  --secondary: 220 50% 17%;
+  --secondary-foreground: 220 20% 70%;
+  --muted: 220 50% 17%;
+  --muted-foreground: 215 20% 55%; /* #8A9BB5 */
+  --accent: 220 50% 20%;
+  --accent-foreground: 220 30% 93%;
+  --destructive: 0 75% 56%; /* #E74C3C */
+  --destructive-foreground: 0 0% 100%;
+  --border: 215 20% 38% / 15%; /* rgba(138,155,181,0.15) */
+  --input: 220 50% 17%;
+  --ring: 42 57% 54%;
+  --radius: 0.5rem;
+  --sidebar-width: 240px;
+  --header-height: 60px;
+}
+
+@font-face {
+  /* Tajawal loaded via next/font in layout */
+}
+
+* { box-sizing: border-box; }
+body { font-family: 'Tajawal', sans-serif; }
