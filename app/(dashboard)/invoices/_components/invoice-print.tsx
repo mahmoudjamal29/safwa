@@ -260,7 +260,7 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
           <div
             style={{ color: "#92400e", fontWeight: 700, marginBottom: "8px" }}
           >
-            {t("settledInvoicesNote")}
+            {t("form.settledInvoicesNote")}
           </div>
           <div style={{ color: "#78350f", fontSize: "12px", marginBottom: "12px" }}>
             {isRTL
