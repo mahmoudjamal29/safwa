@@ -5,8 +5,8 @@ import * as React from 'react'
 import { useQuery , queryOptions } from '@tanstack/react-query'
 import { useFormatter, useTranslations } from 'next-intl'
 
-import { createClient } from '@/lib/supabase/client'
 import { FileTextIcon, InvoiceIcon, MoneyIcon, PackageIcon } from '@/lib/icons'
+import { createClient } from '@/lib/supabase/client'
 
 import { Button } from '@/components/ui/button'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
@@ -131,7 +131,7 @@ export function DashboardStats() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={t('stats.revenue')}
-          value={isLoading ? '...' : format.number(stats?.revenue ?? 0, { style: 'currency', currency: 'EGP' })}
+          value={isLoading ? '...' : format.number(stats?.revenue ?? 0, { currency: 'EGP', style: 'currency' })}
           icon={<MoneyIcon size={28} />}
           variant="gold"
         />

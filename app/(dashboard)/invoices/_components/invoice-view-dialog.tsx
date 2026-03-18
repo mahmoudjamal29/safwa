@@ -3,14 +3,15 @@
 import * as React from "react";
 
 import { useQuery } from "@tanstack/react-query";
+import { Printer } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+
+import { INVOICE_STATUSES } from "@/lib/constants/statuses";
 
 import type { Invoice } from "@/query/invoices";
 import { getPaymentsByInvoiceQuery } from "@/query/payments";
-import { INVOICE_STATUSES } from "@/lib/constants/statuses";
 
 import { fmtCurrency, fmtDate } from "@/utils/formatters";
-import { Printer } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,8 +29,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { InvoicePrint } from "./invoice-print";
+import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { PaymentDialog } from "./payment-dialog";
 
 interface InvoiceViewDialogProps {

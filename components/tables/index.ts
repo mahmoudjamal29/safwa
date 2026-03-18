@@ -1,7 +1,1 @@
-export { ContractsTable } from './contracts-table'
-export { InvoicesTable } from './invoices-table'
-export { OffersTable } from './offers-table'
-export { PendingInvitationsTable as RequestsTable } from './pending-invitatations-table'
-export { ServicesTable } from './services-table'
-export { SubscriptionsTable } from './subscriptions-table'
-export { SupportTable } from './support-table'
+export {}

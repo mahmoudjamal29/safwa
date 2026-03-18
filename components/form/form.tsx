@@ -28,8 +28,8 @@ import { Switch } from "./switch-field";
 import { TextArea } from "./text-area-field";
 import { TimePicker } from "./time-picker-field";
 
-export { FormField } from "./form-field";
 export { fieldContext as FieldContext, useFieldContext, useFormContext } from "./form-contexts";
+export { FormField } from "./form-field";
 
 export const { useAppForm, withFieldGroup, withForm } = createFormHook({
   fieldComponents: {

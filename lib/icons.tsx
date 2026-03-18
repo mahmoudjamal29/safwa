@@ -1,8 +1,3 @@
-/**
- * Centralised icon exports using @hugeicons/react + @hugeicons/core-free-icons.
- * All icons share the same `{ className?, size?, color? }` interface.
- */
-import { HugeiconsIcon, type HugeiconsProps } from '@hugeicons/react'
 import {
   ArrowLeftRightIcon as ArrowLeftRightIconData,
   Calendar01Icon as Calendar01IconData,
@@ -28,6 +23,11 @@ import {
   Invoice01Icon as Invoice01IconData,
   Money01Icon as Money01IconData,
 } from '@hugeicons/core-free-icons'
+/**
+ * Centralised icon exports using @hugeicons/react + @hugeicons/core-free-icons.
+ * All icons share the same `{ className?, size?, color? }` interface.
+ */
+import { HugeiconsIcon, type HugeiconsProps } from '@hugeicons/react'
 
 type IconProps = Omit<HugeiconsProps, 'icon'>
 

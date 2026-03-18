@@ -12,18 +12,18 @@ import {
   type PaginationState,
 } from '@tanstack/react-table'
 import { useTranslations } from 'next-intl'
+
+import { INVOICE_STATUSES, INVOICE_STATUS_KEYS, type InvoiceStatusKey } from '@/lib/constants/statuses'
 import { EyeIcon, Trash2Icon } from '@/lib/icons'
 
 import { getAllInvoicesQuery, useDeleteInvoice, type Invoice } from '@/query/invoices'
-
-import { INVOICE_STATUSES, INVOICE_STATUS_KEYS, type InvoiceStatusKey } from '@/lib/constants/statuses'
 
 import { useDebounce } from '@/hooks/use-debounce'
 
 import { fmtCurrency } from '@/utils/formatters'
 
 import { Column } from '@/components/data-table/columns'
-
+import { DataTable } from '@/components/data-table/data-table'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,8 +43,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-
-import { DataTable } from '@/components/data-table/data-table'
 
 import { InvoiceStatusBadge } from './invoice-status-badge'
 import { InvoiceViewDialog } from './invoice-view-dialog'
@@ -82,27 +80,25 @@ export function InvoicesTable() {
   const columns = useMemo<ColumnDef<Invoice>[]>(() => [
     {
       accessorKey: 'invoice_number',
-      header: t('columns.number'),
       cell: ({ getValue }) => <span className="font-mono text-sm">{getValue<string>()}</span>,
+      header: t('columns.number'),
     },
     {
       accessorKey: 'customer_name',
-      header: t('columns.customer'),
       cell: ({ getValue }) => <span>{getValue<string>()}</span>,
+      header: t('columns.customer'),
     },
     {
       accessorKey: 'invoice_date',
-      header: t('columns.date'),
       cell: ({ getValue }) => <Column.Text variant="date" text={getValue<string>()} />,
+      header: t('columns.date'),
     },
     {
       accessorKey: 'status',
-      header: t('columns.status'),
       cell: ({ getValue }) => <InvoiceStatusBadge status={getValue<string>()} />,
+      header: t('columns.status'),
     },
     {
-      id: 'discount',
-      header: t('columns.discount'),
       cell: ({ row }) => (
         row.original.discount_percent > 0 ? (
           <span className="text-amber-600">{row.original.discount_percent}%</span>
@@ -110,27 +106,27 @@ export function InvoicesTable() {
           <span className="text-muted-foreground">-</span>
         )
       ),
+      header: t('columns.discount'),
+      id: 'discount',
     },
     {
       accessorKey: 'total',
-      header: t('columns.total'),
       cell: ({ getValue }) => <span className="font-medium">{fmtCurrency(getValue<number>())}</span>,
+      header: t('columns.total'),
     },
     {
       accessorKey: 'paid_amount',
-      header: t('columns.paid'),
       cell: ({ getValue }) => <span className="text-green-600">{fmtCurrency(getValue<number>())}</span>,
+      header: t('columns.paid'),
     },
     {
-      id: 'remaining',
-      header: t('columns.remaining'),
       cell: ({ row }) => (
         <span className="text-red-600">{fmtCurrency(row.original.total - row.original.paid_amount)}</span>
       ),
+      header: t('columns.remaining'),
+      id: 'remaining',
     },
     {
-      id: 'actions',
-      header: t('columns.actions'),
       cell: ({ row }) => (
         <div className="flex gap-1">
           <Button size="icon" variant="ghost" onClick={() => openView(row.original)}>
@@ -141,6 +137,8 @@ export function InvoicesTable() {
           </Button>
         </div>
       ),
+      header: t('columns.actions'),
+      id: 'actions',
     },
   ], [t])
 
@@ -150,8 +148,8 @@ export function InvoicesTable() {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     manualPagination: true,
-    pageCount: data?.pagination?.last_page ?? 1,
     onPaginationChange: setPagination,
+    pageCount: data?.pagination?.last_page ?? 1,
     state: { pagination },
   })
 

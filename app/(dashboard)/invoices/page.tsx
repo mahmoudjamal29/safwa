@@ -1,4 +1,5 @@
 import Link from "next/link";
+
 import { Plus } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 

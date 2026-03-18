@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { useQuery } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { INVOICE_STATUSES, type InvoiceStatusKey } from "@/lib/constants/statuses";
 import { createClient } from "@/lib/supabase/client";
 
 import {
@@ -16,11 +18,11 @@ import {
 import { useCreateMovement } from "@/query/inventory";
 import { useCreateInvoice, useUpdateInvoice } from "@/query/invoices";
 
-import { INVOICE_STATUSES, type InvoiceStatusKey } from "@/lib/constants/statuses";
-
 import { fmtCurrency } from "@/utils/formatters";
 
 import { FormCard } from "@/components/custom/form-card";
+import { Flex } from "@/components/data-table/columns/flex";
+import { useAppForm } from "@/components/form";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -28,9 +30,6 @@ import { CustomerFormDialog } from "@/app/(dashboard)/customers/_components/cust
 
 import { LineItemsTable } from "./line-items-table";
 import { ProductPickerDialog } from "./product-picker-dialog";
-import { Plus } from "lucide-react";
-import { useAppForm } from "@/components/form";
-import { Flex } from "@/components/data-table/columns/flex";
 
 export interface LineItem {
   product_id: string;
@@ -90,10 +89,10 @@ export function NewInvoiceForm() {
     defaultValues: {
       customer_id: "",
       customer_name: "",
-      invoice_date: todayStr(),
       discount_percent: "0",
-      paid_amount: "0",
+      invoice_date: todayStr(),
       notes: "",
+      paid_amount: "0",
     },
     onSubmit: async ({ value }) => {
       if (items.length === 0) {
@@ -265,7 +264,7 @@ export function NewInvoiceForm() {
               >
                 <span className="font-medium">{t("form.settleOldBalance")}</span>
                 <span className="text-muted-foreground ms-2">
-                  ({t("form.settleOldBalanceDesc", { count: pendingInvoices.length, amount: fmtCurrency(totalPendingBalance) })})
+                  ({t("form.settleOldBalanceDesc", { amount: fmtCurrency(totalPendingBalance), count: pendingInvoices.length })})
                 </span>
               </label>
             </div>

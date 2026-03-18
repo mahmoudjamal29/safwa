@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 import { Header } from './header'
 import { Sidebar } from './sidebar'
@@ -10,7 +10,6 @@ export function DashboardLayoutWrapper({ children }: { children: React.ReactNode
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
 
-  // Close mobile sidebar on navigation
   useEffect(() => {
     setMobileOpen(false)
   }, [pathname])

@@ -1,15 +1,13 @@
 "use client"
 
-import { useSearchParams } from "next/navigation"
 import { Suspense, useTransition } from "react"
-import { signInWithGoogle } from "@/app/auth/_actions"
+
 import { Button } from "@/components/ui/button"
+
+import { signInWithGoogle } from "@/app/auth/_actions"
 
 function SignInContent() {
   const [isPending, startTransition] = useTransition()
-  const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/"
-  const error = searchParams.get("error")
 
   return (
     <div className="flex min-h-screen items-center justify-center">
@@ -21,21 +19,7 @@ function SignInContent() {
           </p>
         </div>
 
-        {error && (
-          <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-            {error === "OAuthAccountNotLinked"
-              ? "This email is already linked to another account."
-              : "An error occurred during sign in."}
-          </div>
-        )}
-
-        <form
-          action={() => {
-            startTransition(() => {
-              signInWithGoogle(callbackUrl)
-            })
-          }}
-        >
+        <form action={() => startTransition(() => signInWithGoogle())}>
           <Button type="submit" className="w-full gap-2" disabled={isPending}>
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path

@@ -1,16 +1,15 @@
 "use client"
 
-import { useSearchParams } from "next/navigation"
 import { Suspense, useTransition } from "react"
-import { signInWithGoogle } from "@/app/auth/_actions"
+
 import { Button } from "@/components/ui/button"
+
+import { signInWithGoogle } from "@/app/auth/_actions"
 
 function ConsentContent() {
   const [isPending, startTransition] = useTransition()
-  const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/"
-  const error = searchParams.get("error")
-  const provider = searchParams.get("provider") ?? "Google"
+  const error = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("error")
+  const provider = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("provider") ?? "Google"
 
   if (error) {
     return (
@@ -24,9 +23,11 @@ function ConsentContent() {
                 : "An error occurred during authentication."}
             </p>
           </div>
-          <Button onClick={() => signInWithGoogle(callbackUrl)} className="w-full">
-            Try Again
-          </Button>
+          <form action={() => startTransition(() => signInWithGoogle())}>
+            <Button type="submit" className="w-full" disabled={isPending}>
+              Try Again
+            </Button>
+          </form>
         </div>
       </div>
     )
@@ -66,13 +67,7 @@ function ConsentContent() {
           </p>
         </div>
 
-        <form
-          action={() => {
-            startTransition(() => {
-              signInWithGoogle(callbackUrl)
-            })
-          }}
-        >
+        <form action={() => startTransition(() => signInWithGoogle())}>
           <Button type="submit" className="w-full" disabled={isPending}>
             {isPending ? "Redirecting..." : `Continue with ${provider}`}
           </Button>

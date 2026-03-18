@@ -4,10 +4,12 @@ import * as React from "react";
 
 import { useLocale, useTranslations } from "next-intl";
 
-import type { Invoice } from "@/query/invoices";
 import { INVOICE_STATUSES } from "@/lib/constants/statuses";
-import { fmtCurrency, fmtDate } from "@/utils/formatters";
 import { createClient } from "@/lib/supabase/client";
+
+import type { Invoice } from "@/query/invoices";
+
+import { fmtCurrency, fmtDate } from "@/utils/formatters";
 
 interface Payment {
   id: string;
@@ -112,13 +114,13 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
       className="print-invoice"
       dir={isRTL ? "rtl" : "ltr"}
       style={{
-        fontFamily: isRTL ? '"IBM Plex Sans Arabic", sans-serif' : "monospace",
-        direction: isRTL ? "rtl" : "ltr",
-        padding: "20px",
-        maxWidth: "210mm",
-        margin: "0 auto",
         backgroundColor: "#fff",
         color: "#000",
+        direction: isRTL ? "rtl" : "ltr",
+        fontFamily: isRTL ? '"IBM Plex Sans Arabic", sans-serif' : "monospace",
+        margin: "0 auto",
+        maxWidth: "210mm",
+        padding: "20px",
       }}
     >
       <style>{`
@@ -284,7 +286,7 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
           <div className="invoice-number mono">
             {t("view.title")} #{invoice.invoice_number}
           </div>
-          <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
+          <div style={{ color: "#666", fontSize: "12px", marginTop: "4px" }}>
             {fmtDate(invoice.invoice_date)}
           </div>
         </div>
@@ -318,31 +320,31 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
       {settledInvoicesInfo && (
         <div
           style={{
+            background: "#fef3c7",
+            border: "2px solid #f59e0b",
+            borderRadius: "4px",
             marginTop: "24px",
             padding: "16px",
-            background: "#fef3c7",
-            borderRadius: "4px",
-            border: "2px solid #f59e0b",
           }}
         >
           <div
-            style={{ fontWeight: 700, marginBottom: "8px", color: "#92400e" }}
+            style={{ color: "#92400e", fontWeight: 700, marginBottom: "8px" }}
           >
             {t("settledInvoicesNote")}
           </div>
-          <div style={{ fontSize: "12px", color: "#78350f", marginBottom: "12px" }}>
+          <div style={{ color: "#78350f", fontSize: "12px", marginBottom: "12px" }}>
             {isRTL
               ? "تم تسوية الفواتير التالية في هذه الفاتورة"
               : "The following invoices have been settled in this invoice"}
           </div>
           
           {loadingSettled ? (
-            <div style={{ textAlign: "center", padding: "20px", color: "#666" }}>
+            <div style={{ color: "#666", padding: "20px", textAlign: "center" }}>
               {isRTL ? "جاري التحميل..." : "Loading..."}
             </div>
           ) : (
             settledInvoices.map((settledInv) => (
-              <div key={settledInv.id} style={{ marginBottom: "16px", padding: "12px", background: "#fff", borderRadius: "4px" }}>
+              <div key={settledInv.id} style={{ background: "#fff", borderRadius: "4px", marginBottom: "16px", padding: "12px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                   <div style={{ fontWeight: 600 }}>
                     {settledInv.invoice_number}
@@ -355,8 +357,8 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
                   <thead>
                     <tr>
                       <th>{t("lineItems.product")}</th>
-                      <th style={{ width: "60px", textAlign: "center" }}>{t("lineItems.qty")}</th>
-                      <th style={{ width: "80px", textAlign: "right" }}>{t("lineItems.total")}</th>
+                      <th style={{ textAlign: "center", width: "60px" }}>{t("lineItems.qty")}</th>
+                      <th style={{ textAlign: "right", width: "80px" }}>{t("lineItems.total")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -383,10 +385,10 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
         <thead>
           <tr>
             <th style={{ width: "40%" }}>{t("lineItems.product")}</th>
-            <th style={{ width: "15%", textAlign: "center" }}>{t("view.sellBy")}</th>
-            <th style={{ width: "15%", textAlign: "right" }}>{t("lineItems.qty")}</th>
-            <th style={{ width: "15%", textAlign: "right" }}>{t("lineItems.unitPrice")}</th>
-            <th style={{ width: "15%", textAlign: "right" }}>{t("lineItems.total")}</th>
+            <th style={{ textAlign: "center", width: "15%" }}>{t("view.sellBy")}</th>
+            <th style={{ textAlign: "right", width: "15%" }}>{t("lineItems.qty")}</th>
+            <th style={{ textAlign: "right", width: "15%" }}>{t("lineItems.unitPrice")}</th>
+            <th style={{ textAlign: "right", width: "15%" }}>{t("lineItems.total")}</th>
           </tr>
         </thead>
         <tbody>
@@ -461,10 +463,10 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
       {settledInvoicesInfo && settledInvoicesInfo.notes && (
         <div
           style={{
-            marginTop: "16px",
-            padding: "12px",
             background: "#f9f9f9",
             borderRadius: "4px",
+            marginTop: "16px",
+            padding: "12px",
           }}
         >
           <div style={{ fontWeight: 600, marginBottom: "4px" }}>
@@ -477,10 +479,10 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
       {!settledInvoicesInfo && invoice.notes && (
         <div
           style={{
-            marginTop: "16px",
-            padding: "12px",
             background: "#f9f9f9",
             borderRadius: "4px",
+            marginTop: "16px",
+            padding: "12px",
           }}
         >
           <div style={{ fontWeight: 600, marginBottom: "4px" }}>

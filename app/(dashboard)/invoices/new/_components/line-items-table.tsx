@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+
 import { Trash2Icon } from '@/lib/icons'
 
 import { fmtCurrency } from '@/utils/formatters'

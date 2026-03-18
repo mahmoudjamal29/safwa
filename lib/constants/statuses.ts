@@ -1,24 +1,24 @@
 export const INVOICE_STATUSES = {
+  CANCELLED: 'cancelled',
   PAID: 'paid',
   PARTIALLY_PAID: 'partially_paid',
   PENDING: 'pending',
-  CANCELLED: 'cancelled',
 } as const
 
 export type InvoiceStatusKey = (typeof INVOICE_STATUSES)[keyof typeof INVOICE_STATUSES]
 
 export const INVOICE_STATUS_AR = {
+  [INVOICE_STATUSES.CANCELLED]: 'ملغاة',
   [INVOICE_STATUSES.PAID]: 'مدفوعة',
   [INVOICE_STATUSES.PARTIALLY_PAID]: 'مدفوعة جزئياً',
   [INVOICE_STATUSES.PENDING]: 'معلقة',
-  [INVOICE_STATUSES.CANCELLED]: 'ملغاة',
 } as const
 
 export const INVOICE_STATUS_EN = {
+  [INVOICE_STATUSES.CANCELLED]: 'Cancelled',
   [INVOICE_STATUSES.PAID]: 'Paid',
   [INVOICE_STATUSES.PARTIALLY_PAID]: 'Partially Paid',
   [INVOICE_STATUSES.PENDING]: 'Pending',
-  [INVOICE_STATUSES.CANCELLED]: 'Cancelled',
 } as const
 
 export const INVOICE_STATUS_KEYS: InvoiceStatusKey[] = [

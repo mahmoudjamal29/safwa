@@ -1,8 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 
-import { createClient } from '@/lib/supabase/client'
-
 import { INVOICE_STATUSES } from '@/lib/constants/statuses'
+import { createClient } from '@/lib/supabase/client'
 
 import type { CreatePaymentPayload } from './payments-types'
 

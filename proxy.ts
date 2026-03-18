@@ -26,18 +26,18 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  // IMPORTANT: Do not write code between createServerClient and getUser()
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isLoginPage = request.nextUrl.pathname === "/login";
+  const isAuthPage = request.nextUrl.pathname.startsWith("/auth/");
+  const isPublicRoute = isAuthPage || request.nextUrl.pathname === "/";
 
-  if (!user && !isLoginPage) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  if (!user && !isAuthPage) {
+    return NextResponse.redirect(new URL("/auth/signin", request.url));
   }
 
-  if (user && isLoginPage) {
+  if (user && isAuthPage && !request.nextUrl.pathname.startsWith("/auth/callback")) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 

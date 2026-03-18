@@ -5,6 +5,7 @@ import * as React from "react";
 import { useTranslations } from "next-intl";
 
 import { cn } from "@/utils";
+import { avatarFallbackName } from "@/utils/utils/helpers";
 
 import {
   Chip,
@@ -17,7 +18,6 @@ import {
   TextVariant,
 } from "@/components/data-table/columns/text";
 import { AvatarShape } from "@/components/ui/avatar";
-import { avatarFallbackName } from "@/utils/utils/helpers";
 
 export interface FlexProps {
   avatar?: null | string;

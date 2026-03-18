@@ -1,9 +1,28 @@
 "use server"
 
-import { signIn } from "@/lib/auth"
 import { redirect } from "next/navigation"
 
-export async function signInWithGoogle(callbackUrl: string) {
-  await signIn("google", { redirectTo: callbackUrl })
-  redirect(callbackUrl)
+import { createClient } from "@/lib/supabase/server"
+
+export async function signInWithGoogle() {
+  const supabase = await createClient()
+  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+  const redirectTo = `${origin}/auth/callback`
+  
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    options: {
+      redirectTo,
+    },
+    provider: "google",
+  })
+  
+  if (error) {
+    redirect(`/auth/signin?error=${encodeURIComponent(error.message)}`)
+  }
+  
+  if (data.url) {
+    redirect(data.url)
+  }
+  
+  redirect("/auth/signin?error=no_url")
 }

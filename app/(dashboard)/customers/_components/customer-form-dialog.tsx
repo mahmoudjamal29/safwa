@@ -25,19 +25,19 @@ export function CustomerFormDialog({ customer, onOpenChange, open }: CustomerFor
 
   const form = useForm({
     defaultValues: {
-      name: customer?.name ?? '',
-      phone: customer?.phone ?? '',
       address: customer?.address ?? '',
-      tax_number: customer?.tax_number ?? '',
+      name: customer?.name ?? '',
       notes: customer?.notes ?? '',
+      phone: customer?.phone ?? '',
+      tax_number: customer?.tax_number ?? '',
     },
     onSubmit: async ({ value }) => {
       const payload = {
-        name: value.name,
-        phone: value.phone || null,
         address: value.address || null,
-        tax_number: value.tax_number || null,
+        name: value.name,
         notes: value.notes || null,
+        phone: value.phone || null,
+        tax_number: value.tax_number || null,
       }
       if (customer) {
         await updateMutation.mutateAsync({ id: customer.id, payload })

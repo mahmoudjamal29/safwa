@@ -12,8 +12,8 @@ import {
   type PaginationState,
 } from '@tanstack/react-table'
 import { useTranslations } from 'next-intl'
-import { PencilIcon, Trash2Icon } from '@/lib/icons'
 
+import { PencilIcon, Trash2Icon } from '@/lib/icons'
 import { createClient } from '@/lib/supabase/client'
 
 import { getAllProductsQuery, useDeleteProduct, type Product } from '@/query/products'
@@ -22,6 +22,7 @@ import { useDebounce } from '@/hooks/use-debounce'
 
 import { fmtCurrency } from '@/utils/formatters'
 
+import { DataTable } from '@/components/data-table/data-table'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,8 +42,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-
-import { DataTable } from '@/components/data-table/data-table'
 
 import { ProductFormDialog } from './product-form-dialog'
 
@@ -95,40 +94,39 @@ export function ProductsTable() {
   const columns = useMemo<ColumnDef<Product>[]>(() => [
     {
       accessorKey: 'name',
-      header: t('columns.name'),
       cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
+      header: t('columns.name'),
     },
     {
       accessorKey: 'sku',
-      header: t('columns.sku'),
       cell: ({ getValue }) => <span className="text-muted-foreground">{getValue<string | null>() ?? '-'}</span>,
+      header: t('columns.sku'),
     },
     {
       accessorKey: 'category',
-      header: t('columns.category'),
       cell: ({ getValue }) => <span>{getValue<string | null>() ?? '-'}</span>,
+      header: t('columns.category'),
     },
     {
       accessorKey: 'unit',
-      header: t('columns.unit'),
       cell: ({ getValue }) => <span>{getValue<string>()}</span>,
+      header: t('columns.unit'),
     },
     {
       accessorKey: 'price',
-      header: t('columns.price'),
       cell: ({ getValue }) => <span>{fmtCurrency(getValue<number>())}</span>,
+      header: t('columns.price'),
     },
     {
       accessorKey: 'cost',
-      header: t('columns.cost'),
       cell: ({ getValue }) => {
         const v = getValue<number | null>()
         return <span>{v != null ? fmtCurrency(v) : '-'}</span>
       },
+      header: t('columns.cost'),
     },
     {
       accessorKey: 'qty',
-      header: t('columns.qty'),
       cell: ({ row }) => {
         const isLow = row.original.min_qty != null && row.original.qty <= (row.original.min_qty ?? Infinity)
         return (
@@ -137,20 +135,19 @@ export function ProductsTable() {
           </span>
         )
       },
+      header: t('columns.qty'),
     },
     {
       accessorKey: 'min_qty',
-      header: t('columns.minQty'),
       cell: ({ getValue }) => <span>{getValue<number | null>() ?? '-'}</span>,
+      header: t('columns.minQty'),
     },
     {
       accessorKey: 'pieces_per_unit',
-      header: t('columns.piecesPerUnit'),
       cell: ({ getValue }) => <span>{getValue<number | null>() ?? '-'}</span>,
+      header: t('columns.piecesPerUnit'),
     },
     {
-      id: 'actions',
-      header: t('columns.actions'),
       cell: ({ row }) => (
         <div className="flex gap-1">
           <Button size="icon" variant="ghost" onClick={() => openEdit(row.original)}>
@@ -161,6 +158,8 @@ export function ProductsTable() {
           </Button>
         </div>
       ),
+      header: t('columns.actions'),
+      id: 'actions',
     },
   ], [t])
 
@@ -170,8 +169,8 @@ export function ProductsTable() {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     manualPagination: true,
-    pageCount: data?.pagination?.last_page ?? 1,
     onPaginationChange: setPagination,
+    pageCount: data?.pagination?.last_page ?? 1,
     state: { pagination },
   })
 

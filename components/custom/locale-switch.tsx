@@ -1,7 +1,8 @@
 'use client'
 
-import { Globe } from 'lucide-react'
 import { useRouter, usePathname } from 'next/navigation'
+
+import { Globe } from 'lucide-react'
 
 import { cn } from '@/utils'
 

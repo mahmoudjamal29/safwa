@@ -10,6 +10,7 @@ import { isValid } from "date-fns";
 
 import { cn } from "@/utils";
 import { formatDate } from "@/utils/formatters";
+import { formatPrice } from "@/utils/utils/formatters";
 
 import {
   Tooltip,
@@ -18,7 +19,6 @@ import {
 } from "@/components/ui/tooltip";
 
 import { Attachment, type AttachmentProps } from "./attachment";
-import { formatPrice } from "@/utils/utils/formatters";
 
 const textVariants = cva("truncate", {
   defaultVariants: {

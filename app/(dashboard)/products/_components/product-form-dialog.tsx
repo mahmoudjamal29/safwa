@@ -47,35 +47,35 @@ export function ProductFormDialog({
 
   const form = useForm({
     defaultValues: {
-      name: product?.name ?? "",
-      sku: product?.sku ?? "",
       category: product?.category ?? "",
-      unit: product?.unit ?? "كرتون",
-      price: product?.price != null ? String(product.price) : "",
       cost: product?.cost != null ? String(product.cost) : "",
-      qty: product?.qty != null ? String(product.qty) : "0",
-      min_qty: product?.min_qty != null ? String(product.min_qty) : "",
       max_qty: product?.max_qty != null ? String(product.max_qty) : "",
-      pieces_per_unit:
-        product?.pieces_per_unit != null ? String(product.pieces_per_unit) : "",
+      min_qty: product?.min_qty != null ? String(product.min_qty) : "",
+      name: product?.name ?? "",
       piece_price:
         product?.piece_price != null ? String(product.piece_price) : "",
+      pieces_per_unit:
+        product?.pieces_per_unit != null ? String(product.pieces_per_unit) : "",
+      price: product?.price != null ? String(product.price) : "",
+      qty: product?.qty != null ? String(product.qty) : "0",
+      sku: product?.sku ?? "",
+      unit: product?.unit ?? "كرتون",
     },
     onSubmit: async ({ value }) => {
       const payload = {
-        name: value.name,
-        sku: value.sku || null,
         category: value.category || null,
-        unit: value.unit,
-        price: parseFloat(value.price) || 0,
         cost: value.cost ? parseFloat(value.cost) : null,
-        qty: parseFloat(value.qty) || 0,
-        min_qty: value.min_qty ? parseFloat(value.min_qty) : null,
         max_qty: value.max_qty ? parseFloat(value.max_qty) : null,
+        min_qty: value.min_qty ? parseFloat(value.min_qty) : null,
+        name: value.name,
+        piece_price: value.piece_price ? parseFloat(value.piece_price) : null,
         pieces_per_unit: value.pieces_per_unit
           ? parseInt(value.pieces_per_unit)
           : null,
-        piece_price: value.piece_price ? parseFloat(value.piece_price) : null,
+        price: parseFloat(value.price) || 0,
+        qty: parseFloat(value.qty) || 0,
+        sku: value.sku || null,
+        unit: value.unit,
       };
       if (product) {
         await updateMutation.mutateAsync({ id: product.id, payload });

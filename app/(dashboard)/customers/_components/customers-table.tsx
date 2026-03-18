@@ -12,6 +12,7 @@ import {
   type PaginationState,
 } from '@tanstack/react-table'
 import { useTranslations } from 'next-intl'
+
 import { PencilIcon, Trash2Icon } from '@/lib/icons'
 
 import { getAllCustomersQuery, useDeleteCustomer, type Customer, type CustomerWithBalance } from '@/query/customers'
@@ -20,6 +21,7 @@ import { useDebounce } from '@/hooks/use-debounce'
 
 import { fmtCurrency } from '@/utils/formatters'
 
+import { DataTable } from '@/components/data-table/data-table'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,8 +34,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-
-import { DataTable } from '@/components/data-table/data-table'
 
 import { CustomerFormDialog } from './customer-form-dialog'
 
@@ -66,34 +66,32 @@ export function CustomersTable() {
   const columns = useMemo<ColumnDef<CustomerWithBalance>[]>(() => [
     {
       accessorKey: 'name',
-      header: t('columns.name'),
       cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
+      header: t('columns.name'),
     },
     {
       accessorKey: 'phone',
-      header: t('columns.phone'),
       cell: ({ getValue }) => <span>{getValue<string | null>() ?? '-'}</span>,
+      header: t('columns.phone'),
     },
     {
       accessorKey: 'address',
-      header: t('columns.address'),
       cell: ({ getValue }) => <span>{getValue<string | null>() ?? '-'}</span>,
+      header: t('columns.address'),
     },
     {
       accessorKey: 'tax_number',
-      header: t('columns.taxNumber'),
       cell: ({ getValue }) => <span>{getValue<string | null>() ?? '-'}</span>,
+      header: t('columns.taxNumber'),
     },
     {
       accessorKey: 'notes',
-      header: t('columns.notes'),
       cell: ({ getValue }) => (
         <span className="block max-w-[200px] truncate">{getValue<string | null>() ?? '-'}</span>
       ),
+      header: t('columns.notes'),
     },
     {
-      id: 'pendingBalance',
-      header: t('columns.pendingBalance'),
       cell: ({ row }) => {
         const balance = row.original.pending_balance ?? 0
         return (
@@ -102,10 +100,10 @@ export function CustomersTable() {
           </span>
         )
       },
+      header: t('columns.pendingBalance'),
+      id: 'pendingBalance',
     },
     {
-      id: 'actions',
-      header: t('columns.actions'),
       cell: ({ row }) => (
         <div className="flex gap-1">
           <Button size="icon" variant="ghost" onClick={() => openEdit(row.original)}>
@@ -116,6 +114,8 @@ export function CustomersTable() {
           </Button>
         </div>
       ),
+      header: t('columns.actions'),
+      id: 'actions',
     },
   ], [t])
 
@@ -125,8 +125,8 @@ export function CustomersTable() {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     manualPagination: true,
-    pageCount: data?.pagination?.last_page ?? 1,
     onPaginationChange: setPagination,
+    pageCount: data?.pagination?.last_page ?? 1,
     state: { pagination },
   })
 

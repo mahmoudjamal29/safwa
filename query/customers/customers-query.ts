@@ -1,11 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
 
+import { INVOICE_STATUSES } from "@/lib/constants/statuses";
 import { createClient } from "@/lib/supabase/client";
 
-import { INVOICE_STATUSES } from "@/lib/constants/statuses";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Customer, CustomerWithBalance } from "./customers-types";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 const fetchPendingBalances = async (
   supabase: SupabaseClient,

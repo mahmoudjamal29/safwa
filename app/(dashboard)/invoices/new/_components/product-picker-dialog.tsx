@@ -16,8 +16,8 @@ import { getAllProductsSimpleQuery, type Product } from '@/query/products'
 
 import { fmtCurrency } from '@/utils/formatters'
 
-import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/data-table/data-table'
+import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 
@@ -83,7 +83,6 @@ export function ProductPickerDialog({ onOpenChange, onSelect, open }: ProductPic
   const columns = useMemo<ColumnDef<Product>[]>(() => [
     {
       accessorKey: 'name',
-      header: t('picker.columns.name'),
       cell: ({ row }) => (
         <div className="flex flex-col gap-0.5">
           <span className="font-medium">{row.original.name}</span>
@@ -92,38 +91,37 @@ export function ProductPickerDialog({ onOpenChange, onSelect, open }: ProductPic
           )}
         </div>
       ),
+      header: t('picker.columns.name'),
       minSize: 160,
     },
     {
       accessorKey: 'unit',
-      header: t('picker.columns.unit'),
       cell: ({ getValue }) => <span className="text-muted-foreground">{getValue<string>()}</span>,
+      header: t('picker.columns.unit'),
       size: 80,
     },
     {
       accessorKey: 'qty',
-      header: t('picker.columns.stock'),
       cell: ({ row }) => (
         <span className={row.original.min_qty != null && row.original.qty <= row.original.min_qty ? 'font-bold text-red-600' : 'font-medium'}>
           {row.original.qty}
         </span>
       ),
+      header: t('picker.columns.stock'),
       size: 80,
     },
     {
-      id: 'price',
-      header: t('picker.columns.price'),
       cell: ({ row }) => {
         const p = row.original
         const sellBy = getSellBy(p)
         const price = sellBy === 'piece' && p.piece_price != null ? p.piece_price : p.price
         return <span className="font-medium">{fmtCurrency(price)}</span>
       },
+      header: t('picker.columns.price'),
+      id: 'price',
       size: 100,
     },
     {
-      id: 'sellBy',
-      header: t('picker.columns.sellBy'),
       cell: ({ row }) => {
         const p = row.original
         const hasPieces = p.pieces_per_unit != null && p.pieces_per_unit > 1
@@ -141,16 +139,18 @@ export function ProductPickerDialog({ onOpenChange, onSelect, open }: ProductPic
           </Button>
         )
       },
+      header: t('picker.columns.sellBy'),
+      id: 'sellBy',
       size: 90,
     },
     {
-      id: 'actions',
-      header: t('picker.columns.actions'),
       cell: ({ row }) => (
         <Button type="button" size="sm" onClick={() => handleSelect(row.original)}>
           {t('picker.add')}
         </Button>
       ),
+      header: t('picker.columns.actions'),
+      id: 'actions',
       size: 70,
     },
   ], [t, sellByMap])
