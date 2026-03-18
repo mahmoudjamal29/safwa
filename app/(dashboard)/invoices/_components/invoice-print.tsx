@@ -347,30 +347,52 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
               <div key={settledInv.id} style={{ background: "#fff", borderRadius: "4px", marginBottom: "16px", padding: "12px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                   <div style={{ fontWeight: 600 }}>
-                    {settledInv.invoice_number}
+                    {t("view.title")} #{settledInv.invoice_number}
                   </div>
-                  <div className="mono" style={{ fontWeight: 600 }}>
-                    {fmtCurrency(settledInv.total)}
+                  <div style={{ color: "#666", fontSize: "12px" }}>
+                    {fmtDate(settledInv.invoice_date)}
                   </div>
                 </div>
                 <table>
                   <thead>
                     <tr>
-                      <th>{t("lineItems.product")}</th>
-                      <th style={{ textAlign: "center", width: "60px" }}>{t("lineItems.qty")}</th>
-                      <th style={{ textAlign: "right", width: "80px" }}>{t("lineItems.total")}</th>
+                      <th style={{ width: "35%" }}>{t("lineItems.product")}</th>
+                      <th style={{ textAlign: "center", width: "15%" }}>{t("view.sellBy")}</th>
+                      <th style={{ textAlign: "right", width: "15%" }}>{t("lineItems.qty")}</th>
+                      <th style={{ textAlign: "right", width: "17%" }}>{t("lineItems.unitPrice")}</th>
+                      <th style={{ textAlign: "right", width: "18%" }}>{t("lineItems.total")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {settledInv.items?.map((item: any, idx: number) => (
                       <tr key={idx}>
                         <td>{item.product_name}</td>
-                        <td className="mono" style={{ textAlign: "center" }}>{item.qty}</td>
+                        <td className="mono" style={{ textAlign: "center" }}>
+                          {item.sell_by === "unit" ? t("view.unit") : t("view.piece")}
+                        </td>
+                        <td className="mono" style={{ textAlign: "right" }}>{item.qty}</td>
+                        <td className="mono" style={{ textAlign: "right" }}>{fmtCurrency(item.price)}</td>
                         <td className="mono" style={{ textAlign: "right" }}>{fmtCurrency(item.total)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                <div style={{ marginTop: "8px", borderTop: "1px solid #eee", paddingTop: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", padding: "2px 0" }}>
+                    <span style={{ color: "#666" }}>{t("view.subtotal")}</span>
+                    <span className="mono">{fmtCurrency(settledInv.subtotal)}</span>
+                  </div>
+                  {(settledInv.discount_percent ?? 0) > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", padding: "2px 0", color: "#dc2626" }}>
+                      <span>{t("view.discount")} ({settledInv.discount_percent}%)</span>
+                      <span className="mono">- {fmtCurrency(settledInv.discount_amount)}</span>
+                    </div>
+                  )}
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: 700, padding: "4px 0", borderTop: "1px solid #ddd", marginTop: "4px" }}>
+                    <span>{t("view.grandTotal")}</span>
+                    <span className="mono">{fmtCurrency(settledInv.total)}</span>
+                  </div>
+                </div>
               </div>
             ))
           )}
