@@ -32,6 +32,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   description: 'نظام إدارة الأعمال للصفوة لتجارة المنتجات الغذائية',
   title: 'الصفوة - نظام الإدارة',
+  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -46,9 +47,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang={locale} dir={dir} suppressHydrationWarning className={cn("font-sans", figtree.variable)}>
-      <head>
-        <link rel="manifest" href="/api/manifest" />
-      </head>
       <body className={`${tajawal.variable} ${notoNaskh.variable} font-sans antialiased`}>
         <NextIntlClientProvider messages={messages} locale={locale}>
           <RootProviders>{children}</RootProviders>
