@@ -32,7 +32,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   description: 'نظام إدارة الأعمال للصفوة لتجارة المنتجات الغذائية',
   title: 'الصفوة - نظام الإدارة',
-  manifest: '/manifest.webmanifest',
+  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
