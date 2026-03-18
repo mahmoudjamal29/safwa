@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 
 import { createClient } from '@/lib/supabase/client'
 
-import type { InvoiceStatus } from '@/query/invoices'
+import { INVOICE_STATUSES } from '@/lib/constants/statuses'
 
 import type { CreatePaymentPayload } from './payments-types'
 
@@ -28,7 +28,7 @@ export function useRecordPayment() {
         const remaining = inv.total - (inv.paid_amount ?? 0)
         const safeAmount = Math.min(payload.amount, Math.max(0, remaining))
         const newPaid = (inv.paid_amount ?? 0) + safeAmount
-        const newStatus: InvoiceStatus = newPaid >= inv.total ? 'مدفوعة' : 'مدفوعة جزئياً'
+        const newStatus = newPaid >= inv.total ? INVOICE_STATUSES.PAID : INVOICE_STATUSES.PARTIALLY_PAID
         await supabase.from('invoices')
           .update({ paid_amount: newPaid, status: newStatus })
           .eq('id', payload.invoice_id)

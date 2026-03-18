@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 
-import { Check, ChevronsUpDown, Loader2, Search } from 'lucide-react'
+import { Check, ChevronsUpDown, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { useDebounce } from '@/hooks/use-debouncer'
@@ -12,6 +12,14 @@ import { useIntersectionObserver } from '@/hooks/use-intersection-observer'
 import { cn } from '@/utils'
 
 import { Button } from '@/components/ui/button'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList
+} from '@/components/ui/command'
 import {
   Popover,
   PopoverContent,
@@ -27,6 +35,7 @@ export function Combobox<T extends object>({
   closeOnSelect = true,
   customTrigger,
   disabled = false,
+  footer,
   getOptionLabel,
   infinite = false,
   labelKey,
@@ -239,25 +248,25 @@ export function Combobox<T extends object>({
         )}
         {...popoverContentProps}
       >
-        <div>
-          <div className="border-border flex items-center border-b px-3">
-            <Search className="me-2 h-4 w-4 shrink-0 opacity-50" />
-            <input
-              className="text-foreground placeholder:text-muted-foreground flex h-11 w-full bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              onChange={(e) =>
-                (infinite || isStaticMode || typeof queryOptions === 'function'
-                  ? handleSearch
-                  : undefined)?.(e.target.value)
-              }
-              placeholder={t('searchPlaceholder')}
-              value={
-                infinite || isStaticMode || typeof queryOptions === 'function'
-                  ? inputValue
-                  : undefined
-              }
-            />
-          </div>
-          <div className="max-h-[300px] overflow-x-hidden overflow-y-auto">
+        <Command
+          shouldFilter={
+            !infinite && !isStaticMode && typeof queryOptions !== 'function'
+          }
+        >
+          <CommandInput
+            onValueChange={
+              infinite || isStaticMode || typeof queryOptions === 'function'
+                ? handleSearch
+                : undefined
+            }
+            placeholder={t('searchPlaceholder')}
+            value={
+              infinite || isStaticMode || typeof queryOptions === 'function'
+                ? inputValue // Use immediate inputValue, not debounced searchQuery
+                : undefined
+            }
+          />
+          <CommandList>
             {isLoading && items.length === 0 ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -266,9 +275,9 @@ export function Combobox<T extends object>({
                 </span>
               </div>
             ) : items.length === 0 ? (
-              <div className="py-6 text-center text-sm">{t('noItemsFound')}</div>
+              <CommandEmpty>{t('noItemsFound')}</CommandEmpty>
             ) : (
-              <div className="overflow-hidden p-1.5">
+              <CommandGroup>
                 {items.map((item, index) => {
                   const itemValue = String(item[valueKey] ?? '')
                   const itemLabel = getItemLabel(item, labelKey, labelKeys)
@@ -285,9 +294,10 @@ export function Combobox<T extends object>({
                         }
                       }}
                     >
-                      <div
-                        className="text-foreground hover:bg-accent relative flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm select-none"
-                        onClick={() => handleSelect(itemValue, item)}
+                      <CommandItem
+                        className="cursor-pointer"
+                        onSelect={() => handleSelect(itemValue, item)}
+                        value={itemLabel}
                       >
                         {renderOption ? (
                           renderOption(item)
@@ -297,7 +307,7 @@ export function Combobox<T extends object>({
                           <span>{itemLabel}</span>
                         )}
                         {isSelected && <Check className="ms-auto h-4 w-4" />}
-                      </div>
+                      </CommandItem>
                     </div>
                   )
                 })}
@@ -309,10 +319,11 @@ export function Combobox<T extends object>({
                     </span>
                   </div>
                 )}
-              </div>
+              </CommandGroup>
             )}
-          </div>
-        </div>
+          </CommandList>
+          {footer && <div className="border-t p-1">{footer}</div>}
+        </Command>
       </PopoverContent>
     </Popover>
   )

@@ -1,291 +1,468 @@
-'use client'
+"use client";
 
-import { useRouter } from 'next/navigation'
-import * as React from 'react'
+import { useRouter } from "next/navigation";
+import * as React from "react";
 
-import { useQuery } from '@tanstack/react-query'
-import { useTranslations } from 'next-intl'
+import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from "@/lib/supabase/client";
 
-import { getAllCustomersSimpleQuery } from '@/query/customers'
-import { useCreateMovement } from '@/query/inventory'
-import { useCreateInvoice, type InvoiceStatus } from '@/query/invoices'
-
-import { fmtCurrency } from '@/utils/formatters'
-
-import { FieldWrapper } from '@/components/form/field-wrapper'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  getAllCustomersWithBalanceQuery,
+  getPendingInvoicesForCustomerQuery,
+  type CustomerWithBalance,
+} from "@/query/customers";
+import { useCreateMovement } from "@/query/inventory";
+import { useCreateInvoice, useUpdateInvoice } from "@/query/invoices";
 
-import { LineItemsTable } from './line-items-table'
-import { ProductPickerDialog } from './product-picker-dialog'
+import { INVOICE_STATUSES, type InvoiceStatusKey } from "@/lib/constants/statuses";
+
+import { fmtCurrency } from "@/utils/formatters";
+
+import { FormCard } from "@/components/custom/form-card";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+
+import { CustomerFormDialog } from "@/app/(dashboard)/customers/_components/customer-form-dialog";
+
+import { LineItemsTable } from "./line-items-table";
+import { ProductPickerDialog } from "./product-picker-dialog";
+import { Plus } from "lucide-react";
+import { useAppForm } from "@/components/form";
+import { Flex } from "@/components/data-table/columns/flex";
 
 export interface LineItem {
-  product_id: string
-  product_name: string
-  sell_by: 'unit' | 'piece'
-  qty: number
-  unit_price: number
-  total: number
-  pieces_per_unit: number
-}
-
-interface FormState {
-  customer_id: string
-  customer_name: string
-  invoice_date: string
-  status: InvoiceStatus
-  tax_percent: string
-  notes: string
-  paid_amount: string
+  product_id: string;
+  product_name: string;
+  sell_by: "unit" | "piece";
+  qty: number;
+  unit_price: number;
+  total: number;
+  pieces_per_unit: number;
 }
 
 function todayStr() {
-  return new Date().toISOString().split('T')[0]
+  return new Date().toISOString().split("T")[0];
 }
 
 async function getNextInvoiceNumber() {
-  const supabase = createClient()
+  const supabase = createClient();
   const { count } = await supabase
-    .from('invoices')
-    .select('*', { count: 'exact', head: true })
-  const num = (count ?? 0) + 1
-  return `INV-${String(num).padStart(5, '0')}`
+    .from("invoices")
+    .select("*", { count: "exact", head: true });
+  const num = (count ?? 0) + 1;
+  return `INV-${String(num).padStart(5, "0")}`;
+}
+
+function deriveStatus(paidAmount: number, total: number): InvoiceStatusKey {
+  if (total <= 0 || paidAmount <= 0) return INVOICE_STATUSES.PENDING;
+  if (paidAmount >= total) return INVOICE_STATUSES.PAID;
+  return INVOICE_STATUSES.PARTIALLY_PAID;
 }
 
 export function NewInvoiceForm() {
-  const router = useRouter()
-  const t = useTranslations('invoices')
-  const createInvoice = useCreateInvoice()
-  const createMovement = useCreateMovement()
+  const router = useRouter();
+  const t = useTranslations("invoices");
+  const createInvoice = useCreateInvoice();
+  const createMovement = useCreateMovement();
+  const updateInvoice = useUpdateInvoice();
 
-  const [form, setForm] = React.useState<FormState>({
-    customer_id: '',
-    customer_name: '',
-    invoice_date: todayStr(),
-    notes: '',
-    paid_amount: '0',
-    status: 'معلقة',
-    tax_percent: '0',
-  })
-  const [items, setItems] = React.useState<LineItem[]>([])
-  const [pickerOpen, setPickerOpen] = React.useState(false)
-  const [customerSearch, setCustomerSearch] = React.useState('')
+  const [items, setItems] = React.useState<LineItem[]>([]);
+  const [showItemsError, setShowItemsError] = React.useState(false);
+  const [pickerOpen, setPickerOpen] = React.useState(false);
+  const [addCustomerOpen, setAddCustomerOpen] = React.useState(false);
+  const [settleOldBalance, setSettleOldBalance] = React.useState(false);
+  const [selectedCustomer, setSelectedCustomer] = React.useState<CustomerWithBalance | null>(null);
 
-  const { data: customers } = useQuery(getAllCustomersSimpleQuery())
+  const { data: customers } = useQuery(getAllCustomersWithBalanceQuery());
 
-  const filteredCustomers = React.useMemo(() => {
-    if (!customers) return []
-    if (!customerSearch) return customers.slice(0, 20)
-    return customers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase())).slice(0, 20)
-  }, [customers, customerSearch])
+  const { data: pendingInvoices = [] } = useQuery(
+    getPendingInvoicesForCustomerQuery(selectedCustomer?.id ?? "")
+  );
 
-  function set(key: keyof FormState, value: string) {
-    setForm(prev => ({ ...prev, [key]: value }))
-  }
+  const totalPendingBalance = React.useMemo(
+    () => pendingInvoices.reduce((sum, inv) => sum + inv.remaining, 0),
+    [pendingInvoices]
+  );
 
-  function addItem(item: LineItem) {
-    setItems(prev => [...prev, item])
-  }
-
-  function updateItem(index: number, updates: Partial<LineItem>) {
-    setItems(prev => prev.map((item, i) => i === index ? { ...item, ...updates } : item))
-  }
-
-  function removeItem(index: number) {
-    setItems(prev => prev.filter((_, i) => i !== index))
-  }
-
-  const subtotal = items.reduce((sum, item) => sum + item.total, 0)
-  const taxPercent = parseFloat(form.tax_percent) || 0
-  const taxAmount = subtotal * (taxPercent / 100)
-  const grandTotal = subtotal + taxAmount
-
-  function handleReset() {
-    setForm({
-      customer_id: '',
-      customer_name: '',
+  const form = useAppForm({
+    defaultValues: {
+      customer_id: "",
+      customer_name: "",
       invoice_date: todayStr(),
-      notes: '',
-      paid_amount: '0',
-      status: 'معلقة',
-      tax_percent: '0',
-    })
-    setItems([])
-    setCustomerSearch('')
-  }
+      discount_percent: "0",
+      paid_amount: "0",
+      notes: "",
+    },
+    onSubmit: async ({ value }) => {
+      if (items.length === 0) {
+        setShowItemsError(true);
+        return;
+      }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (items.length === 0) return
+      const subtotal = items.reduce((s, i) => s + i.total, 0);
+      const discountPercent = parseFloat(value.discount_percent) || 0;
+      const discountAmount = subtotal * (discountPercent / 100);
+      const itemsTotal = subtotal - discountAmount;
+      const grandTotal = settleOldBalance ? itemsTotal + totalPendingBalance : itemsTotal;
+      const paidAmount = Math.min(
+        parseFloat(value.paid_amount) || 0,
+        grandTotal,
+      );
+      const status = deriveStatus(paidAmount, grandTotal);
 
-    const invoiceNumber = await getNextInvoiceNumber()
+      const invoiceNumber = await getNextInvoiceNumber();
 
-    await createInvoice.mutateAsync({
-      customer_id: form.customer_id || null,
-      customer_name: form.customer_name || t('form.unknownCustomer'),
-      invoice_date: form.invoice_date,
-      invoice_number: invoiceNumber,
-      items: JSON.stringify(items),
-      notes: form.notes || undefined,
-      paid_amount: parseFloat(form.paid_amount) || 0,
-      status: form.status,
-      subtotal,
-      tax_amount: taxAmount,
-      tax_percent: taxPercent,
-      total: grandTotal,
-    })
+      const settledNotes = settleOldBalance && pendingInvoices.length > 0
+        ? `${t("form.settledInvoicesNote")}: ${pendingInvoices.map(i => i.invoice_number).join(", ")}${value.notes ? "\n" + value.notes : ""}`
+        : value.notes;
 
-    for (const item of items) {
-      await createMovement.mutateAsync({
-        note: `${t('form.invoiceRef')} ${invoiceNumber}`,
-        product_id: item.product_id,
-        product_name: item.product_name,
-        qty: item.sell_by === 'piece' ? item.qty / (item.pieces_per_unit || 1) : item.qty,
-        type: 'صادر',
-      })
-    }
+      await createInvoice.mutateAsync({
+        customer_id: value.customer_id || null,
+        customer_name: value.customer_name || t("form.unknownCustomer"),
+        discount_amount: discountAmount,
+        discount_percent: discountPercent,
+        invoice_date: value.invoice_date,
+        invoice_number: invoiceNumber,
+        items: JSON.stringify(items),
+        notes: settledNotes || undefined,
+        paid_amount: paidAmount,
+        status,
+        subtotal,
+        tax_amount: 0,
+        tax_percent: 0,
+        total: grandTotal,
+      });
 
-    handleReset()
-    router.push('/invoices')
-  }
+      for (const item of items) {
+        await createMovement.mutateAsync({
+          note: `${t("form.invoiceRef")} ${invoiceNumber}`,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          qty:
+            item.sell_by === "piece"
+              ? item.qty / (item.pieces_per_unit || 1)
+              : item.qty,
+          type: "صادر",
+        });
+      }
 
-  const isPending = createInvoice.isPending || createMovement.isPending
+      if (settleOldBalance && pendingInvoices.length > 0) {
+        for (const pendingInv of pendingInvoices) {
+          await updateInvoice.mutateAsync({
+            id: pendingInv.id,
+            payload: {
+              paid_amount: pendingInv.total,
+              status: INVOICE_STATUSES.PAID,
+            },
+          });
+        }
+      }
+
+      form.reset();
+      setItems([]);
+      setShowItemsError(false);
+      setSettleOldBalance(false);
+      setSelectedCustomer(null);
+      router.push("/invoices");
+    },
+  });
+
+  const subtotal = items.reduce((s, i) => s + i.total, 0);
+  const isPending = createInvoice.isPending || createMovement.isPending || updateInvoice.isPending;
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      {/* Customer + Date + Status */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="sm:col-span-2 lg:col-span-1">
-          <FieldWrapper label={t('form.customer')}>
-            <Input
-              placeholder={t('form.customerSearch')}
-              value={customerSearch}
-              onChange={e => {
-                setCustomerSearch(e.target.value)
-                set('customer_id', '')
-                set('customer_name', e.target.value)
-              }}
-            />
-            {customerSearch && filteredCustomers.length > 0 && !form.customer_id && (
-              <div className="border rounded-md bg-background shadow-md max-h-40 overflow-y-auto z-10">
-                {filteredCustomers.map(c => (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        form.handleSubmit();
+      }}
+      className="flex flex-col gap-5"
+    >
+      {/* ── Invoice Details ───────────────────────────────── */}
+      <FormCard title={t("form.title")}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <form.AppField
+            name="customer_id"
+            validators={{
+              onSubmit: ({ value }) =>
+                !value ? t("validation.customerRequired") : undefined,
+            }}
+          >
+            {(field) => (
+              <field.Combobox
+                label={t("form.customer")}
+                placeholder={t("form.customerSearch")}
+                options={customers ?? []}
+                valueKey="id"
+                labelKey="name"
+                onSelectItem={(item: CustomerWithBalance | undefined) => {
+                  form.setFieldValue("customer_name", item?.name ?? "");
+                  setSelectedCustomer(item ?? null);
+                  setSettleOldBalance(false);
+                }}
+                footer={
                   <button
-                    key={c.id}
                     type="button"
-                    className="w-full text-right px-3 py-2 text-sm hover:bg-accent"
-                    onClick={() => {
-                      set('customer_id', c.id)
-                      set('customer_name', c.name)
-                      setCustomerSearch(c.name)
-                    }}
+                    className="w-full rounded px-2 py-1.5 text-start text-sm text-primary hover:bg-accent"
+                    onClick={() => setAddCustomerOpen(true)}
                   >
-                    {c.name} {c.phone ? `(${c.phone})` : ''}
+                    {t("form.addNewCustomer")}
                   </button>
+                }
+                renderSelected={(c) => (
+                  <Flex
+                    viewOptions={{ avatar: false }}
+                    title={c?.name}
+                    subtitle={
+                      c?.pending_balance
+                        ? `${t("form.pendingBalance")}: ${fmtCurrency(c.pending_balance)}`
+                        : undefined
+                    }
+                  />
+                )}
+              />
+            )}
+          </form.AppField>
+
+          <form.AppField
+            name="invoice_date"
+            validators={{
+              onBlur: ({ value }) =>
+                !value ? t("validation.dateRequired") : undefined,
+            }}
+          >
+            {(field) => (
+              <field.DatePicker label={t("form.invoiceDate")} required />
+            )}
+          </form.AppField>
+
+          <form.AppField name="notes">
+            {(field) => (
+              <field.TextArea
+                label={t("form.notes")}
+                placeholder={t("form.notesPlaceholder")}
+              />
+            )}
+          </form.AppField>
+        </div>
+      </FormCard>
+
+      {/* ── Settle Old Balance ───────────────────────────── */}
+      {selectedCustomer && totalPendingBalance > 0 && (
+        <FormCard title={t("form.settleOldBalance")}>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="settle-balance"
+                checked={settleOldBalance}
+                onCheckedChange={(checked) => setSettleOldBalance(checked === true)}
+              />
+              <label
+                htmlFor="settle-balance"
+                className="text-sm cursor-pointer flex-1"
+              >
+                <span className="font-medium">{t("form.settleOldBalance")}</span>
+                <span className="text-muted-foreground ms-2">
+                  ({t("form.settleOldBalanceDesc", { count: pendingInvoices.length, amount: fmtCurrency(totalPendingBalance) })})
+                </span>
+              </label>
+            </div>
+            {settleOldBalance && pendingInvoices.length > 0 && (
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1.5">
+                <div className="font-medium text-muted-foreground mb-2">{t("form.invoicesToSettle")}:</div>
+                {pendingInvoices.map((inv) => (
+                  <div key={inv.id} className="flex justify-between">
+                    <span>
+                      {inv.invoice_number} ({inv.invoice_date})
+                    </span>
+                    <span className="text-amber-600">{fmtCurrency(inv.remaining)}</span>
+                  </div>
                 ))}
               </div>
             )}
-          </FieldWrapper>
-        </div>
+          </div>
+        </FormCard>
+      )}
 
-        <FieldWrapper label={t('form.invoiceDate')}>
-          <Input
-            type="date"
-            value={form.invoice_date}
-            onChange={e => set('invoice_date', e.target.value)}
-            required
-          />
-        </FieldWrapper>
-
-        <FieldWrapper label={t('form.status')}>
-          <Select value={form.status} onValueChange={v => set('status', v as InvoiceStatus)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="معلقة">{t('statuses.pending')}</SelectItem>
-              <SelectItem value="مدفوعة">{t('statuses.paid')}</SelectItem>
-              <SelectItem value="مدفوعة جزئياً">{t('statuses.partiallyPaid')}</SelectItem>
-              <SelectItem value="ملغاة">{t('statuses.cancelled')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </FieldWrapper>
-      </div>
-
-      {/* Line items */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <span className="text-base font-semibold">{t('form.items')}</span>
-          <Button type="button" variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
-            {t('form.addProduct')}
+      {/* ── Products ──────────────────────────────────────── */}
+      <FormCard
+        title={t("form.items")}
+        isFieldInvalid={showItemsError && items.length === 0}
+        errorMessage={
+          showItemsError && items.length === 0
+            ? t("form.itemsRequired")
+            : undefined
+        }
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setPickerOpen(true)}
+          >
+            <Plus />
+            {t("form.addProduct")}
           </Button>
-        </div>
-        <LineItemsTable items={items} onUpdateItem={updateItem} onRemoveItem={removeItem} />
-      </div>
+        }
+      >
+        <LineItemsTable
+          items={items}
+          onUpdateItem={(idx, updates) =>
+            setItems((prev) =>
+              prev.map((item, i) =>
+                i === idx ? { ...item, ...updates } : item,
+              ),
+            )
+          }
+          onRemoveItem={(idx) =>
+            setItems((prev) => prev.filter((_, i) => i !== idx))
+          }
+        />
+      </FormCard>
 
-      {/* Totals */}
-      <div className="rounded-xl border p-4 flex flex-col gap-2 text-sm bg-muted/30">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">{t('form.subtotal')}:</span>
-          <span className="font-medium">{fmtCurrency(subtotal)}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground">{t('form.tax')}:</span>
-          <Input
-            type="number"
-            min="0"
-            max="100"
-            step="0.5"
-            value={form.tax_percent}
-            onChange={e => set('tax_percent', e.target.value)}
-            className="h-8 w-20"
-          />
-          <span className="font-medium">{fmtCurrency(taxAmount)}</span>
-        </div>
-        <div className="flex justify-between font-bold text-base border-t pt-2">
-          <span>{t('form.grandTotal')}:</span>
-          <span>{fmtCurrency(grandTotal)}</span>
-        </div>
-      </div>
+      {/* ── Payment ───────────────────────────────────────── */}
+      <FormCard title={t("form.paid")}>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="flex flex-col gap-0">
+            <form.AppField
+              name="discount_percent"
+              validators={{
+                onBlur: ({ value }) => {
+                  const v = parseFloat(value);
+                  return isNaN(v) || v < 0 || v > 100
+                    ? t("validation.discountRange")
+                    : undefined;
+                },
+              }}
+            >
+              {(field) => (
+                <field.Input
+                  label={t("form.discountPct")}
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                />
+              )}
+            </form.AppField>
 
-      {/* Paid amount + Notes */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FieldWrapper label={t('form.paid')}>
-          <Input
-            type="number"
-            min="0"
-            step="0.01"
-            value={form.paid_amount}
-            onChange={e => set('paid_amount', e.target.value)}
-          />
-        </FieldWrapper>
+            <form.AppField
+              name="paid_amount"
+              validators={{
+                onBlur: ({ value }) => {
+                  const v = parseFloat(value);
+                  return isNaN(v) || v < 0
+                    ? t("validation.amountPositive")
+                    : undefined;
+                },
+              }}
+            >
+              {(field) => (
+                <field.Input
+                  label={t("form.paid")}
+                  type="number"
+                  min="0"
+                  step="0.5"
+                />
+              )}
+            </form.AppField>
+          </div>
 
-        <FieldWrapper label={t('form.notes')}>
-          <Input
-            value={form.notes}
-            onChange={e => set('notes', e.target.value)}
-            placeholder={t('form.notesPlaceholder')}
-          />
-        </FieldWrapper>
-      </div>
+          <form.Subscribe selector={(s) => s.values}>
+            {(values) => {
+              const discountPercent = parseFloat(values.discount_percent) || 0;
+              const paidAmount = parseFloat(values.paid_amount) || 0;
+              const discountAmount = subtotal * (discountPercent / 100);
+              const itemsTotal = subtotal - discountAmount;
+              const grandTotal = settleOldBalance
+                ? itemsTotal + totalPendingBalance
+                : itemsTotal;
+              const autoStatus = deriveStatus(paidAmount, grandTotal);
+              const exceedsTotal = paidAmount > grandTotal && grandTotal > 0;
 
-      {/* Actions */}
+              return (
+                <div className="rounded-xl border p-4 flex flex-col gap-2 text-sm bg-muted/30 self-start">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      {t("form.subtotal")}:
+                    </span>
+                    <span className="font-medium">{fmtCurrency(subtotal)}</span>
+                  </div>
+                  {discountPercent > 0 && (
+                    <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                      <span>
+                        {t("form.discount")} ({discountPercent}%):
+                      </span>
+                      <span>- {fmtCurrency(discountAmount)}</span>
+                    </div>
+                  )}
+                  {settleOldBalance && totalPendingBalance > 0 && (
+                    <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                      <span>{t("form.oldBalance")}:</span>
+                      <span>+ {fmtCurrency(totalPendingBalance)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-base border-t pt-2">
+                    <span>{t("form.grandTotal")}:</span>
+                    <span>{fmtCurrency(grandTotal)}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2 text-muted-foreground text-xs">
+                    <span>{t("form.autoStatus")}:</span>
+                    <span className="font-medium text-foreground">
+                      {autoStatus}
+                    </span>
+                  </div>
+                  {exceedsTotal && (
+                    <p className="text-amber-600 dark:text-amber-400 text-xs pt-1">
+                      {t("validation.paidExceedsTotal")}
+                    </p>
+                  )}
+                </div>
+              );
+            }}
+          </form.Subscribe>
+        </div>
+      </FormCard>
+
+      {/* ── Actions ───────────────────────────────────────── */}
       <div className="flex gap-2 justify-end">
-        <Button type="button" variant="outline" onClick={handleReset}>{t('form.reset')}</Button>
-        <Button type="submit" disabled={isPending || items.length === 0}>
-          {isPending ? t('payment.saving') : t('form.save')}
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            form.reset();
+            setItems([]);
+            setShowItemsError(false);
+            setSettleOldBalance(false);
+            setSelectedCustomer(null);
+          }}
+        >
+          {t("form.reset")}
         </Button>
+        <form.Subscribe selector={(s) => s.isSubmitting}>
+          {(isSubmitting) => (
+            <Button type="submit" disabled={isPending || isSubmitting}>
+              {isPending || isSubmitting ? t("payment.saving") : t("form.save")}
+            </Button>
+          )}
+        </form.Subscribe>
       </div>
 
-      <ProductPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} onSelect={addItem} />
+      <ProductPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={(item) => {
+          setItems((prev) => [...prev, item]);
+          setShowItemsError(false);
+        }}
+      />
+
+      <CustomerFormDialog
+        open={addCustomerOpen}
+        onOpenChange={setAddCustomerOpen}
+      />
     </form>
-  )
+  );
 }

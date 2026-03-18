@@ -4,9 +4,11 @@ import { ReactNode } from 'react'
 
 import { cn } from '@/utils/utils'
 
+import type { LucideIcon } from 'lucide-react'
+
 export interface TimelineItemProps {
   children: ReactNode
-  icon: React.ComponentType<{ className?: string }>
+  icon: any | LucideIcon
   iconClassName?: string
   indicatorClassName?: string
   line?: boolean

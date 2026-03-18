@@ -1,19 +1,21 @@
-import * as React from 'react'
+import { cn } from '@/utils/utils'
 
-import { cn } from '@/utils/cn'
-
-interface ResponsiveTableWrapperProps extends React.HTMLAttributes<HTMLDivElement> {
+interface ResponsiveTableWrapperProps {
   children: React.ReactNode
   className?: string
 }
 
 export function ResponsiveTableWrapper({
   children,
-  className,
-  ...props
+  className
 }: ResponsiveTableWrapperProps) {
   return (
-    <div className={cn('w-full overflow-auto', className)} {...props}>
+    <div
+      className={cn(
+        'mx-auto w-full md:max-w-[calc(100vw-2rem-var(--sidebar-width))]',
+        className
+      )}
+    >
       {children}
     </div>
   )

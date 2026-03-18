@@ -8,7 +8,7 @@ export interface InvoiceLineItem {
   pieces_per_unit: number
 }
 
-export type InvoiceStatus = 'مدفوعة' | 'مدفوعة جزئياً' | 'معلقة' | 'ملغاة'
+export type { InvoiceStatusKey as InvoiceStatus } from '@/lib/constants/statuses'
 
 export interface Invoice {
   id: string
@@ -16,8 +16,11 @@ export interface Invoice {
   customer_id: string | null
   customer_name: string
   invoice_date: string
-  status: InvoiceStatus
+  due_date: string | null
+  status: string
   subtotal: number
+  discount_percent: number
+  discount_amount: number
   tax_percent: number
   tax_amount: number
   total: number
@@ -32,8 +35,10 @@ export interface CreateInvoicePayload {
   customer_id?: string | null
   customer_name: string
   invoice_date: string
-  status: InvoiceStatus
+  status: string
   subtotal: number
+  discount_percent: number
+  discount_amount: number
   tax_percent: number
   tax_amount: number
   total: number

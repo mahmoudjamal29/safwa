@@ -17,6 +17,7 @@ export type BaseComboboxProps<T extends object> = {
   }
   closeOnSelect?: boolean
   customTrigger?: React.ReactNode
+  footer?: React.ReactNode
   disabled?: boolean
   getOptionLabel?: (item: T) => React.ReactNode
   label?: string

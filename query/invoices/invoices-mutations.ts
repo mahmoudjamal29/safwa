@@ -7,7 +7,7 @@ import type { CreateInvoicePayload } from './invoices-types'
 export function useCreateInvoice() {
   return useMutation({
     meta: {
-      invalidatesQuery: [['invoices']],
+      invalidatesQuery: [['invoices'], ['customers'], ['customer-balances'], ['customer-pending-invoices']],
       successMessage: 'تم حفظ الفاتورة بنجاح'
     },
     mutationFn: async (payload: CreateInvoicePayload) => {
@@ -21,7 +21,7 @@ export function useCreateInvoice() {
 export function useUpdateInvoice() {
   return useMutation({
     meta: {
-      invalidatesQuery: [['invoices']],
+      invalidatesQuery: [['invoices'], ['customers'], ['customer-balances']],
       successMessage: 'تم تحديث الفاتورة'
     },
     mutationFn: async ({ id, payload }: { id: string; payload: Partial<CreateInvoicePayload> }) => {

@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 
 import { cva, VariantProps } from 'class-variance-authority'
-import { CheckIcon } from '@/lib/icons'
+import { Check } from 'lucide-react'
 
 import { cn } from '@/utils'
 
@@ -197,7 +197,7 @@ export const CheckboxGroup: React.FC<CheckboxGroupProps> = ({
                   )}
                   data-slot="checkbox"
                 >
-                  {checked && <CheckIcon className="size-3.5" />}
+                  {checked && <Check className="size-3.5" />}
                 </div>
               ) : (
                 <BaseCheckbox

@@ -1,55 +1,14 @@
+import type { LinkProps } from 'next/link'
 import type React from 'react'
 
+import type { TextProps } from '@/components/data-table/columns'
+import type { TextVariant } from '@/components/data-table/columns/text'
+
+import type { DocumentTypeEnum } from '@/types/enums'
+
 export type ChipItem = {
-  color?: string
+  href?: LinkProps['href']
   label: string
-  value?: string
-}
-
-export type InfoLinkItem = {
-  href: string
-  value: string
-}
-
-export type InfoItemConfig = {
-  [key: string]: unknown
-  label: string
-  maxChipsLength?: number
-  src?: string
-  type?: string
-  value:
-    | ChipItem[]
-    | Date
-    | InfoLinkItem[]
-    | null
-    | number
-    | string
-    | string[]
-    | undefined
-  variant?:
-    | 'attachment'
-    | 'chips'
-    | 'currency'
-    | 'date'
-    | 'datetime'
-    | 'link'
-    | 'number'
-    | 'phone'
-    | 'status'
-    | 'text'
-}
-
-export type InfoSection = {
-  icon?: React.ReactNode
-  items: InfoItemConfig[]
-  label?: string
-  media?: InfoMedia
-}
-
-export type InfoMedia = {
-  alt?: string
-  src: string
-  type?: 'image' | 'video'
 }
 
 export type InfoCardProps = {
@@ -60,5 +19,60 @@ export type InfoCardProps = {
     md?: number
   }
   sections: InfoSection[]
-  title?: string
+  title: string
+}
+
+export type InfoItemConfig = BaseInfoItem &
+  Omit<TextProps, 'src' | 'text' | 'type' | 'variant'> & {
+    href?: LinkProps['href']
+    maxChipsLength?: number
+    src?: null | string
+    type?: DocumentTypeEnum | null | undefined
+    value: ChipItem[] | InfoLinkItem[] | string[] | TextProps['text']
+    variant?: 'chips' | TextVariant
+  }
+
+export type InfoLinkItem = {
+  href: LinkProps['href']
+  value: string
+}
+
+export type InfoMediaGroup = {
+  emptyLabel?: string
+  images: InfoMediaItem[]
+  label: string
+  maxVisible?: number
+  variant?: 'featured' | 'stacked'
+}
+
+export type InfoMediaItem = {
+  alt?: string
+  className?: string
+  src: null | string
+}
+
+export type InfoMediaSection = {
+  className?: string
+  defaultMaxVisible?: {
+    default?: number
+    featured?: number
+    stacked?: number
+  }
+  gridCols?: {
+    default?: number
+    lg?: number
+    md?: number
+  }
+  groups: InfoMediaGroup[]
+}
+
+export type InfoSection = {
+  icon?: React.ReactNode
+  items: InfoItemConfig[]
+  label: string
+  media?: InfoMediaSection
+}
+
+type BaseInfoItem = {
+  label: string
 }

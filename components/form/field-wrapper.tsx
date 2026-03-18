@@ -1,51 +1,66 @@
-'use client'
+import { AnyFieldApi } from '@tanstack/react-form'
 
-import React from 'react'
+import { cn, isFieldInvalid } from '@/utils'
 
-import { cn } from '@/utils/cn'
+import { FieldInfo } from '@/components/form/info-field'
+import { Label } from '@/components/ui/label'
 
 export type FieldWrapperClassNames = {
   childrenWrapper?: string
-  content?: string
-  item?: string
   label?: string
-  trigger?: string
   wrapper?: string
 }
 
-export type FieldWrapperProps = {
-  children: React.ReactNode
-  classNames?: FieldWrapperClassNames
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  field?: any
-  label?: string
-  required?: boolean
-}
-
-export function FieldWrapper({
+export type FieldWrapperProps = React.HTMLAttributes<HTMLDivElement> &
+  React.PropsWithChildren & { classNames?: FieldWrapperClassNames } & {
+    field: AnyFieldApi
+    label?: string
+    required?: boolean
+  }
+export const FieldWrapper: React.FC<FieldWrapperProps> = ({
   children,
   classNames,
   field,
   label,
-  required
-}: FieldWrapperProps) {
-  const errorMessage =
-    field?.state?.meta?.errors?.length > 0
-      ? field.state.meta.errors[0]
-      : undefined
+  required,
+  ...props
+}) => {
+  const isInvalid = isFieldInvalid(field)
 
   return (
-    <div className={cn('flex flex-col gap-1', classNames?.wrapper)}>
+    <div
+      className={cn(
+        'grid grid-cols-1 grid-rows-[auto_1fr_auto] items-start gap-2',
+        props.className,
+        classNames?.wrapper
+      )}
+      data-invalid={isInvalid || undefined}
+      {...props}
+    >
       {label && (
-        <label className={cn('text-sm font-medium', classNames?.label)}>
+        <Label
+          className={cn(
+            'text-muted-foreground flex w-full items-start gap-1 text-sm',
+            isInvalid && 'text-destructive-foreground',
+            classNames?.label
+          )}
+          htmlFor={field.name}
+        >
           {label}
-          {required && <span className="text-destructive ms-1">*</span>}
-        </label>
+          {required && <span className="text-destructive-foreground">*</span>}
+        </Label>
       )}
-      <div className={cn(classNames?.childrenWrapper)}>{children}</div>
-      {errorMessage && (
-        <p className="text-destructive text-xs">{errorMessage}</p>
-      )}
+      <div
+        className={cn(
+          'flex flex-1 flex-col gap-2',
+          isInvalid && '**:border-destructive-foreground! *:border!',
+          classNames?.childrenWrapper
+        )}
+        id={field.name}
+      >
+        {children}
+      </div>
+      <FieldInfo className="z-10" field={field} />
     </div>
   )
 }
