@@ -1,11 +1,12 @@
 "use client"
 
 import { useSearchParams } from "next/navigation"
-import { Suspense } from "react"
-import { signIn } from "@/lib/auth"
+import { Suspense, useTransition } from "react"
+import { signInWithGoogle } from "@/app/auth/_actions"
 import { Button } from "@/components/ui/button"
 
 function ConsentContent() {
+  const [isPending, startTransition] = useTransition()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get("callbackUrl") ?? "/"
   const error = searchParams.get("error")
@@ -23,7 +24,7 @@ function ConsentContent() {
                 : "An error occurred during authentication."}
             </p>
           </div>
-          <Button onClick={() => signIn()} className="w-full">
+          <Button onClick={() => signInWithGoogle(callbackUrl)} className="w-full">
             Try Again
           </Button>
         </div>
@@ -66,13 +67,14 @@ function ConsentContent() {
         </div>
 
         <form
-          action={async () => {
-            "use server"
-            await signIn("google", { redirectTo: callbackUrl })
+          action={() => {
+            startTransition(() => {
+              signInWithGoogle(callbackUrl)
+            })
           }}
         >
-          <Button type="submit" className="w-full">
-            Continue with {provider}
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? "Redirecting..." : `Continue with ${provider}`}
           </Button>
         </form>
 
