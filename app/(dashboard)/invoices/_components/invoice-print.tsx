@@ -319,7 +319,7 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
                   </div>
                 </div>
               </div>
-          )}
+          ))}
         </div>
       )}
 
