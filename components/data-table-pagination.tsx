@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 
-import { Button } from '../ui/button'
+import { Button } from '@/components/ui/button'
 
 import type { Table } from '@tanstack/react-table'
 

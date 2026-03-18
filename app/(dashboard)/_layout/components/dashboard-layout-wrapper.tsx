@@ -1,18 +1,12 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import { Header } from './header'
 import { Sidebar } from './sidebar'
 
 export function DashboardLayoutWrapper({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const pathname = usePathname()
-
-  useEffect(() => {
-    setMobileOpen(false)
-  }, [pathname])
 
   return (
     <>
