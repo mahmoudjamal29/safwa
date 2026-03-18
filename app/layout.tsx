@@ -6,6 +6,7 @@ import { getMessages } from 'next-intl/server'
 
 import { getLocale } from '@/lib/i18n/request'
 import { RootProviders } from '@/lib/providers/providers-root'
+import { PwaRegister } from '@/components/pwa-register'
 
 import './globals.css'
 import { cn } from "@/utils/cn";
@@ -50,6 +51,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <NextIntlClientProvider messages={messages} locale={locale}>
           <RootProviders>{children}</RootProviders>
         </NextIntlClientProvider>
+        <PwaRegister />
       </body>
     </html>
   )
