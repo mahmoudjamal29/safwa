@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Tajawal, Noto_Naskh_Arabic, Figtree } from 'next/font/google'
 
 import { NextIntlClientProvider } from 'next-intl'
@@ -24,6 +24,10 @@ const notoNaskh = Noto_Naskh_Arabic({
   weight: ['400', '500', '600', '700']
 })
 
+export const viewport: Viewport = {
+  themeColor: '#0A1628',
+}
+
 export const metadata: Metadata = {
   description: 'نظام إدارة الأعمال للصفوة لتجارة المنتجات الغذائية',
   title: 'الصفوة - نظام الإدارة',
@@ -33,7 +37,6 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'الصفوة',
   },
-  themeColor: '#0A1628',
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
