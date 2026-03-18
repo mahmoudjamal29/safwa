@@ -23,8 +23,17 @@ export type ColumnMeta = {
 }
 
 export type RowAction<TData> = {
+  id?: string
   icon?: React.ReactNode
   label: string
   onClick: (row: TData) => void
   variant?: 'default' | 'destructive'
+  hidden?: (row: TData) => boolean
+  isLoading?: (row: TData) => boolean
+  isApproved?: (row: TData) => boolean
+  isRejected?: (row: TData) => boolean
+  className?: string
+  disabled?: (row: TData) => boolean
+  disabledTooltip?: (row: TData) => string | undefined
+  getStatus?: (row: TData) => number | string | undefined
 }

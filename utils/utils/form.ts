@@ -55,7 +55,7 @@ export const apiFormValidation = async (
     await mutationFn()
     // .finally(() => formApi.reset())
   } catch (error) {
-    const errors = (error as AxiosError<API>)?.response?.data.errors
+    const errors = (error as AxiosError<API & { errors?: Record<string, string[]> }>)?.response?.data.errors
 
     if (errors) {
       const errorMap: Record<string, string> = {}

@@ -8,7 +8,6 @@ import { useTranslations } from 'next-intl'
 import { parseAsString, useQueryState } from 'nuqs'
 import { toast } from 'sonner'
 
-import { env } from '@/lib'
 import { type PERMISSION } from '@/lib/auth/permissions'
 
 import { cn } from '@/utils'
@@ -142,9 +141,7 @@ export function DataTableToolbar<TData = unknown>({
         window.URL.revokeObjectURL(downloadUrl)
       } catch (error) {
         toast.error(tError('exportError'))
-        if (env.NEXT_PUBLIC_DEV_MODE) {
-          console.error('Export failed:', error)
-        }
+        console.error('Export failed:', error)
       }
     })
   }, [exportConfig, filters, searchValue, tError])

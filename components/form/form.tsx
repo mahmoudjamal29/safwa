@@ -18,7 +18,6 @@ import { DateTimePicker } from "./date-time-picker-field";
 import { DaysOfWeekSelector } from "./days-of-week-selector-field";
 import { fieldContext, formContext } from "./form-contexts";
 import { Input } from "./input-field";
-import { MultiSelect } from "./multi-select-field";
 import { Password } from "./password-field";
 import { QuantityControl } from "./quantity-control-field";
 import { RadioButton } from "./radio-button-field";
@@ -28,7 +27,11 @@ import { Switch } from "./switch-field";
 import { TextArea } from "./text-area-field";
 import { TimePicker } from "./time-picker-field";
 
-export { fieldContext as FieldContext, useFieldContext, useFormContext } from "./form-contexts";
+export {
+  fieldContext as FieldContext,
+  useFieldContext,
+  useFormContext,
+} from "./form-contexts";
 export { FormField } from "./form-field";
 
 export const { useAppForm, withFieldGroup, withForm } = createFormHook({
@@ -49,7 +52,6 @@ export const { useAppForm, withFieldGroup, withForm } = createFormHook({
     DateTimePicker,
     DaysOfWeekSelector,
     Input,
-    MultiSelect,
     Password,
     QuantityControl,
     RadioButton,

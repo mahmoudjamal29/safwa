@@ -27,11 +27,11 @@ import {
  * Centralised icon exports using @hugeicons/react + @hugeicons/core-free-icons.
  * All icons share the same `{ className?, size?, color? }` interface.
  */
-import { HugeiconsIcon, type HugeiconsProps } from '@hugeicons/react'
+import { HugeiconsIcon, type HugeiconsIconProps, type HugeiconsProps } from '@hugeicons/react'
 
 type IconProps = Omit<HugeiconsProps, 'icon'>
 
-const makeIcon = (data: HugeiconsProps['icon']) =>
+const makeIcon = (data: HugeiconsIconProps['icon']) =>
   function Icon({ size = 20, ...props }: IconProps) {
     return <HugeiconsIcon icon={data} size={size} {...props} />
   }

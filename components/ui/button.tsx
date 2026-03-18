@@ -50,6 +50,7 @@ type ButtonProps = React.ComponentProps<"button"> &
     isLoading?: boolean;
     link?: Omit<LinkProps, "href"> &
       React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string };
+    permissionKey?: string;
     selected?: boolean;
     startIcon?: React.ReactNode;
   };
@@ -59,6 +60,7 @@ function Button({
   children,
   className,
   isLoading = false,
+  permissionKey: _permissionKey,
   selected,
   size,
   startIcon,

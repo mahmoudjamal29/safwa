@@ -4,8 +4,8 @@ import { z } from 'zod/v4'
 // This type makes all fields optional, which is appropriate for default values
 export type DefaultValues<T> = Partial<T>
 
-type FormOptionsTranslations = Translations<'forms.options'>
-type FormValidationTranslations = Translations<'forms.validation'>
+type FormOptionsTranslations = (key: string) => string
+type FormValidationTranslations = (key: string) => string
 
 // Shared phone utilities
 // Accepts 10-15 digits with an optional leading +

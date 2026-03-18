@@ -31,46 +31,10 @@ export type {
 } from '@/types/data-table'
 // Re-export global types
 export type {
-  ActionType,
-  AsyncState,
-  BaseComponentProps,
-  BaseEntity,
-  BaseQueryParams,
   BulkAction,
-  BulkActionType,
-  ColumnFilterState,
   ColumnMeta,
-  DateRangeFilter,
-  Direction,
-  FileUpload,
-  FilterConfig,
-  FormField,
-  ID,
-  LoadingState,
-  Locale,
-  MultiSelectFilter,
-  Optional,
-  PaginationState,
-  PartialExcept,
-  RequiredFields,
-  RowAction,
-  RowSelectionState,
-  SearchConfig,
-  SelectFilter,
-  SoftDeleteEntity,
-  SortingState,
-  SortOrder,
-  Status,
-  TableConfig,
-  TableEvents,
-  TableSize,
-  TableState,
-  Theme,
-  ValidationError,
-  VisibilityState
+  RowAction
 } from '@/types/global'
-// Column components namespace (Radix pattern: DialogPrimitive)
-export { Column } from './columns'
 // Main components
 export { DataTable } from './data-table'
 export { DataTableColumnHeader } from './data-table-column-header'

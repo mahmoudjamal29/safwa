@@ -245,7 +245,7 @@ function RowActionButton<TData>({
     needsTooltip,
     tooltipText,
     variant
-  } = getActionStyle(action.id, {
+  } = getActionStyle(action.id ?? '', {
     actionClassName: action.className,
     isApproved,
     isLoading,
@@ -312,7 +312,7 @@ function RowActionButton<TData>({
             }
 
             if (typeof action.icon === 'function') {
-              const CustomIcon = action.icon
+              const CustomIcon = action.icon as React.ComponentType<{ className?: string; height?: number; width?: number }>
               return (
                 <CustomIcon
                   className={cn('size-4', iconClassName)}
