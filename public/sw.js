@@ -2,7 +2,6 @@ const CACHE_NAME = 'safwa-v1'
 
 const STATIC_ASSETS = [
   '/',
-  '/api/manifest',
   '/icons/icon-192.svg',
   '/icons/icon-512.svg',
 ]
