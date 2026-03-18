@@ -1,5 +1,11 @@
 {
   "ui": {
+    "dialog": {
+      "closeAriaLabel": "Close"
+    },
+    "sheet": {
+      "closeAriaLabel": "Close"
+    },
     "datePicker": {
       "placeholder": "Select date"
     },
@@ -23,6 +29,27 @@
         "thisMonth": "This month",
         "lastMonth": "Last month"
       }
+    }
+  },
+  "dataTable": {
+    "empty": {
+      "noData": "No data available"
+    },
+    "dataGridTable": {
+      "selectAll": "Select all rows",
+      "selectRow": "Select row"
+    },
+    "error": {
+      "title": "Something went wrong",
+      "description": "An error occurred while loading data.",
+      "retry": "Retry",
+      "reload": "Reload"
+    },
+    "pagination": {
+      "perPage": "per page",
+      "totalItems": "{count} items",
+      "back": "Back",
+      "next": "Next"
     }
   },
   "form": {

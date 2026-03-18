@@ -1,5 +1,11 @@
 {
   "ui": {
+    "dialog": {
+      "closeAriaLabel": "إغلاق"
+    },
+    "sheet": {
+      "closeAriaLabel": "إغلاق"
+    },
     "datePicker": {
       "placeholder": "اختر تاريخاً"
     },
@@ -23,6 +29,27 @@
         "thisMonth": "هذا الشهر",
         "lastMonth": "الشهر الماضي"
       }
+    }
+  },
+  "dataTable": {
+    "empty": {
+      "noData": "لا توجد بيانات"
+    },
+    "dataGridTable": {
+      "selectAll": "تحديد كل الصفوف",
+      "selectRow": "تحديد الصف"
+    },
+    "error": {
+      "title": "حدث خطأ ما",
+      "description": "حدث خطأ أثناء تحميل البيانات.",
+      "retry": "إعادة المحاولة",
+      "reload": "إعادة التحميل"
+    },
+    "pagination": {
+      "perPage": "لكل صفحة",
+      "totalItems": "{count} عنصر",
+      "back": "السابق",
+      "next": "التالي"
     }
   },
   "form": {

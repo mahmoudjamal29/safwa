@@ -13,7 +13,7 @@ import {
   ChevronRightIcon
 } from 'lucide-react'
 
-import { cn } from '@/utils/cn'
+import { cn } from '@/utils'
 
 import { Button, buttonVariants } from '@/components/ui/button'
 

@@ -5,9 +5,10 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { QueryClientProvider } from './query-client'
 import { Toaster } from './sonner-provider'
 import { ThemeProvider } from './theme-provider'
+import { AuthProvider } from '@/components/providers/auth-provider'
 
 export const RootProviders = ({ children }: { children: React.ReactNode }) => (
-  <>
+  <AuthProvider>
     <NuqsAdapter>
       <QueryClientProvider>
         <ThemeProvider>
@@ -16,5 +17,5 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => (
       </QueryClientProvider>
     </NuqsAdapter>
     <Toaster />
-  </>
+  </AuthProvider>
 )

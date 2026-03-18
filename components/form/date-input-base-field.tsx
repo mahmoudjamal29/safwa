@@ -5,7 +5,7 @@ import * as React from 'react'
 import { format } from 'date-fns'
 import { useTranslations } from 'next-intl'
 
-import { cn } from '@/utils/cn'
+import { cn } from '@/utils'
 
 import { Input } from '@/components/ui/input'
 
@@ -72,7 +72,7 @@ export const DateInputBase = React.forwardRef<
 
   return (
     <Input
-      className={cn('h-9 rounded-lg', className)}
+      className={cn('h-input rounded-lg', className)}
       disabled={disabled}
       onChange={handleChange}
       placeholder={resolvedPlaceholder}

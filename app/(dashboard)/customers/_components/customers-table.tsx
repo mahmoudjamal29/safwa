@@ -14,7 +14,7 @@ import {
 import { useTranslations } from 'next-intl'
 import { PencilIcon, Trash2Icon } from '@/lib/icons'
 
-import { getAllCustomersQuery, getCustomerBalancesQuery, useDeleteCustomer, type Customer } from '@/query/customers'
+import { getAllCustomersQuery, useDeleteCustomer, type Customer, type CustomerWithBalance } from '@/query/customers'
 
 import { useDebounce } from '@/hooks/use-debounce'
 
@@ -58,15 +58,12 @@ export function CustomersTable() {
   const { data, isLoading } = useQuery(getAllCustomersQuery(params))
   const customers = data?.data ?? []
 
-  const customerIds = useMemo(() => customers.map(c => c.id), [customers])
-  const { data: balances = {} } = useQuery(getCustomerBalancesQuery(customerIds))
-
   function openEdit(c: Customer) {
     setEditCustomer(c)
     setDialogOpen(true)
   }
 
-  const columns = useMemo<ColumnDef<Customer>[]>(() => [
+  const columns = useMemo<ColumnDef<CustomerWithBalance>[]>(() => [
     {
       accessorKey: 'name',
       header: t('columns.name'),
@@ -98,7 +95,7 @@ export function CustomersTable() {
       id: 'pendingBalance',
       header: t('columns.pendingBalance'),
       cell: ({ row }) => {
-        const balance = balances[row.original.id] ?? 0
+        const balance = row.original.pending_balance ?? 0
         return (
           <span className={balance > 0 ? 'font-semibold text-red-600' : 'text-muted-foreground'}>
             {fmtCurrency(balance)}
@@ -120,7 +117,7 @@ export function CustomersTable() {
         </div>
       ),
     },
-  ], [t, balances])
+  ], [t])
 
   const table = useReactTable({
     columns,

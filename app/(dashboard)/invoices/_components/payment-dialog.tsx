@@ -75,19 +75,40 @@ export function PaymentDialog({ invoice, onOpenChange, open }: PaymentDialogProp
             <span className="font-bold text-red-600">{fmtCurrency(remaining)}</span>
           </div>
 
-          <form.Field name="amount">
+          <form.Field
+            name="amount"
+            validators={{
+              onChange: ({ value }) => {
+                if (!value) return t('validation.amountRequired')
+                const v = parseFloat(value)
+                if (isNaN(v) || v <= 0) return t('validation.amountPositive')
+                if (v > remaining) return t('validation.amountExceedsRemaining')
+                return undefined
+              },
+            }}
+          >
             {(field) => (
               <FieldWrapper field={field} label={t('payment.amount')} required>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  max={remaining}
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
-                  required
-                />
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max={remaining}
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => field.handleChange(remaining.toFixed(2))}
+                  >
+                    {t('payment.payFull')}
+                  </Button>
+                </div>
               </FieldWrapper>
             )}
           </form.Field>

@@ -800,7 +800,7 @@ import { defaultLocale } from '@/lib/i18n/i18n-config'
     "qty": "الكمية",
     "unitPrice": "سعر الوحدة",
     "lineTotal": "الإجمالي",
-    "addProduct": "+ إضافة منتج",
+    "addProduct": "إضافة منتج",
     "subtotal": "المجموع الفرعي",
     "tax": "ضريبة %",
     "grandTotal": "الإجمالي",

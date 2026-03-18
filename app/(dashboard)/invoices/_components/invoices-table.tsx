@@ -14,11 +14,15 @@ import {
 import { useTranslations } from 'next-intl'
 import { EyeIcon, Trash2Icon } from '@/lib/icons'
 
-import { getAllInvoicesQuery, useDeleteInvoice, type Invoice, type InvoiceStatus } from '@/query/invoices'
+import { getAllInvoicesQuery, useDeleteInvoice, type Invoice } from '@/query/invoices'
+
+import { INVOICE_STATUSES, INVOICE_STATUS_KEYS, type InvoiceStatusKey } from '@/lib/constants/statuses'
 
 import { useDebounce } from '@/hooks/use-debounce'
 
-import { fmtCurrency, fmtDate } from '@/utils/formatters'
+import { fmtCurrency } from '@/utils/formatters'
+
+import { Column } from '@/components/data-table/columns'
 
 import {
   AlertDialog,
@@ -45,7 +49,7 @@ import { DataTable } from '@/components/data-table/data-table'
 import { InvoiceStatusBadge } from './invoice-status-badge'
 import { InvoiceViewDialog } from './invoice-view-dialog'
 
-const STATUSES: InvoiceStatus[] = ['مدفوعة', 'مدفوعة جزئياً', 'معلقة', 'ملغاة']
+const STATUSES = INVOICE_STATUS_KEYS
 
 export function InvoicesTable() {
   const t = useTranslations('invoices')
@@ -89,12 +93,23 @@ export function InvoicesTable() {
     {
       accessorKey: 'invoice_date',
       header: t('columns.date'),
-      cell: ({ getValue }) => <span>{fmtDate(getValue<string>())}</span>,
+      cell: ({ getValue }) => <Column.Text variant="date" text={getValue<string>()} />,
     },
     {
       accessorKey: 'status',
       header: t('columns.status'),
-      cell: ({ getValue }) => <InvoiceStatusBadge status={getValue<InvoiceStatus>()} />,
+      cell: ({ getValue }) => <InvoiceStatusBadge status={getValue<string>()} />,
+    },
+    {
+      id: 'discount',
+      header: t('columns.discount'),
+      cell: ({ row }) => (
+        row.original.discount_percent > 0 ? (
+          <span className="text-amber-600">{row.original.discount_percent}%</span>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        )
+      ),
     },
     {
       accessorKey: 'total',

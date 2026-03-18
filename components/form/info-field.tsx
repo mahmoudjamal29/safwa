@@ -1,22 +1,39 @@
-'use client'
+import { AnyFieldApi, useStore } from '@tanstack/react-form'
 
-import type { FieldContextValue } from './form'
+import { cn } from '@/utils'
 
-type FieldInfoProps = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  field: FieldContextValue<any>
-}
+export const FieldInfo = ({
+  className,
+  errorMessage,
+  field
+}: {
+  className?: string
+  errorMessage?: string
+  field: AnyFieldApi
+}) => {
+  const { errorMap, errors } = useStore(field.store, (state) => ({
+    errorMap: state.meta.errorMap,
+    errors: state.meta.errors
+  }))
 
-export function FieldInfo({ field }: FieldInfoProps) {
-  const errors = field?.state?.meta?.errors ?? []
-
-  if (errors.length === 0) return null
+  const error =
+    errorMessage ||
+    (errors || Object.values(errorMap))
+      .map((err) => (typeof err === 'string' ? err : err.message))
+      .join(', ')
 
   return (
-    <div className="text-destructive mt-1 text-xs">
-      {errors.map((err: string, i: number) => (
-        <p key={i}>{err}</p>
-      ))}
-    </div>
+    <>
+      {(field.state.meta.isTouched || errorMap.onSubmit) && error ? (
+        <em className={cn('text-destructive-foreground text-xs', className)}>
+          {error}
+        </em>
+      ) : null}
+      {field.state.meta.isValidating ? (
+        <em className={cn('text-destructive-foreground text-xs', className)}>
+          Validating...
+        </em>
+      ) : null}
+    </>
   )
 }

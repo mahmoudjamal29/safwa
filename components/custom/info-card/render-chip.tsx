@@ -1,19 +1,20 @@
-import { Badge } from '@/components/ui/badge'
+import { Column } from '@/components/data-table/columns'
 
 import type { ChipItem } from './info-card.types'
 
-export function renderChip(chipValue: ChipItem | string, index: number) {
-  if (typeof chipValue === 'string') {
-    return (
-      <Badge key={index} variant="secondary">
-        {chipValue}
-      </Badge>
-    )
-  }
+export const renderChip = (chipValue: ChipItem | string, index: number) => {
+  const chipItem =
+    typeof chipValue === 'object' && chipValue !== null && 'label' in chipValue
+      ? (chipValue as ChipItem)
+      : null
+  const chipLabel = chipItem?.label ?? (chipValue as string)
 
   return (
-    <Badge key={index} variant="secondary">
-      {chipValue.label}
-    </Badge>
+    <Column.Chip
+      href={chipItem?.href as string | undefined}
+      key={`${chipLabel}-${index}`}
+      label={chipLabel}
+      variant="default"
+    />
   )
 }

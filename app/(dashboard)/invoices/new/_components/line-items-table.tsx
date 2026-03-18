@@ -103,7 +103,7 @@ export function LineItemsTable({ items, onRemoveItem, onUpdateItem }: LineItemsT
             </TableRow>
           ))}
           <TableRow className="bg-muted/50 font-semibold">
-            <TableCell colSpan={4} className="text-left">{t('lineItems.subtotal')}</TableCell>
+            <TableCell colSpan={4} className="text-start">{t('lineItems.subtotal')}</TableCell>
             <TableCell>{fmtCurrency(subtotal)}</TableCell>
             <TableCell />
           </TableRow>

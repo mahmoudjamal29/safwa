@@ -20,13 +20,6 @@ import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/data-table/data-table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 
 import type { LineItem } from './new-invoice-form'
 
@@ -182,23 +175,33 @@ export function ProductPickerDialog({ onOpenChange, onSelect, open }: ProductPic
         className="max-w-xs"
       />
       {categories.length > 0 && (
-        <Select
-          value={category}
-          onValueChange={v => {
-            setCategory(v)
-            table.setPageIndex(0)
-          }}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder={t('picker.allCategories')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>{t('picker.allCategories')}</SelectItem>
-            {categories.map(c => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          <button
+            type="button"
+            onClick={() => { setCategory(ALL); table.setPageIndex(0) }}
+            className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              category === ALL
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'border-border text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            {t('picker.allCategories')}
+          </button>
+          {categories.map(c => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => { setCategory(c); table.setPageIndex(0) }}
+              className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                category === c
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   )
