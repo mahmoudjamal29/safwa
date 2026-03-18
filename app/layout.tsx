@@ -47,7 +47,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale} dir={dir} suppressHydrationWarning className={cn("font-sans", figtree.variable)}>
       <head>
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="manifest" href="/api/manifest" />
       </head>
       <body className={`${tajawal.variable} ${notoNaskh.variable} font-sans antialiased`}>
         <NextIntlClientProvider messages={messages} locale={locale}>
