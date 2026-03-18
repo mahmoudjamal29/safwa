@@ -26,7 +26,14 @@ const notoNaskh = Noto_Naskh_Arabic({
 
 export const metadata: Metadata = {
   description: 'نظام إدارة الأعمال للصفوة لتجارة المنتجات الغذائية',
-  title: 'الصفوة - نظام الإدارة'
+  title: 'الصفوة - نظام الإدارة',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'الصفوة',
+  },
+  themeColor: '#0A1628',
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
