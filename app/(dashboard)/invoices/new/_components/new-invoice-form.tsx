@@ -113,11 +113,7 @@ export function NewInvoiceForm() {
 
       const invoiceNumber = await getNextInvoiceNumber();
 
-      const settledNotes = settleOldBalance && pendingInvoices.length > 0
-        ? `${t("form.settledInvoicesNote")}: ${pendingInvoices.map(i => i.invoice_number).join(", ")}${value.notes ? "\n" + value.notes : ""}`
-        : value.notes;
-
-      await createInvoice.mutateAsync({
+      const newInvoice = await createInvoice.mutateAsync({
         customer_id: value.customer_id || null,
         customer_name: value.customer_name || t("form.unknownCustomer"),
         discount_amount: discountAmount,
@@ -125,7 +121,7 @@ export function NewInvoiceForm() {
         invoice_date: value.invoice_date,
         invoice_number: invoiceNumber,
         items: JSON.stringify(items),
-        notes: settledNotes || undefined,
+        notes: value.notes || undefined,
         paid_amount: paidAmount,
         status,
         subtotal,
@@ -133,6 +129,16 @@ export function NewInvoiceForm() {
         tax_percent: 0,
         total: grandTotal,
       });
+
+      if (settleOldBalance && pendingInvoices.length > 0 && newInvoice?.id) {
+        const supabase = createClient();
+        await supabase.from('invoice_resolutions').insert(
+          pendingInvoices.map(inv => ({
+            resolver_invoice_id: newInvoice.id,
+            resolved_invoice_id: inv.id,
+          }))
+        );
+      }
 
       for (const item of items) {
         await createMovement.mutateAsync({

@@ -5,7 +5,6 @@ import * as React from "react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { INVOICE_STATUSES } from "@/lib/constants/statuses";
-import { createClient } from "@/lib/supabase/client";
 
 import type { Invoice } from "@/query/invoices";
 
@@ -24,43 +23,12 @@ interface InvoicePrintProps {
   payments?: Payment[];
 }
 
-interface SettledInvoiceItem {
-  product_name: string;
-  sell_by: string;
-  qty: number;
-  price: number;
-  total: number;
-}
-
-interface SettledInvoice {
-  id: string;
-  invoice_number: string;
-  invoice_date: string;
-  subtotal: number;
-  discount_percent: number;
-  discount_amount: number;
-  total: number;
-  items: SettledInvoiceItem[];
-}
-
 export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
   const t = useTranslations("invoices");
   const locale = useLocale();
   const isRTL = locale === "ar";
 
-  const [settledInvoices, setSettledInvoices] = React.useState<SettledInvoice[]>([]);
-  const [loadingSettled, setLoadingSettled] = React.useState(false);
-
-  const parseItems = React.useMemo(() => {
-    if (!invoice.items) return [];
-    try {
-      return typeof invoice.items === "string"
-        ? JSON.parse(invoice.items)
-        : invoice.items;
-    } catch {
-      return [];
-    }
-  }, [invoice.items]);
+  const resolvedInvoices = invoice.resolved_invoices ?? [];
 
   const statusLabel = React.useMemo(() => {
     if (invoice.status === INVOICE_STATUSES.PAID) return t("statuses.paid");
@@ -70,44 +38,6 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
       return t("statuses.pending");
     return t("statuses.cancelled");
   }, [invoice.status, t]);
-
-  const settledInvoicesInfo = React.useMemo(() => {
-    if (!invoice.notes) return null;
-    const settledPrefix = t("settledInvoicesNote");
-    if (invoice.notes.startsWith(settledPrefix + ":")) {
-      const lines = invoice.notes.split("\n");
-      const settledLine = lines[0];
-      const restNotes = lines.slice(1).join("\n") || null;
-      const invoiceNumbers = settledLine
-        .replace(settledPrefix + ":", "")
-        .trim();
-      return { invoiceNumbers, notes: restNotes };
-    }
-    return null;
-  }, [invoice.notes, t]);
-
-  React.useEffect(() => {
-    if (settledInvoicesInfo?.invoiceNumbers) {
-      const fetchSettledInvoices = async () => {
-        setLoadingSettled(true);
-        const supabase = createClient();
-        const numbers = settledInvoicesInfo.invoiceNumbers.split(",").map(n => n.trim());
-        const { data } = await supabase
-          .from("invoices")
-          .select("id, invoice_number, invoice_date, subtotal, discount_percent, discount_amount, total, items")
-          .in("invoice_number", numbers);
-        
-        const parsed = (data ?? []).map(inv => ({
-          ...inv,
-          items: typeof inv.items === "string" ? JSON.parse(inv.items) : inv.items
-        }));
-        
-        setSettledInvoices(parsed);
-        setLoadingSettled(false);
-      };
-      fetchSettledInvoices();
-    }
-  }, [settledInvoicesInfo?.invoiceNumbers]);
 
   return (
     <div
@@ -317,7 +247,7 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
         </div>
       </div>
 
-      {settledInvoicesInfo && (
+      {resolvedInvoices.length > 0 && (
         <div
           style={{
             background: "#fef3c7",
@@ -337,13 +267,8 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
               ? "تم تسوية الفواتير التالية في هذه الفاتورة"
               : "The following invoices have been settled in this invoice"}
           </div>
-          
-          {loadingSettled ? (
-            <div style={{ color: "#666", padding: "20px", textAlign: "center" }}>
-              {isRTL ? "جاري التحميل..." : "Loading..."}
-            </div>
-          ) : (
-            settledInvoices.map((settledInv) => (
+
+          {resolvedInvoices.map((settledInv) => (
               <div key={settledInv.id} style={{ background: "#fff", borderRadius: "4px", marginBottom: "16px", padding: "12px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                   <div style={{ fontWeight: 600 }}>
@@ -394,7 +319,6 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
                   </div>
                 </div>
               </div>
-            ))
           )}
         </div>
       )}
@@ -414,7 +338,7 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
           </tr>
         </thead>
         <tbody>
-          {parseItems.map((item: any, idx: number) => (
+          {(invoice.items ?? []).map((item, idx) => (
             <tr key={idx}>
               <td>{item.product_name}</td>
               <td className="mono" style={{ textAlign: "center" }}>
@@ -482,23 +406,7 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
         </div>
       </div>
 
-      {settledInvoicesInfo && settledInvoicesInfo.notes && (
-        <div
-          style={{
-            background: "#f9f9f9",
-            borderRadius: "4px",
-            marginTop: "16px",
-            padding: "12px",
-          }}
-        >
-          <div style={{ fontWeight: 600, marginBottom: "4px" }}>
-            {t("view.notes")}
-          </div>
-          <div style={{ color: "#666" }}>{settledInvoicesInfo.notes}</div>
-        </div>
-      )}
-
-      {!settledInvoicesInfo && invoice.notes && (
+      {invoice.notes && (
         <div
           style={{
             background: "#f9f9f9",

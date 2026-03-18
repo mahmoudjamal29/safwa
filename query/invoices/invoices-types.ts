@@ -10,6 +10,17 @@ export interface InvoiceLineItem {
 
 export type { InvoiceStatusKey as InvoiceStatus } from '@/lib/constants/statuses'
 
+export interface ResolvedInvoice {
+  id: string
+  invoice_number: string
+  invoice_date: string
+  subtotal: number
+  discount_percent: number
+  discount_amount: number
+  total: number
+  items: InvoiceLineItem[]
+}
+
 export interface Invoice {
   id: string
   invoice_number: string
@@ -27,6 +38,7 @@ export interface Invoice {
   paid_amount: number
   notes: string | null
   items: InvoiceLineItem[]
+  resolved_invoices: ResolvedInvoice[]
   created_at: string
 }
 

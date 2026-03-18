@@ -13,9 +13,18 @@ export const getAllInvoicesQuery = (params?: Record<string, unknown>) =>
       const from = (page - 1) * perPage
       const to = from + perPage - 1
 
+      const SELECT = `
+        *,
+        invoice_resolutions!resolver_invoice_id(
+          invoices!resolved_invoice_id(
+            id, invoice_number, invoice_date, subtotal, discount_percent, discount_amount, total, items
+          )
+        )
+      `
+
       let query = supabase
         .from('invoices')
-        .select('*', { count: 'exact' })
+        .select(SELECT, { count: 'exact' })
         .order('created_at', { ascending: false })
 
       if (params?.search) {
@@ -28,11 +37,20 @@ export const getAllInvoicesQuery = (params?: Record<string, unknown>) =>
       const { count, data, error } = await query.range(from, to)
       if (error) throw error
 
-      // Parse items JSON for each invoice
-      const parsed = (data ?? []).map(inv => ({
-        ...inv,
-        items: typeof inv.items === 'string' ? JSON.parse(inv.items) : (inv.items ?? [])
-      })) as Invoice[]
+      const parsed = (data ?? []).map(inv => {
+        const resolvedInvoices = ((inv as any).invoice_resolutions ?? [])
+          .map((r: any) => r.invoices)
+          .filter(Boolean)
+          .map((r: any) => ({
+            ...r,
+            items: typeof r.items === 'string' ? JSON.parse(r.items) : (r.items ?? [])
+          }))
+        return {
+          ...inv,
+          items: typeof inv.items === 'string' ? JSON.parse(inv.items) : (inv.items ?? []),
+          resolved_invoices: resolvedInvoices,
+        }
+      }) as Invoice[]
 
       const total = count ?? 0
       return {

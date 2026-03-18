@@ -12,8 +12,9 @@ export function useCreateInvoice() {
     },
     mutationFn: async (payload: CreateInvoicePayload) => {
       const supabase = createClient()
-      const { error } = await supabase.from('invoices').insert(payload)
+      const { data, error } = await supabase.from('invoices').insert(payload).select('id').single()
       if (error) throw error
+      return data as { id: string }
     }
   })
 }
