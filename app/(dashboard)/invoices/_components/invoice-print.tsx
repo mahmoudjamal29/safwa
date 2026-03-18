@@ -50,7 +50,7 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
         fontFamily: isRTL ? '"IBM Plex Sans Arabic", sans-serif' : "monospace",
         margin: "0 auto",
         maxWidth: "210mm",
-        padding: "20px",
+        padding: "12px",
       }}
     >
       <style>{`
@@ -68,142 +68,143 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
             left: 0;
             top: 0;
             width: 100%;
-            padding: 20px;
+            padding: 10px;
           }
         }
-        
+
         .print-invoice .mono {
           font-family: 'IBM Plex Mono', monospace;
         }
-        
+
         .print-invoice table {
           width: 100%;
           border-collapse: collapse;
-          margin: 12px 0;
+          margin: 6px 0;
         }
-        
+
         .print-invoice th, .print-invoice td {
           border: 1px solid #ddd;
-          padding: 6px 8px;
+          padding: 3px 6px;
           text-align: ${isRTL ? "right" : "left"};
-          font-size: 12px;
+          font-size: 10px;
         }
-        
+
         .print-invoice th {
           background-color: #f5f5f5;
           font-weight: 600;
         }
-        
+
         .print-invoice .header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 24px;
-          padding-bottom: 16px;
+          margin-bottom: 12px;
+          padding-bottom: 8px;
           border-bottom: 2px solid #333;
         }
-        
+
         .print-invoice .company-info {
           text-align: ${isRTL ? "right" : "left"};
         }
-        
+
         .print-invoice .invoice-title {
-          font-size: 24px;
+          font-size: 18px;
           font-weight: 700;
-          margin-bottom: 8px;
+          margin-bottom: 4px;
         }
-        
+
         .print-invoice .invoice-number {
-          font-size: 14px;
+          font-size: 11px;
           color: #666;
         }
-        
+
         .print-invoice .info-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 16px;
-          margin: 16px 0;
+          gap: 8px;
+          margin: 8px 0;
         }
-        
+
         .print-invoice .info-box {
           background: #f9f9f9;
-          padding: 12px;
+          padding: 6px 8px;
           border-radius: 4px;
         }
-        
+
         .print-invoice .info-label {
-          font-size: 12px;
+          font-size: 10px;
           color: #666;
-          margin-bottom: 4px;
+          margin-bottom: 2px;
         }
-        
+
         .print-invoice .info-value {
-          font-size: 14px;
+          font-size: 12px;
           font-weight: 500;
         }
-        
+
         .print-invoice .status-badge {
           display: inline-block;
-          padding: 4px 12px;
+          padding: 2px 8px;
           border-radius: 4px;
-          font-size: 12px;
+          font-size: 10px;
           font-weight: 600;
         }
-        
+
         .print-invoice .status-paid { background: #d1fae5; color: #065f46; }
         .print-invoice .status-partial { background: #fef3c7; color: #92400e; }
         .print-invoice .status-pending { background: #dbeafe; color: #1e40af; }
         .print-invoice .status-cancelled { background: #f3f4f6; color: #6b7280; }
-        
+
         .print-invoice .totals-section {
-          margin-top: 24px;
+          margin-top: 12px;
           text-align: ${isRTL ? "left" : "right"};
         }
-        
+
         .print-invoice .totals-table {
           display: inline-block;
-          min-width: 280px;
+          min-width: 220px;
         }
-        
+
         .print-invoice .totals-row {
           display: flex;
           justify-content: space-between;
-          padding: 6px 0;
+          padding: 3px 0;
           border-bottom: 1px solid #eee;
+          font-size: 11px;
         }
-        
+
         .print-invoice .totals-row.grand-total {
           border-top: 2px solid #333;
           border-bottom: none;
-          font-size: 18px;
+          font-size: 14px;
           font-weight: 700;
-          padding-top: 12px;
-          margin-top: 8px;
+          padding-top: 6px;
+          margin-top: 4px;
         }
-        
+
         .print-invoice .footer {
-          margin-top: 48px;
-          padding-top: 16px;
+          margin-top: 24px;
+          padding-top: 8px;
           border-top: 1px solid #ddd;
-          font-size: 12px;
+          font-size: 10px;
           color: #666;
           text-align: center;
         }
-        
+
         .print-invoice .negative {
           color: #dc2626;
         }
-        
+
         .print-invoice .positive {
           color: #059669;
         }
-        
+
         .print-invoice .section-title {
-          font-size: 14px;
+          font-size: 11px;
           font-weight: 700;
-          margin-top: 24px;
-          margin-bottom: 8px;
-          padding-bottom: 8px;
+          margin-top: 12px;
+          margin-bottom: 4px;
+          padding-bottom: 4px;
           border-bottom: 1px solid #ddd;
         }
       `}</style>
@@ -251,30 +252,30 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
         <div
           style={{
             background: "#fef3c7",
-            border: "2px solid #f59e0b",
+            border: "1px solid #f59e0b",
             borderRadius: "4px",
-            marginTop: "24px",
-            padding: "16px",
+            marginTop: "12px",
+            padding: "8px",
           }}
         >
           <div
-            style={{ color: "#92400e", fontWeight: 700, marginBottom: "8px" }}
+            style={{ color: "#92400e", fontWeight: 700, marginBottom: "4px", fontSize: "11px" }}
           >
             {t("form.settledInvoicesNote")}
           </div>
-          <div style={{ color: "#78350f", fontSize: "12px", marginBottom: "12px" }}>
+          <div style={{ color: "#78350f", fontSize: "10px", marginBottom: "6px" }}>
             {isRTL
               ? "تم تسوية الفواتير التالية في هذه الفاتورة"
               : "The following invoices have been settled in this invoice"}
           </div>
 
           {resolvedInvoices.map((settledInv) => (
-              <div key={settledInv.id} style={{ background: "#fff", borderRadius: "4px", marginBottom: "16px", padding: "12px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                  <div style={{ fontWeight: 600 }}>
+              <div key={settledInv.id} style={{ background: "#fff", borderRadius: "4px", marginBottom: "8px", padding: "6px 8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <div style={{ fontWeight: 600, fontSize: "11px" }}>
                     {t("view.title")} #{settledInv.invoice_number}
                   </div>
-                  <div style={{ color: "#666", fontSize: "12px" }}>
+                  <div style={{ color: "#666", fontSize: "10px" }}>
                     {fmtDate(settledInv.invoice_date)}
                   </div>
                 </div>
@@ -302,18 +303,18 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
                     ))}
                   </tbody>
                 </table>
-                <div style={{ marginTop: "8px", borderTop: "1px solid #eee", paddingTop: "8px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", padding: "2px 0" }}>
+                <div style={{ marginTop: "4px", borderTop: "1px solid #eee", paddingTop: "4px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", padding: "1px 0" }}>
                     <span style={{ color: "#666" }}>{t("view.subtotal")}</span>
                     <span className="mono">{fmtCurrency(settledInv.subtotal)}</span>
                   </div>
                   {(settledInv.discount_percent ?? 0) > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", padding: "2px 0", color: "#dc2626" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", padding: "1px 0", color: "#dc2626" }}>
                       <span>{t("view.discount")} ({settledInv.discount_percent}%)</span>
                       <span className="mono">- {fmtCurrency(settledInv.discount_amount)}</span>
                     </div>
                   )}
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: 700, padding: "4px 0", borderTop: "1px solid #ddd", marginTop: "4px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: 700, padding: "3px 0", borderTop: "1px solid #ddd", marginTop: "2px" }}>
                     <span>{t("view.grandTotal")}</span>
                     <span className="mono">{fmtCurrency(settledInv.total)}</span>
                   </div>
@@ -389,7 +390,7 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
         </div>
       </div>
 
-      <div className="info-grid" style={{ marginTop: "24px" }}>
+      <div className="info-grid" style={{ marginTop: "12px" }}>
         <div className="info-box">
           <div className="info-label">{t("view.paid")}</div>
           <div className="info-value positive mono">
@@ -411,20 +412,20 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
           style={{
             background: "#f9f9f9",
             borderRadius: "4px",
-            marginTop: "16px",
-            padding: "12px",
+            marginTop: "8px",
+            padding: "6px 8px",
           }}
         >
-          <div style={{ fontWeight: 600, marginBottom: "4px" }}>
+          <div style={{ fontWeight: 600, marginBottom: "2px", fontSize: "11px" }}>
             {t("view.notes")}
           </div>
-          <div style={{ color: "#666" }}>{invoice.notes}</div>
+          <div style={{ color: "#666", fontSize: "10px" }}>{invoice.notes}</div>
         </div>
       )}
 
       {payments.length > 0 && (
-        <div style={{ marginTop: "24px" }}>
-          <div style={{ fontWeight: 600, marginBottom: "8px" }}>
+        <div style={{ marginTop: "12px" }}>
+          <div style={{ fontWeight: 600, marginBottom: "4px", fontSize: "11px" }}>
             {t("view.paymentHistory")}
           </div>
           <table>
