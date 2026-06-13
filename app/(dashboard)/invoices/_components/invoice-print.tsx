@@ -211,7 +211,9 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
 
       <div className="header">
         <div className="company-info">
-          <div className="invoice-title mono">{isRTL ? "Safwa" : "SAFWA"}</div>
+          <div className="invoice-title">الصفوة لتجارة المواد الغذائية</div>
+          <div style={{ fontSize: "10px", color: "#555", marginTop: "3px" }}>أبو دنقاش - أبشواي - الفيوم</div>
+          <div style={{ fontSize: "10px", color: "#555", marginTop: "1px" }}>01005828684 | 01097280644</div>
         </div>
         <div style={{ textAlign: isRTL ? "left" : "right" }}>
           <div className="invoice-number mono">
@@ -248,81 +250,19 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
         </div>
       </div>
 
-      {resolvedInvoices.length > 0 && (
-        <div
-          style={{
-            background: "#fef3c7",
-            border: "1px solid #f59e0b",
-            borderRadius: "4px",
-            marginTop: "12px",
-            padding: "8px",
-          }}
-        >
-          <div
-            style={{ color: "#92400e", fontWeight: 700, marginBottom: "4px", fontSize: "11px" }}
-          >
-            {t("form.settledInvoicesNote")}
+      {resolvedInvoices.length > 0 && (() => {
+        const previousBalance = resolvedInvoices.reduce((sum, inv) => sum + inv.total, 0);
+        return (
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: "4px", marginTop: "8px", padding: "6px 8px" }}>
+            <span style={{ color: "#92400e", fontWeight: 600 }}>
+              {isRTL ? "رصيد سابق" : "Previous Balance"}
+            </span>
+            <span className="mono" style={{ color: "#92400e", fontWeight: 700 }}>
+              {fmtCurrency(previousBalance)}
+            </span>
           </div>
-          <div style={{ color: "#78350f", fontSize: "10px", marginBottom: "6px" }}>
-            {isRTL
-              ? "تم تسوية الفواتير التالية في هذه الفاتورة"
-              : "The following invoices have been settled in this invoice"}
-          </div>
-
-          {resolvedInvoices.map((settledInv) => (
-              <div key={settledInv.id} style={{ background: "#fff", borderRadius: "4px", marginBottom: "8px", padding: "6px 8px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                  <div style={{ fontWeight: 600, fontSize: "11px" }}>
-                    {t("view.title")} #{settledInv.invoice_number}
-                  </div>
-                  <div style={{ color: "#666", fontSize: "10px" }}>
-                    {fmtDate(settledInv.invoice_date)}
-                  </div>
-                </div>
-                <table>
-                  <thead>
-                    <tr>
-                      <th style={{ width: "35%" }}>{t("lineItems.product")}</th>
-                      <th style={{ textAlign: "center", width: "15%" }}>{t("view.sellBy")}</th>
-                      <th style={{ textAlign: "right", width: "15%" }}>{t("lineItems.qty")}</th>
-                      <th style={{ textAlign: "right", width: "17%" }}>{t("lineItems.unitPrice")}</th>
-                      <th style={{ textAlign: "right", width: "18%" }}>{t("lineItems.total")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {settledInv.items?.map((item: any, idx: number) => (
-                      <tr key={idx}>
-                        <td>{item.product_name}</td>
-                        <td className="mono" style={{ textAlign: "center" }}>
-                          {item.sell_by === "unit" ? t("view.unit") : t("view.piece")}
-                        </td>
-                        <td className="mono" style={{ textAlign: "right" }}>{item.qty}</td>
-                        <td className="mono" style={{ textAlign: "right" }}>{fmtCurrency(item.price)}</td>
-                        <td className="mono" style={{ textAlign: "right" }}>{fmtCurrency(item.total)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div style={{ marginTop: "4px", borderTop: "1px solid #eee", paddingTop: "4px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", padding: "1px 0" }}>
-                    <span style={{ color: "#666" }}>{t("view.subtotal")}</span>
-                    <span className="mono">{fmtCurrency(settledInv.subtotal)}</span>
-                  </div>
-                  {(settledInv.discount_percent ?? 0) > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", padding: "1px 0", color: "#dc2626" }}>
-                      <span>{t("view.discount")} ({settledInv.discount_percent}%)</span>
-                      <span className="mono">- {fmtCurrency(settledInv.discount_amount)}</span>
-                    </div>
-                  )}
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: 700, padding: "3px 0", borderTop: "1px solid #ddd", marginTop: "2px" }}>
-                    <span>{t("view.grandTotal")}</span>
-                    <span className="mono">{fmtCurrency(settledInv.total)}</span>
-                  </div>
-                </div>
-              </div>
-          ))}
-        </div>
-      )}
+        );
+      })()}
 
       <div className="section-title">
         {t("view.lineItems")}
@@ -408,46 +348,9 @@ export function InvoicePrint({ invoice, payments = [] }: InvoicePrintProps) {
       </div>
 
       {invoice.notes && (
-        <div
-          style={{
-            background: "#f9f9f9",
-            borderRadius: "4px",
-            marginTop: "8px",
-            padding: "6px 8px",
-          }}
-        >
-          <div style={{ fontWeight: 600, marginBottom: "2px", fontSize: "11px" }}>
-            {t("view.notes")}
-          </div>
-          <div style={{ color: "#666", fontSize: "10px" }}>{invoice.notes}</div>
-        </div>
-      )}
-
-      {payments.length > 0 && (
-        <div style={{ marginTop: "12px" }}>
-          <div style={{ fontWeight: 600, marginBottom: "4px", fontSize: "11px" }}>
-            {t("view.paymentHistory")}
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>{t("view.date")}</th>
-                <th>{t("view.amount")}</th>
-                <th>{t("view.method")}</th>
-                <th>{t("view.note")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments?.map((p) => (
-                <tr key={p.id}>
-                  <td className="mono">{fmtDate(p.created_at)}</td>
-                  <td className="mono positive">{fmtCurrency(p.amount)}</td>
-                  <td>{p.method}</td>
-                  <td style={{ color: "#666" }}>{p.note ?? "-"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div style={{ fontSize: "10px", color: "#666", marginTop: "8px", borderTop: "1px solid #eee", paddingTop: "6px" }}>
+          <span style={{ fontWeight: 600, color: "#333" }}>{t("view.notes")}: </span>
+          {invoice.notes}
         </div>
       )}
 
