@@ -120,7 +120,10 @@ export function NewInvoiceForm() {
         discount_percent: discountPercent,
         invoice_date: value.invoice_date,
         invoice_number: invoiceNumber,
-        items: JSON.stringify(items),
+        items: JSON.stringify(items.map(item => ({
+          ...item,
+          price: item.unit_price,
+        }))),
         notes: value.notes || undefined,
         paid_amount: paidAmount,
         status,
@@ -182,6 +185,11 @@ export function NewInvoiceForm() {
       onSubmit={(e) => {
         e.preventDefault();
         form.handleSubmit();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") {
+          e.preventDefault();
+        }
       }}
       className="flex flex-col gap-5"
     >
